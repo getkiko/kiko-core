@@ -288,10 +288,9 @@ func (s *strictReader) fail(m *strictMsg, err error) (*strictMsg, error) {
 }
 
 func (s *strictReader) fixed(m *strictMsg, length int64) error {
-	m.body = make([]byte, length)
-	n, err := io.ReadFull(s.r, m.body)
-	m.body = m.body[:n]
-	if err != nil {
+	// Read what is there: a declared length of 10^13 must not allocate 10^13 bytes.
+	m.body, _ = io.ReadAll(io.LimitReader(s.r, length))
+	if int64(len(m.body)) != length {
 		return errIncomplete
 	}
 	return nil
@@ -321,10 +320,9 @@ func (s *strictReader) chunked(m *strictMsg) error {
 			m.trailers = trailers
 			return err
 		}
-		data := make([]byte, n)
-		read, err := io.ReadFull(s.r, data)
-		m.body = append(m.body, data[:read]...)
-		if err != nil {
+		data, _ := io.ReadAll(io.LimitReader(s.r, int64(n)))
+		m.body = append(m.body, data...)
+		if uint64(len(data)) != n {
 			return errIncomplete
 		}
 		end, err := s.line(false)

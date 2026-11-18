@@ -17,6 +17,7 @@ import (
 	"net/http/httptest"
 	"net/http/httptrace"
 	"net/textproto"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -909,7 +910,13 @@ func TestSlowClientWindow(t *testing.T) {
 		}
 	}
 	// Client window + proxy copy buffer + upstream stream window + framing slack.
-	limit := int64(clientWindow + copyBufferSize + streamWindow + 128<<10)
+	upstreamWindow := int64(streamWindow)
+	if os.Getenv("MITM_H2_PROFILE") == ProfileChrome {
+		// Chrome's 6 MiB stream window; the memory the relay keeps stays capped
+		// by chromeBufferCap (see TestChromeBufferCap).
+		upstreamWindow = chromeStreamWindow
+	}
+	limit := int64(clientWindow+copyBufferSize+128<<10) + upstreamWindow
 	t.Logf("origin wrote %d bytes against a %d byte limit", last, limit)
 	if last > limit {
 		t.Fatalf("origin wrote %d bytes into a stalled stream (limit %d)", last, limit)

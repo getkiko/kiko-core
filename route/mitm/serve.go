@@ -110,7 +110,14 @@ func (e *Engine) serve(ctx context.Context, conn net.Conn, upstream net.Conn, re
 		// upstreamTLS is how long the upstream handshake took.
 		upstreamTLS time.Duration
 	)
-	client := &handshakeConn{Conn: conn}
+	// The client's ClientHello is kept only when the upstream one mirrors it.
+	var helloRecord *helloCapture
+	clientBase := conn
+	if config.upstream.mirrorHello {
+		helloRecord = &helloCapture{Conn: conn}
+		clientBase = helloRecord
+	}
+	client := &handshakeConn{Conn: clientBase}
 	clientConn := tls.Server(client, &tls.Config{
 		MinVersion: tls.VersionTLS12,
 		Time:       e.timeFunc,
@@ -120,6 +127,7 @@ func (e *Engine) serve(ctx context.Context, conn net.Conn, upstream net.Conn, re
 			// The client is not read meanwhile: watch it, so that its close or an
 			// interrupt cancels the upstream handshake.
 			upstreamCtx, upstreamCancel := context.WithCancel(hello.Context())
+			upstreamCtx = clientHelloContext(upstreamCtx, helloRecord.snapshot())
 			stopWatch := client.watch(upstreamCancel)
 			offer := offerProtocols(hello.SupportedProtos, config.h2)
 			if len(offer) == 0 {
@@ -206,6 +214,8 @@ func (e *Engine) serve(ctx context.Context, conn net.Conn, upstream net.Conn, re
 		connection = connectionInfo(metadata, state, serverName)
 		observer = &timedObserver{Observer: observer, connect: state.ConnectDuration(), tls: upstreamTLS}
 	}
+	// A redialed upstream mirrors the same ClientHello.
+	mirrored := helloRecord.snapshot()
 	var requested atomic.Bool
 	onRequest := func() {
 		state.AddRequest()
@@ -224,10 +234,12 @@ func (e *Engine) serve(ctx context.Context, conn net.Conn, upstream net.Conn, re
 			Rewrite:    e.rewriteSet,
 			Internal:   e.internalDialer(metadata),
 			Scripts:    e.scriptsFor(metadata),
+
+			UpstreamProfile: h2Profile(config),
 		}
 		if redial != nil {
 			options.Redial = func(ctx context.Context) (net.Conn, error) {
-				return e.redialUpstream(ctx, redial, serverName, port, []string{protocolH2})
+				return e.redialUpstream(clientHelloContext(ctx, mirrored), redial, serverName, port, []string{protocolH2})
 			}
 		}
 		err = h2.Serve(ctx, clientConn, upstreamConn, options)
@@ -246,7 +258,7 @@ func (e *Engine) serve(ctx context.Context, conn net.Conn, upstream net.Conn, re
 	}
 	if redial != nil {
 		options.Redial = func(ctx context.Context) (net.Conn, error) {
-			return e.redialUpstream(ctx, redial, serverName, port, []string{protocolHTTP1})
+			return e.redialUpstream(clientHelloContext(ctx, mirrored), redial, serverName, port, []string{protocolHTTP1})
 		}
 	}
 	err = h1.Serve(ctx, clientConn, upstreamConn, options)

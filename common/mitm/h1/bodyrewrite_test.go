@@ -755,3 +755,60 @@ func TestBodyLargeMessageWithinBudget(t *testing.T) {
 	h.client.Close()
 	h.wait()
 }
+
+const credentialHead = "Cookie: sid=1\r\nAuthorization: Bearer t\r\nProxy-Authorization: Basic x\r\n"
+
+func TestInternalRewriteToOtherOriginDropsCredentials(t *testing.T) {
+	set := compileSet(t, option.MITMHTTPRewriteOptions{
+		URL: []option.MITMURLRewriteRule{internalRule("i1", `^https://a/old`, "https://b.example/new")},
+		Headers: []option.MITMHeaderRewriteRule{{
+			ID: "h1", Pattern: `^https://b\.example/`, Scope: "request",
+			Operations: []option.MITMHeaderRewriteEdit{{Action: "add", Name: "Authorization", Value: "Bearer rule"}},
+		}},
+	})
+	dial, conns, _ := internalDialer(t)
+	options := rewriteOptions(nil, set)
+	options.Internal = dial
+	h := newHarnessOptions(t, options)
+	h.send("GET /old HTTP/1.1\r\nHost: a\r\nX-Keep: 1\r\n" + credentialHead + "\r\n")
+	extConn := <-conns
+	// Credentials of the client are gone; a header the rules add for the new URL stays.
+	expect(t, "internal", bufio.NewReader(extConn), "GET /new HTTP/1.1\r\nHost: b.example\r\nX-Keep: 1\r\nAuthorization: Bearer rule\r\n\r\n")
+	io.WriteString(extConn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
+	h.expectClient("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
+	h.client.Close()
+	h.wait()
+}
+
+func TestInternalRewriteDifferentPortDropsCredentials(t *testing.T) {
+	set := compileSet(t, option.MITMHTTPRewriteOptions{
+		URL: []option.MITMURLRewriteRule{internalRule("i1", `^https://a/old`, "https://a:8443/new")},
+	})
+	dial, conns, _ := internalDialer(t)
+	options := rewriteOptions(nil, set)
+	options.Internal = dial
+	h := newHarnessOptions(t, options)
+	h.send("GET /old HTTP/1.1\r\nHost: a\r\n" + credentialHead + "\r\n")
+	extConn := <-conns
+	expect(t, "internal", bufio.NewReader(extConn), "GET /new HTTP/1.1\r\nHost: a:8443\r\n\r\n")
+	io.WriteString(extConn, "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
+	h.expectClient("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nhi")
+	h.client.Close()
+	h.wait()
+}
+
+func TestInternalRewriteSameOriginKeepsCredentials(t *testing.T) {
+	set := compileSet(t, option.MITMHTTPRewriteOptions{
+		URL: []option.MITMURLRewriteRule{internalRule("i1", `^https://a/old`, "https://A/new")},
+	})
+	dial, _, _ := internalDialer(t)
+	options := rewriteOptions(nil, set)
+	options.Internal = dial
+	h := newHarnessOptions(t, options)
+	h.send("GET /old HTTP/1.1\r\nHost: a\r\n" + credentialHead + "\r\n")
+	h.expectUpstream("GET /new HTTP/1.1\r\nHost: a\r\n" + credentialHead + "\r\n")
+	h.reply("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+	h.expectClient("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+	h.client.Close()
+	h.wait()
+}

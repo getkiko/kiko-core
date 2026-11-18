@@ -509,3 +509,65 @@ func TestInternalRewriteOriginsPerSessionAreBounded(t *testing.T) {
 		}
 	}
 }
+
+func TestInternalRewriteCredentials(t *testing.T) {
+	for _, tc := range []struct {
+		name, target string
+		keep         bool
+	}{
+		{"other host", "https://other.example/new", false},
+		{"other port", "https://example.test:8443/new", false},
+		{"same origin", "https://EXAMPLE.test/new", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			set := compileSet(t, option.MITMHTTPRewriteOptions{
+				URL: []option.MITMURLRewriteRule{{ID: "i1", Pattern: `^https://example\.test/old`, Action: "header", Target: tc.target}},
+			})
+			seen := make(chan http.Header, 2)
+			record := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				seen <- r.Header.Clone()
+				w.Write([]byte("ok"))
+			})
+			internal := httptest.NewTLSServer(record)
+			t.Cleanup(internal.Close)
+			_, e := httpProxy(t, record, func(o *Options) {
+				o.Rewrite = func() *rewrite.Set { return set }
+				o.Internal = func(ctx context.Context, in *rewrite.Internal) (net.Conn, error) {
+					var d net.Dialer
+					raw, err := d.DialContext(ctx, "tcp", internal.Listener.Addr().String())
+					if err != nil {
+						return nil, err
+					}
+					conn := tls.Client(raw, &tls.Config{InsecureSkipVerify: true, ServerName: in.Host, NextProtos: []string{"http/1.1"}})
+					if err := conn.HandshakeContext(ctx); err != nil {
+						raw.Close()
+						return nil, err
+					}
+					return conn, nil
+				}
+			})
+			req, err := http.NewRequest("GET", e.url("/old"), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Cookie", "sid=1")
+			req.Header.Set("Authorization", "Bearer t")
+			req.Header.Set("Proxy-Authorization", "Basic x")
+			req.Header.Set("X-Keep", "1")
+			resp, err := e.client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			readAll(t, resp.Body)
+			h := <-seen
+			if h.Get("X-Keep") != "1" {
+				t.Fatalf("lost ordinary header: %v", h)
+			}
+			for _, name := range []string{"Cookie", "Authorization", "Proxy-Authorization"} {
+				if (h.Get(name) != "") != tc.keep {
+					t.Fatalf("%s present=%v want %v: %v", name, h.Get(name) != "", tc.keep, h)
+				}
+			}
+		})
+	}
+}

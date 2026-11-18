@@ -80,6 +80,8 @@ type Engine struct {
 	// controlPorts are the ports of the core's own control APIs on loopback; see
 	// SetControlEndpoints.
 	controlPorts atomic.Pointer[[]int]
+	// listenPorts are the ports of the core's inbounds and services; see SetListenPorts.
+	listenPorts atomic.Pointer[[]int]
 }
 
 // compiledConfig is the immutable configuration Decide and Serve read with
@@ -101,6 +103,8 @@ type compiledConfig struct {
 	upstream     upstreamConfig
 	// rewrite is the compiled mitm.http_rewrite rule set; never nil.
 	rewrite *rewrite.Set
+	// protectedPorts is http_rewrite.protected_ports.
+	protectedPorts []int
 }
 
 type fileAuthorityKey struct {
@@ -158,6 +162,7 @@ func (e *Engine) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 func (e *Engine) Close() error {
 	e.closeCancel()
 	e.scripts.Close()
+	e.capture.Close()
 	return nil
 }
 
@@ -214,9 +219,16 @@ func (e *Engine) Reload(options *option.MITMOptions) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	rewriteSet.SetInternalGuard(e.denyInternal)
+	var protected []int
+	if mitmOptions.HTTPRewrite != nil {
+		for _, port := range mitmOptions.HTTPRewrite.ProtectedPorts {
+			protected = append(protected, int(port))
+		}
+	}
+	rewriteSet.SetInternalGuard(func(host string, port int) bool { return e.denyInternalWith(host, port, protected) })
 	config := &compiledConfig{
 		rewrite:         rewriteSet,
+		protectedPorts:  protected,
 		enabled:         mitmOptions.Enabled,
 		source:          source,
 		matcher:         matcher,
@@ -264,6 +276,15 @@ func (e *Engine) Reload(options *option.MITMOptions) (func(), error) {
 			MaxBody:    captureSettings.MaxBody,
 			MaxMemory:  captureSettings.MaxMemory,
 			MaxRecords: captureSettings.MaxRecords,
+			Persist: capture.PersistOptions{
+				Enabled:       captureSettings.Persist.Enabled,
+				Path:          captureSettings.Persist.Path,
+				MaxBytes:      captureSettings.Persist.MaxBytes,
+				MaxRecords:    captureSettings.Persist.MaxRecords,
+				Retention:     captureSettings.Persist.Retention,
+				Body:          captureSettings.Persist.Body,
+				RedactHeaders: captureSettings.Persist.RedactHeaders,
+			},
 		})
 		if next.enabled {
 			disableCoreDumps(e.logger)

@@ -40,6 +40,7 @@ type ConnectionManager struct {
 	connections    list.List[io.Closer]
 	pinner         adapter.ObjectPinner
 	mitm           adapter.MITMEngine
+	ctx            context.Context
 }
 
 func NewConnectionManager(ctx context.Context, logger logger.ContextLogger) *ConnectionManager {
@@ -47,6 +48,7 @@ func NewConnectionManager(ctx context.Context, logger logger.ContextLogger) *Con
 		logger:         logger,
 		urlTestHistory: service.PtrFromContext[urltest.HistoryStorage](ctx),
 		mitm:           service.FromContext[adapter.MITMEngine](ctx),
+		ctx:            ctx,
 	}
 }
 
@@ -126,6 +128,13 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		remoteConn net.Conn
 		err        error
 	)
+	if metadata.ScriptClient {
+		if refused := m.pinScriptDestination(ctx, this, &metadata); refused != nil {
+			N.CloseOnHandshakeFailure(conn, onClose, refused)
+			m.logger.WarnContext(ctx, refused)
+			return
+		}
+	}
 	if len(metadata.DestinationAddresses) > 0 || metadata.Destination.IsIP() {
 		remoteConn, err = dialer.DialSerialNetwork(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
 	} else {

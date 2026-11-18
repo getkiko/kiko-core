@@ -24,14 +24,18 @@ func (e *Engine) upstreamRoots(config *compiledConfig) *x509.CertPool {
 // the protocols, and returns the negotiated one (empty without ALPN). A host
 // in upstream.skip_verify is not verified.
 func (e *Engine) handshakeStandard(ctx context.Context, config *compiledConfig, conn net.Conn, serverName string, port uint16, protocols []string) (net.Conn, *x509.Certificate, string, error) {
-	tlsConn := tls.Client(conn, &tls.Config{
+	tlsConfig := &tls.Config{
 		ServerName:         serverName,
 		RootCAs:            e.upstreamRoots(config),
-		InsecureSkipVerify: config.upstream.verifySkipped(serverName, port),
+		InsecureSkipVerify: config.upstream.verifySkipped(serverName, port) || config.upstream.appended != nil,
 		Time:               e.timeFunc,
 		NextProtos:         protocols,
 		MinVersion:         tls.VersionTLS12,
-	})
+	}
+	if !config.upstream.verifySkipped(serverName, port) {
+		tlsConfig.VerifyConnection = e.verifyConnection(config)
+	}
+	tlsConn := tls.Client(conn, tlsConfig)
 	err := tlsConn.HandshakeContext(ctx)
 	if err != nil {
 		return nil, nil, "", err

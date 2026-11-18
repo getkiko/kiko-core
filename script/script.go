@@ -64,6 +64,11 @@ const (
 
 	// AllocationLimit is the most bytes one call may allocate (strings, arrays, buffers).
 	AllocationLimit = 64 << 20
+	// ScriptAllocationLimit is the most the concurrent calls of one script may charge together;
+	// GlobalAllocationLimit is the same for all scripts of a Manager. Each is a call limit
+	// shared by the calls running at the moment, not a lifetime total.
+	ScriptAllocationLimit = 2 * AllocationLimit
+	GlobalAllocationLimit = 6 * AllocationLimit
 	// RegexInputLimit is the longest string a collecting regular expression operation (match
 	// with the g flag, matchAll, split, replace with a function) accepts; regexMatchCost is
 	// the allowance charged per input byte for the match objects.

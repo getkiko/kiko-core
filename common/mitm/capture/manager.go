@@ -23,6 +23,8 @@ type Options struct {
 	MaxBody    int64
 	MaxMemory  int64
 	MaxRecords int
+	// Persist writes finished records to disk; off by default.
+	Persist PersistOptions
 }
 
 const (
@@ -30,8 +32,11 @@ const (
 	defaultMaxMemory  = 64 << 20
 	defaultMaxRecords = 5000
 
-	// recordBaseSize estimates a record without strings and headers.
-	recordBaseSize = 768
+	// recordBaseSize estimates a record without strings and headers. It was
+	// measured as the heap growth per record (entry, Record, map and log slots)
+	// minus the strings and headers counted separately; see
+	// TestRecordBaseSizeCalibration.
+	recordBaseSize = 944
 	headerOverhead = 32
 	pollLimit      = 500
 	maxListLimit   = 500
@@ -45,6 +50,8 @@ var (
 	ErrReset = errors.New("capture instance changed")
 	// ErrRange means a body request had a negative offset or length.
 	ErrRange = errors.New("invalid body range")
+	// ErrInProgress means the record has not finished.
+	ErrInProgress = errors.New("record is in progress")
 )
 
 func normalize(o Options) Options {
@@ -75,6 +82,9 @@ type entry struct {
 	req, resp  bodyStore
 	finished   bool
 	evicted    bool
+	// pid and job link the entry to its stored copy; zero when none.
+	pid uint64
+	job *persistJob
 }
 
 // Manager is the capture store. Writers hold one short lock per event; slow
@@ -108,6 +118,17 @@ type Manager struct {
 
 	subMu sync.Mutex
 	subs  map[chan struct{}]struct{}
+
+	// persistMu serializes changes of the on-disk copy; the fields below are
+	// guarded by mu.
+	persistMu      sync.Mutex
+	persist        *persister
+	persistOpts    PersistOptions
+	persistApplied bool
+	persistFailed  bool
+	persistDir     string
+	historyDir     string
+	pidNext        uint64
 }
 
 // New returns a store.
@@ -145,6 +166,11 @@ func (m *Manager) Options() Options {
 // SetOptions applies new settings to future exchanges and trims the store.
 func (m *Manager) SetOptions(options Options) {
 	options = normalize(options)
+	m.setOptions(options)
+	m.applyPersist(options.Persist)
+}
+
+func (m *Manager) setOptions(options Options) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	resize := options.MaxRecords != m.opts.MaxRecords
@@ -290,6 +316,9 @@ func (m *Manager) markFinishedLocked(e *entry) {
 	e.finished = true
 	m.pending--
 	m.finishedQueue = append(m.finishedQueue, e)
+	if m.persist != nil {
+		m.persistFinishedLocked(e)
+	}
 }
 
 // Stats returns the current counters.
@@ -309,6 +338,7 @@ func (m *Manager) statsLocked() Stats {
 		Total:       m.total,
 		Evicted:     m.evicted,
 		BodyDropped: m.bodyDropped,
+		Persist:     m.persistStatsLocked(),
 	}
 }
 

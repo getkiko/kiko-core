@@ -184,9 +184,16 @@ func (l *localAddresses) contains(addr netip.Addr) bool {
 // upstreamConfig is the compiled `upstream` option.
 type upstreamConfig struct {
 	fingerprint string
-	skipVerify  *hostmatch.Matcher
+	// mirrorHello builds the upstream ClientHello from the client's.
+	mirrorHello bool
+	// h2Profile is "chrome" or "" (net/http's client).
+	h2Profile  string
+	skipVerify *hostmatch.Matcher
 	// roots verifies upstream certificates; nil uses the core's roots.
 	roots *x509.CertPool
+	// appended holds only the upstream.custom_roots certificates. It is checked first with
+	// pure Go verification (see verifyUpstream).
+	appended *x509.CertPool
 }
 
 // verifySkipped reports whether the upstream certificate of the host is not
@@ -212,6 +219,14 @@ func (e *Engine) compileUpstream(options option.MITMUpstreamOptions) (upstreamCo
 	default:
 		return config, E.New("unknown upstream fingerprint: ", options.Fingerprint)
 	}
+	config.mirrorHello = options.MirrorClientHello
+	switch options.H2Profile {
+	case "", h2ProfileDefault:
+	case h2ProfileChrome:
+		config.h2Profile = h2ProfileChrome
+	default:
+		return config, E.New("unknown upstream h2 profile: ", options.H2Profile)
+	}
 	var err error
 	config.skipVerify, err = hostmatch.New(options.SkipVerify, nil)
 	if err != nil {
@@ -227,16 +242,18 @@ func (e *Engine) compileUpstream(options option.MITMUpstreamOptions) (upstreamCo
 				pool = x509.NewCertPool()
 			}
 		}
+		appended := x509.NewCertPool()
 		for _, path := range options.CustomRoots {
 			content, err := filemanager.ReadFile(e.ctx, path)
 			if err != nil {
 				return config, E.Cause(err, "read custom root ", path)
 			}
-			if !pool.AppendCertsFromPEM(content) {
+			if !appended.AppendCertsFromPEM(content) || !pool.AppendCertsFromPEM(content) {
 				return config, E.New("custom root ", path, " holds no PEM certificate")
 			}
 		}
 		config.roots = pool
+		config.appended = appended
 	}
 	return config, nil
 }

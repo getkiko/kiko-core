@@ -29,6 +29,9 @@ const (
 	// RuleBreakerPause: its calls fail at once, without running it.
 	RuleBreakerFailures = 5
 	RuleBreakerPause    = 30 * time.Second
+	// RuleSlowFailures consecutive runs that took more than half of the script's timeout trip
+	// the breaker as well: the script is bypassed for RuleBreakerPause.
+	RuleSlowFailures = 8
 
 	maxRuleOutput    = 64 << 10
 	maxDNSAddresses  = 32
@@ -571,18 +574,36 @@ func (m *Manager) runRuleScript(sc *Script, in *RuleInput) ruleRun {
 	default:
 		run.err = "unexpected script action: " + string(res.Action)
 	}
+	slow := run.err == "" && res.Duration > sc.timeoutOrDefault()/2
+	var tripped string
 	st.mu.Lock()
 	switch {
 	case failed:
 		st.ruleFails++
+		st.ruleSlow = 0
 		if st.ruleFails >= RuleBreakerFailures {
 			st.ruleBlocked = now.Add(RuleBreakerPause)
 			st.ruleFails = 0
+			tripped = "failed " + strconv.Itoa(RuleBreakerFailures) + " times in a row"
+		}
+	case slow:
+		st.ruleFails = 0
+		st.ruleSlow++
+		if st.ruleSlow >= RuleSlowFailures {
+			st.ruleBlocked = now.Add(RuleBreakerPause)
+			st.ruleSlow = 0
+			tripped = "was slow " + strconv.Itoa(RuleSlowFailures) + " times in a row"
 		}
 	case run.err == "":
 		st.ruleFails = 0
+		st.ruleSlow = 0
 	}
 	st.mu.Unlock()
+	if tripped != "" {
+		if l := m.logger(); l != nil {
+			l.Log(LogEntry{Script: sc.cfg.Tag, Phase: sc.cfg.Type, LogLine: LogLine{Level: "warn", Message: "bypassed for " + RuleBreakerPause.String() + ": the script " + tripped, Time: now}})
+		}
+	}
 	return run
 }
 

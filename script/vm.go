@@ -122,6 +122,7 @@ type callState struct {
 	nextID   int
 	seq      int
 	charged  int64
+	shared   int64 // part of charged counted in the live totals
 	notified int
 	notifyAt time.Time
 	inputStr string // text form of the body handed to the script
@@ -176,7 +177,34 @@ func (cs *callState) charge(n int64) bool {
 		return true
 	}
 	cs.charged += n
-	return cs.charged <= AllocationLimit
+	if cs.charged > AllocationLimit {
+		return false
+	}
+	return cs.chargeShared(n)
+}
+
+// chargeShared adds n to the live charge of the script (all its concurrent calls) and of the
+// manager (all scripts). The totals are released when the call ends. A call that pushes
+// either total over its limit fails, so one script that runs many calls at once is stopped
+// by its own limit before it can take the memory of the others.
+func (cs *callState) chargeShared(n int64) bool {
+	if cs.sc == nil || cs.sc.state == nil || cs.m == nil {
+		return true
+	}
+	cs.shared += n
+	script := cs.sc.state.liveCharge.Add(n)
+	total := cs.m.liveCharge.Add(n)
+	return script <= ScriptAllocationLimit && total <= GlobalAllocationLimit
+}
+
+// releaseShared gives the call's share of the live charges back.
+func (cs *callState) releaseShared() {
+	if cs.shared == 0 || cs.sc == nil || cs.sc.state == nil || cs.m == nil {
+		return
+	}
+	cs.sc.state.liveCharge.Add(-cs.shared)
+	cs.m.liveCharge.Add(-cs.shared)
+	cs.shared = 0
 }
 
 // vmEntry is one runtime of a script's pool.
@@ -972,6 +1000,7 @@ func (m *Manager) execute(ctx context.Context, sc *Script, in *Input, opts runOp
 	defer func() {
 		cs.cancelHTTP()
 		cs.finish()
+		cs.releaseShared()
 		e.rt.ClearInterrupt()
 		e.cleanup()
 		e.uses++

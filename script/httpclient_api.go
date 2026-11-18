@@ -16,7 +16,11 @@ import (
 const (
 	// MaxHTTPConcurrent is the most requests in flight at once across all scripts of a
 	// Manager; a request that cannot get a place within httpSlotWait fails.
-	MaxHTTPConcurrent = 64
+	MaxHTTPConcurrent = 32
+	// MaxHTTPMemory bounds the response bytes all in-flight requests of a Manager may hold at
+	// once: every request reserves its response limit (at most MaxHTTPResponse) before it
+	// starts, so the worst case stays near this value instead of slots x 8 MiB.
+	MaxHTTPMemory     = 128 << 20
 	maxHTTPURL        = 8 << 10
 	maxHTTPHeaderSize = 64 << 10
 	maxHTTPOutbound   = 256
@@ -399,6 +403,19 @@ func (m *Manager) httpDo(ctx context.Context, client HTTPClient, item *httpItem,
 		wait.Stop()
 		item.errText = "canceled"
 		return
+	}
+	if m.httpMemory != nil {
+		acquire, stop := context.WithTimeout(ctx, httpSlotWait)
+		err := m.httpMemory.Acquire(acquire, item.req.MaxResponse)
+		stop()
+		if err != nil {
+			item.errText = "too many concurrent requests"
+			if ctx.Err() != nil {
+				item.errText = "canceled"
+			}
+			return
+		}
+		defer m.httpMemory.Release(item.req.MaxResponse)
 	}
 	rctx, cancel := context.WithTimeout(ctx, item.req.Timeout)
 	defer cancel()

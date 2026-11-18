@@ -15,6 +15,7 @@ import (
 
 	"github.com/dop251/goja"
 	E "github.com/sagernet/sing/common/exceptions"
+	"golang.org/x/sync/semaphore"
 )
 
 // Script is one compiled script.
@@ -65,6 +66,15 @@ type scriptState struct {
 	// of rulescript.go lets the script run again.
 	ruleFails   int
 	ruleBlocked time.Time
+	// ruleSlow counts consecutive successful runs that took more than half of the script's
+	// timeout; RuleSlowFailures of them trip the same breaker (a script that answers just
+	// inside its limit delays every query as much as one that times out).
+	ruleSlow int
+	// liveCharge is the allocation charge of the calls of this script that are running.
+	liveCharge atomic.Int64
+	// storeAt and storeWrites are the window of allowStoreWrite.
+	storeAt     time.Time
+	storeWrites int
 	// running is set while a cron script runs, so that a tick or a manual run does not overlap.
 	running atomic.Bool
 }
@@ -80,6 +90,25 @@ func (st *scriptState) allowNotification(now time.Time) bool {
 		return false
 	}
 	st.notified++
+	return true
+}
+
+// MaxStoreWritesPerMinute is the most $persistentStore writes (and removals) one script may
+// make per minute: every write of the persistent store is a synchronous, fsynced database
+// commit, which a loop must not turn into a stream of disk flushes.
+const MaxStoreWritesPerMinute = 600
+
+// allowStoreWrite applies the per-script rate limit of store writes.
+func (st *scriptState) allowStoreWrite(now time.Time) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if now.Sub(st.storeAt) > time.Minute {
+		st.storeAt, st.storeWrites = now, 0
+	}
+	if st.storeWrites >= MaxStoreWritesPerMinute {
+		return false
+	}
+	st.storeWrites++
 	return true
 }
 
@@ -234,6 +263,10 @@ type Manager struct {
 	started   bool      // set by StartSchedule; cron scripts do not run before
 	cronClock cronClock // tests
 	httpSlots chan struct{}
+	// httpMemory is the response-byte budget of the in-flight $httpClient requests.
+	httpMemory *semaphore.Weighted
+	// liveCharge is the allocation charge of all running calls.
+	liveCharge atomic.Int64
 
 	// Rule and dns scripts: own slots, the cache of outcomes, and a context that ends with
 	// Close, so that no run outlives the manager.
@@ -257,7 +290,7 @@ func NewManager(opts ManagerOptions) *Manager {
 	if n <= 0 {
 		n = 2 * runtime.GOMAXPROCS(0)
 	}
-	m := &Manager{slots: make(chan struct{}, n), memory: NewMemoryStore(), httpSlots: make(chan struct{}, MaxHTTPConcurrent)}
+	m := &Manager{slots: make(chan struct{}, n), memory: NewMemoryStore(), httpSlots: make(chan struct{}, MaxHTTPConcurrent), httpMemory: semaphore.NewWeighted(MaxHTTPMemory)}
 	m.ruleSlots = make(chan struct{}, n)
 	m.ruleCache = newRuleCache()
 	m.life, m.lifeCancel = context.WithCancel(context.Background())

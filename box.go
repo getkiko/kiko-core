@@ -242,6 +242,7 @@ func New(options Options) (*Box, error) {
 	}
 	commitScripts()
 	mitmEngine.SetControlEndpoints(controlEndpoints(experimentalOptions)...)
+	mitmEngine.SetListenPorts(listenPorts(options.Options)...)
 	service.MustRegister[adapter.MITMEngine](ctx, mitmEngine)
 	internalServices = append(internalServices, mitmEngine)
 	netnsManager, err := netns.NewManager(logFactory.NewLogger("netns"), options.NetworkNamespaces, options.NetworkNamespaceHolderArgs)

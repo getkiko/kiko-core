@@ -127,3 +127,10 @@ func TrailerAllowed(name string) bool {
 func FilterTrailer(h Header) Header {
 	return h.filter(func(field *Field) bool { return TrailerAllowed(field.Name) })
 }
+
+// CredentialHeaders authenticate the client to its origin. An internal rewrite to another
+// origin must not hand them to it (Referer and Origin stay: they carry no credential).
+var CredentialHeaders = []string{
+	"Cookie", "Cookie2", "Authorization", "Proxy-Authorization",
+	"X-API-Key", "X-CSRF-Token", "X-XSRF-Token", "X-Auth-Token", "X-Access-Token",
+}

@@ -60,6 +60,10 @@ func (e *vmEntry) installAPI(m *Manager, sc *Script) {
 			e.log("warn", "$persistentStore.write: value larger than 1 MiB")
 			return rt.ToValue(false)
 		}
+		if !cs.dry && !cs.sc.state.allowStoreWrite(time.Now()) {
+			e.log("warn", "$persistentStore.write: rate limit reached")
+			return rt.ToValue(false)
+		}
 		ns, k := nsKey(key)
 		if err := cs.store.Set(ns, k, text); err != nil {
 			e.log("warn", "$persistentStore.write: "+err.Error())
@@ -71,6 +75,10 @@ func (e *vmEntry) installAPI(m *Manager, sc *Script) {
 		cs := e.cs
 		key := call.Argument(0).String()
 		if cs == nil || !validKey(key) {
+			return rt.ToValue(false)
+		}
+		if !cs.dry && !cs.sc.state.allowStoreWrite(time.Now()) {
+			e.log("warn", "$persistentStore.remove: rate limit reached")
 			return rt.ToValue(false)
 		}
 		ns, k := nsKey(key)

@@ -245,6 +245,37 @@ func (s *httpCaptureServer) GetStatus(context.Context, *emptypb.Empty) (*mitmapi
 	return s.captureStatus(manager, manager.Stats()), nil
 }
 
+func (s *httpCaptureServer) DeleteRecord(_ context.Context, request *mitmapi.DeleteRecordRequest) (*mitmapi.CaptureStatus, error) {
+	manager, err := s.manager()
+	if err != nil {
+		return nil, err
+	}
+	if request.Instance != "" && request.Instance != manager.Instance() {
+		return nil, status.Error(codes.FailedPrecondition, "capture instance changed")
+	}
+	switch err = manager.Delete(request.Id); {
+	case err == nil:
+	case errors.Is(err, capture.ErrNotFound):
+		return nil, status.Error(codes.NotFound, "record not found")
+	case errors.Is(err, capture.ErrInProgress):
+		return nil, status.Error(codes.FailedPrecondition, "record is in progress")
+	default:
+		return nil, status.Error(codes.Internal, "stored copy could not be updated")
+	}
+	return s.captureStatus(manager, manager.Stats()), nil
+}
+
+func (s *httpCaptureServer) PurgePersisted(context.Context, *emptypb.Empty) (*mitmapi.CaptureStatus, error) {
+	manager, err := s.manager()
+	if err != nil {
+		return nil, err
+	}
+	if err = manager.PurgePersisted(); err != nil {
+		return nil, status.Error(codes.Internal, "stored files could not be removed")
+	}
+	return s.captureStatus(manager, manager.Stats()), nil
+}
+
 func (s *httpCaptureServer) captureStatus(manager *capture.Manager, stats capture.Stats) *mitmapi.CaptureStatus {
 	options := manager.Options()
 	return &mitmapi.CaptureStatus{
@@ -259,6 +290,14 @@ func (s *httpCaptureServer) captureStatus(manager *capture.Manager, stats captur
 		Total:        stats.Total,
 		Evicted:      stats.Evicted,
 		BodyDropped:  stats.BodyDropped,
+
+		PersistEnabled: stats.Persist.Enabled,
+		PersistFailed:  stats.Persist.Failed,
+		PersistRecords: uint32(stats.Persist.Records),
+		PersistBytes:   stats.Persist.Bytes,
+		PersistWritten: stats.Persist.Written,
+		PersistDropped: stats.Persist.Dropped,
+		PersistErrors:  stats.Persist.Errors,
 	}
 }
 

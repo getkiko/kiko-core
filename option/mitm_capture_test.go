@@ -2,6 +2,7 @@ package option
 
 import (
 	"testing"
+	"time"
 
 	"github.com/sagernet/sing/common/json"
 
@@ -25,4 +26,47 @@ func TestMITMCaptureResolve(t *testing.T) {
 		_, err = capture.Resolve()
 		require.Error(t, err, bad)
 	}
+}
+
+func TestMITMCapturePersistResolve(t *testing.T) {
+	// Absent or empty: off.
+	settings, err := (*MITMCaptureOptions)(nil).Resolve()
+	require.NoError(t, err)
+	require.False(t, settings.Persist.Enabled)
+
+	var options MITMOptions
+	require.NoError(t, json.Unmarshal([]byte(`{"capture":{"persist":{"enabled":true,"path":"/data/capture"}}}`), &options))
+	settings, err = options.Capture.Resolve()
+	require.NoError(t, err)
+	require.Equal(t, MITMCapturePersistSettings{
+		Enabled: true, Path: "/data/capture", MaxBytes: 256 << 20, MaxRecords: 20000, Retention: 168 * time.Hour,
+	}, settings.Persist)
+
+	options = MITMOptions{}
+	require.NoError(t, json.Unmarshal([]byte(`{"capture":{"persist":{"enabled":true,"path":"/d","max_bytes":"8MiB","max_records":10,"retention":"2h","body":true,"redact_headers":["X-Mine"," X-Other "]}}}`), &options))
+	settings, err = options.Capture.Resolve()
+	require.NoError(t, err)
+	require.Equal(t, MITMCapturePersistSettings{
+		Enabled: true, Path: "/d", MaxBytes: 8 << 20, MaxRecords: 10, Retention: 2 * time.Hour, Body: true, RedactHeaders: []string{"X-Mine", "X-Other"},
+	}, settings.Persist)
+
+	for _, bad := range []string{
+		`{"persist":{"enabled":true}}`,
+		`{"persist":{"enabled":true,"path":"/d","max_bytes":"1KiB"}}`,
+		`{"persist":{"enabled":true,"path":"/d","max_records":-1}}`,
+		`{"persist":{"enabled":true,"path":"/d","max_records":99999999}}`,
+		`{"persist":{"enabled":true,"path":"/d","retention":"1s"}}`,
+		`{"persist":{"enabled":true,"path":"/d","redact_headers":["bad name"]}}`,
+		`{"persist":{"enabled":true,"path":"/d","redact_headers":[""]}}`,
+	} {
+		var capture MITMCaptureOptions
+		require.NoError(t, json.Unmarshal([]byte(bad), &capture), bad)
+		_, err = capture.Resolve()
+		require.Error(t, err, bad)
+	}
+	// A disabled section needs no path.
+	var capture MITMCaptureOptions
+	require.NoError(t, json.Unmarshal([]byte(`{"persist":{"enabled":false}}`), &capture))
+	_, err = capture.Resolve()
+	require.NoError(t, err)
 }

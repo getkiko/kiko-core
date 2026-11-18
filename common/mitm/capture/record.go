@@ -132,6 +132,7 @@ type Stats struct {
 	Total       uint64
 	Evicted     uint64
 	BodyDropped uint64
+	Persist     PersistStats
 }
 
 // View is the answer to Poll.

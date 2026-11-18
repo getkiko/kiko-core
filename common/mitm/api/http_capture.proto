@@ -15,6 +15,12 @@ service HTTPCapture {
   // Clear drops finished records; records in progress stay.
   rpc Clear(google.protobuf.Empty) returns (CaptureStatus);
   rpc GetStatus(google.protobuf.Empty) returns (CaptureStatus);
+  // DeleteRecord removes a finished record from the list and from the
+  // stored copy.
+  rpc DeleteRecord(DeleteRecordRequest) returns (CaptureStatus);
+  // PurgePersisted deletes every stored file and the list rows that came
+  // from or went to it. It works while persistence is off.
+  rpc PurgePersisted(google.protobuf.Empty) returns (CaptureStatus);
   // Replay sends a request through the core's router with the inbound
   // "kiko-internal" and returns the record of its exchange. The exchange
   // is never decrypted again.
@@ -203,6 +209,11 @@ message GetRecordRequest {
   string instance = 2;
 }
 
+message DeleteRecordRequest {
+  string id = 1;
+  string instance = 2;
+}
+
 enum BodySide {
   BODY_SIDE_REQUEST = 0;
   BODY_SIDE_RESPONSE = 1;
@@ -250,6 +261,14 @@ message CaptureStatus {
   uint64 total = 9;
   uint64 evicted = 10;
   uint64 body_dropped = 11;
+  // The stored copy. persist_failed means its directory could not be opened.
+  bool persist_enabled = 12;
+  bool persist_failed = 13;
+  uint32 persist_records = 14;
+  int64 persist_bytes = 15;
+  uint64 persist_written = 16;
+  uint64 persist_dropped = 17;
+  uint64 persist_errors = 18;
 }
 
 message ReplayRequest {

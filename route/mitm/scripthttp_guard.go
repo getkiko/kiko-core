@@ -32,11 +32,18 @@ func (e *Engine) ScriptAddressRefused(addr netip.Addr) string {
 	}
 	if addr.Is6() {
 		raw := addr.As16()
-		if embedded, ok := embeddedIPv4(raw); ok {
+		if raw[0] == 0x00 && raw[1] == 0x64 && raw[2] == 0xff && raw[3] == 0x9b && raw[4] == 0x00 && raw[5] == 0x01 {
+			// 64:ff9b:1::/48 is the local-use NAT64 prefix: it reaches the local network.
+			return "private address"
+		}
+		for _, embedded := range embeddedIPv4s(raw) {
 			if reason := e.ScriptAddressRefused(embedded); reason != "" {
 				return reason
 			}
 		}
+	}
+	if addr.Is4() && specialIPv4(addr) {
+		return "private address"
 	}
 	switch {
 	case addr.IsLoopback():
@@ -58,9 +65,9 @@ func (e *Engine) ScriptAddressRefused(addr netip.Addr) string {
 	return ""
 }
 
-// embeddedIPv4 returns the IPv4 address that a NAT64 (64:ff9b::/96), IPv4-compatible (::/96)
-// or 6to4 (2002::/16) address carries.
-func embeddedIPv4(raw [16]byte) (netip.Addr, bool) {
+// embeddedIPv4s returns the IPv4 addresses that a NAT64 (64:ff9b::/96), IPv4-compatible
+// (::/96), 6to4 (2002::/16), Teredo (2001::/32: server and client) or ISATAP address carries.
+func embeddedIPv4s(raw [16]byte) []netip.Addr {
 	zeros := true
 	for _, b := range raw[:12] {
 		if b != 0 {
@@ -70,13 +77,35 @@ func embeddedIPv4(raw [16]byte) (netip.Addr, bool) {
 	}
 	switch {
 	case zeros:
-		return netip.AddrFrom4([4]byte(raw[12:16])), true
+		return []netip.Addr{netip.AddrFrom4([4]byte(raw[12:16]))}
 	case raw[0] == 0x00 && raw[1] == 0x64 && raw[2] == 0xff && raw[3] == 0x9b && allZero(raw[4:12]):
-		return netip.AddrFrom4([4]byte(raw[12:16])), true
+		return []netip.Addr{netip.AddrFrom4([4]byte(raw[12:16]))}
 	case raw[0] == 0x20 && raw[1] == 0x02:
-		return netip.AddrFrom4([4]byte(raw[2:6])), true
+		return []netip.Addr{netip.AddrFrom4([4]byte(raw[2:6]))}
+	case raw[0] == 0x20 && raw[1] == 0x01 && raw[2] == 0 && raw[3] == 0:
+		client := [4]byte{raw[12] ^ 0xff, raw[13] ^ 0xff, raw[14] ^ 0xff, raw[15] ^ 0xff}
+		return []netip.Addr{netip.AddrFrom4([4]byte(raw[4:8])), netip.AddrFrom4(client)}
+	case (raw[8] == 0x00 || raw[8] == 0x02) && raw[9] == 0x00 && raw[10] == 0x5e && raw[11] == 0xfe:
+		return []netip.Addr{netip.AddrFrom4([4]byte(raw[12:16]))}
 	}
-	return netip.Addr{}, false
+	return nil
+}
+
+// specialIPv4 reports the IPv4 ranges that lead to internal networks and that IsPrivate
+// does not cover: carrier-grade NAT (also the Tailscale range), the IETF protocol
+// assignments and the reserved class E. The benchmarking range stays open: proxy tools
+// hand out fake IP addresses from it.
+func specialIPv4(addr netip.Addr) bool {
+	b := addr.As4()
+	switch {
+	case b[0] == 100 && b[1]&0xc0 == 64:
+		return true
+	case b[0] == 192 && b[1] == 0 && b[2] == 0:
+		return true
+	case b[0] >= 240:
+		return true
+	}
+	return false
 }
 
 func allZero(data []byte) bool {
@@ -109,7 +138,7 @@ func (e *Engine) scriptHostRefused(host string) string {
 	if trimmed == "" {
 		return "empty host"
 	}
-	if trimmed == "localhost" || strings.HasSuffix(trimmed, ".localhost") {
+	if trimmed == "localhost" || strings.HasSuffix(trimmed, ".localhost") || trimmed == "localhost.localdomain" {
 		return "localhost"
 	}
 	if addr, err := netip.ParseAddr(trimmed); err == nil {
@@ -117,6 +146,9 @@ func (e *Engine) scriptHostRefused(host string) string {
 	}
 	if strings.Contains(trimmed, ":") {
 		return "invalid host"
+	}
+	if strings.HasSuffix(trimmed, ".local") || strings.HasSuffix(trimmed, ".localdomain") || strings.HasSuffix(trimmed, ".internal") || strings.HasSuffix(trimmed, ".lan") || strings.HasSuffix(trimmed, ".home.arpa") || !strings.Contains(trimmed, ".") {
+		return "local name"
 	}
 	last := trimmed[strings.LastIndexByte(trimmed, '.')+1:]
 	if numericLabel(last) {

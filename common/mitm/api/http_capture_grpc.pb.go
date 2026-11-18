@@ -26,6 +26,8 @@ const (
 	HTTPCapture_GetBody_FullMethodName         = "/sbui.mitm.v1.HTTPCapture/GetBody"
 	HTTPCapture_Clear_FullMethodName           = "/sbui.mitm.v1.HTTPCapture/Clear"
 	HTTPCapture_GetStatus_FullMethodName       = "/sbui.mitm.v1.HTTPCapture/GetStatus"
+	HTTPCapture_DeleteRecord_FullMethodName    = "/sbui.mitm.v1.HTTPCapture/DeleteRecord"
+	HTTPCapture_PurgePersisted_FullMethodName  = "/sbui.mitm.v1.HTTPCapture/PurgePersisted"
 	HTTPCapture_Replay_FullMethodName          = "/sbui.mitm.v1.HTTPCapture/Replay"
 )
 
@@ -45,6 +47,12 @@ type HTTPCaptureClient interface {
 	// Clear drops finished records; records in progress stay.
 	Clear(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CaptureStatus, error)
 	GetStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CaptureStatus, error)
+	// DeleteRecord removes a finished record from the list and from the
+	// stored copy.
+	DeleteRecord(ctx context.Context, in *DeleteRecordRequest, opts ...grpc.CallOption) (*CaptureStatus, error)
+	// PurgePersisted deletes every stored file and the list rows that came
+	// from or went to it. It works while persistence is off.
+	PurgePersisted(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CaptureStatus, error)
 	// Replay sends a request through the core's router with the inbound
 	// "kiko-internal" and returns the record of its exchange. The exchange
 	// is never decrypted again.
@@ -137,6 +145,26 @@ func (c *hTTPCaptureClient) GetStatus(ctx context.Context, in *emptypb.Empty, op
 	return out, nil
 }
 
+func (c *hTTPCaptureClient) DeleteRecord(ctx context.Context, in *DeleteRecordRequest, opts ...grpc.CallOption) (*CaptureStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CaptureStatus)
+	err := c.cc.Invoke(ctx, HTTPCapture_DeleteRecord_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hTTPCaptureClient) PurgePersisted(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*CaptureStatus, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CaptureStatus)
+	err := c.cc.Invoke(ctx, HTTPCapture_PurgePersisted_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *hTTPCaptureClient) Replay(ctx context.Context, in *ReplayRequest, opts ...grpc.CallOption) (*ReplayResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReplayResponse)
@@ -163,6 +191,12 @@ type HTTPCaptureServer interface {
 	// Clear drops finished records; records in progress stay.
 	Clear(context.Context, *emptypb.Empty) (*CaptureStatus, error)
 	GetStatus(context.Context, *emptypb.Empty) (*CaptureStatus, error)
+	// DeleteRecord removes a finished record from the list and from the
+	// stored copy.
+	DeleteRecord(context.Context, *DeleteRecordRequest) (*CaptureStatus, error)
+	// PurgePersisted deletes every stored file and the list rows that came
+	// from or went to it. It works while persistence is off.
+	PurgePersisted(context.Context, *emptypb.Empty) (*CaptureStatus, error)
 	// Replay sends a request through the core's router with the inbound
 	// "kiko-internal" and returns the record of its exchange. The exchange
 	// is never decrypted again.
@@ -194,6 +228,12 @@ func (UnimplementedHTTPCaptureServer) Clear(context.Context, *emptypb.Empty) (*C
 }
 func (UnimplementedHTTPCaptureServer) GetStatus(context.Context, *emptypb.Empty) (*CaptureStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (UnimplementedHTTPCaptureServer) DeleteRecord(context.Context, *DeleteRecordRequest) (*CaptureStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteRecord not implemented")
+}
+func (UnimplementedHTTPCaptureServer) PurgePersisted(context.Context, *emptypb.Empty) (*CaptureStatus, error) {
+	return nil, status.Error(codes.Unimplemented, "method PurgePersisted not implemented")
 }
 func (UnimplementedHTTPCaptureServer) Replay(context.Context, *ReplayRequest) (*ReplayResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Replay not implemented")
@@ -313,6 +353,42 @@ func _HTTPCapture_GetStatus_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HTTPCapture_DeleteRecord_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteRecordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HTTPCaptureServer).DeleteRecord(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HTTPCapture_DeleteRecord_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HTTPCaptureServer).DeleteRecord(ctx, req.(*DeleteRecordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HTTPCapture_PurgePersisted_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HTTPCaptureServer).PurgePersisted(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HTTPCapture_PurgePersisted_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HTTPCaptureServer).PurgePersisted(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _HTTPCapture_Replay_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReplayRequest)
 	if err := dec(in); err != nil {
@@ -353,6 +429,14 @@ var HTTPCapture_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStatus",
 			Handler:    _HTTPCapture_GetStatus_Handler,
+		},
+		{
+			MethodName: "DeleteRecord",
+			Handler:    _HTTPCapture_DeleteRecord_Handler,
+		},
+		{
+			MethodName: "PurgePersisted",
+			Handler:    _HTTPCapture_PurgePersisted_Handler,
 		},
 		{
 			MethodName: "Replay",

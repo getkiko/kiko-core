@@ -60,6 +60,10 @@ type Options struct {
 	// Scripts runs the http-request and http-response scripts that match a stream, after the
 	// rewrite rules. nil disables scripts.
 	Scripts *script.Manager
+	// UpstreamProfile selects how the upstream HTTP/2 client looks on the wire:
+	// "" is net/http's own, ProfileChrome speaks like Chrome (SETTINGS, window
+	// update, pseudo-header and header order).
+	UpstreamProfile string
 }
 
 // DefaultIdleTimeout is the default Options.IdleTimeout.
@@ -213,7 +217,15 @@ func (s *session) debug(args ...any) {
 
 // newUpConn starts an HTTP/2 client connection on nc and registers it.
 func (s *session) newUpConn(nc net.Conn) (*upConn, error) {
-	cc, err := newClientConn(s.ctx, nc)
+	var (
+		cc  clientConn
+		err error
+	)
+	if s.opts.UpstreamProfile == ProfileChrome {
+		cc, err = newChromeClientConn(s.ctx, nc)
+	} else {
+		cc, err = newClientConn(s.ctx, nc)
+	}
 	if err != nil {
 		return nil, err
 	}

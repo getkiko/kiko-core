@@ -103,7 +103,7 @@ func TestHTTPCaptureSubscribeListGetBodyClear(t *testing.T) {
 
 	var gz bytes.Buffer
 	w := gzip.NewWriter(&gz)
-	w.Write([]byte(strings.Repeat("kiko ", 50)))
+	w.Write([]byte(strings.Repeat("hello ", 50)))
 	w.Close()
 	captureExchange(manager, "/v1/a?x=1", gz.Bytes(), "gzip")
 
@@ -164,7 +164,7 @@ func TestHTTPCaptureSubscribeListGetBodyClear(t *testing.T) {
 	require.Equal(t, "gzip", rawMeta.Encoding)
 	require.True(t, rawMeta.Saved)
 	decoded, decodedMeta := readBody(&mitmapi.GetBodyRequest{Id: latest.Id, Side: mitmapi.BodySide_BODY_SIDE_RESPONSE, Decoded: true})
-	require.Equal(t, strings.Repeat("kiko ", 50), string(decoded))
+	require.Equal(t, strings.Repeat("hello ", 50), string(decoded))
 	require.EqualValues(t, 300, decodedMeta.Total)
 	request, _ := readBody(&mitmapi.GetBodyRequest{Id: latest.Id, Side: mitmapi.BodySide_BODY_SIDE_REQUEST, Offset: 1, Length: 3})
 	require.Equal(t, "ell", string(request))
@@ -364,4 +364,46 @@ func TestHTTPCaptureRewriteHits(t *testing.T) {
 	require.Equal(t, "b", change.After)
 	require.Equal(t, int32(302), record.Rewrites[1].Status)
 	require.Equal(t, "https://b.example.com/", record.Rewrites[1].Target)
+}
+
+func TestHTTPCaptureDeleteAndPurgePersisted(t *testing.T) {
+	dir := t.TempDir() + "/capture"
+	options := capture.Options{Enabled: true, Persist: capture.PersistOptions{Enabled: true, Path: dir, MaxBytes: 4 << 20}}
+	manager := capture.New(options)
+	manager.SetOptions(options)
+	defer manager.Close()
+	fixture := newCaptureFixture(t, manager)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	captureExchange(manager, "/one", []byte("a"), "")
+	captureExchange(manager, "/two", []byte("b"), "")
+	deadline := time.Now().Add(5 * time.Second)
+	for manager.PersistStats().Written < 2 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	status0, err := fixture.client.GetStatus(ctx, &emptypb.Empty{})
+	require.NoError(t, err)
+	require.True(t, status0.PersistEnabled)
+	require.Equal(t, uint32(2), status0.PersistRecords)
+	require.Equal(t, uint64(2), status0.PersistWritten)
+	require.Greater(t, status0.PersistBytes, int64(0))
+
+	list, err := fixture.client.ListRecords(ctx, &mitmapi.ListRecordsRequest{})
+	require.NoError(t, err)
+	require.Len(t, list.Records, 2)
+	after, err := fixture.client.DeleteRecord(ctx, &mitmapi.DeleteRecordRequest{Id: list.Records[0].Id, Instance: list.Instance})
+	require.NoError(t, err)
+	require.Equal(t, uint32(1), after.RecordCount)
+	require.Equal(t, uint32(1), after.PersistRecords)
+
+	_, err = fixture.client.DeleteRecord(ctx, &mitmapi.DeleteRecordRequest{Id: list.Records[0].Id})
+	require.Equal(t, codes.NotFound, status.Code(err))
+	_, err = fixture.client.DeleteRecord(ctx, &mitmapi.DeleteRecordRequest{Id: list.Records[1].Id, Instance: "stale"})
+	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+
+	purged, err := fixture.client.PurgePersisted(ctx, &emptypb.Empty{})
+	require.NoError(t, err)
+	require.Equal(t, uint32(0), purged.PersistRecords)
+	require.Equal(t, uint32(0), purged.RecordCount)
 }

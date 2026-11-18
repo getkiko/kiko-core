@@ -82,7 +82,7 @@ func (m *ConnectionManager) mitmRedialTo(this N.Dialer, metadata *adapter.Inboun
 			return nil, err
 		}
 		reportGroupDial(metadata, N.NetworkTCP, dialStart, nil)
-		if refused := internalAddressRefused(this, destination, remoteConn); refused != nil {
+		if refused := m.internalAddressRefused(this, destination, remoteConn); refused != nil {
 			remoteConn.Close()
 			m.logger.ErrorContext(ctx, refused)
 			return nil, refused
@@ -117,7 +117,7 @@ var MITMInternalAllowLoopback bool
 // machine itself or at a metadata service). Private ranges stay allowed: rules may map names
 // to hosts of the local network. Only a direct outbound shows where a name resolved to; for
 // other outbounds the far side resolves it.
-func internalAddressRefused(this N.Dialer, destination M.Socksaddr, conn net.Conn) error {
+func (m *ConnectionManager) internalAddressRefused(this N.Dialer, destination M.Socksaddr, conn net.Conn) error {
 	if MITMInternalAllowLoopback || destination.IsIP() {
 		return nil
 	}
@@ -136,7 +136,17 @@ func internalAddressRefused(this N.Dialer, destination M.Socksaddr, conn net.Con
 	if addr.IsLoopback() || addr.IsUnspecified() || addr.IsLinkLocalUnicast() {
 		return E.New("internal rewrite: ", destination.Fqdn, " resolves to a local address (", addr, ")")
 	}
+	// A private or own address on a port that a listener of the core or the application owns.
+	if guard, ok := m.mitm.(internalTargetGuard); ok && guard.InternalAddressRefused(addr, remote.Port) {
+		return E.New("internal rewrite: ", destination.Fqdn, " resolves to a protected address (", addr, ":", remote.Port, ")")
+	}
 	return nil
+}
+
+// internalTargetGuard is implemented by the MITM engine: it refuses the addresses and ports
+// the internal rewrite guard protects, for a host name that resolved to them.
+type internalTargetGuard interface {
+	InternalAddressRefused(addr netip.Addr, port int) bool
 }
 
 // scriptTargetGuard is implemented by the MITM engine: it names the reason an address is

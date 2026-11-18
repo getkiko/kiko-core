@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -154,6 +155,8 @@ func startProxy(t testing.TB, cfg proxyConfig) *proxyEnv {
 						opts.Redial = counted(cfg.redial)
 					}
 				}
+				// MITM_H2_PROFILE=chrome runs the suite on the Chrome upstream client.
+				opts.UpstreamProfile = os.Getenv("MITM_H2_PROFILE")
 				if cfg.mod != nil {
 					cfg.mod(&opts)
 				}

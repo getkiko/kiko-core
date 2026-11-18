@@ -600,6 +600,7 @@ func (s *session) relay() error {
 		host, port := splitAuthority(req.Header.Get("Host"), s.scheme())
 		if !in.SameOrigin(s.scheme(), host, port) {
 			external = in
+			dropCredentials(&req.Header)
 		}
 		req.Header.Set("Host", in.Authority)
 		req.Target = in.Target
@@ -665,6 +666,7 @@ func (s *session) relay() error {
 			external = nil
 			if originHost, originPort := splitAuthority(originAuthority, originScheme); !in.SameOrigin(originScheme, originHost, originPort) {
 				external = in
+				dropCredentials(&req.Header)
 			}
 		}
 		if out.BodyChanged && heldReq != nil {
@@ -1019,6 +1021,10 @@ func (s *session) relay() error {
 			// (RFC 9112 sections 6.1 and 6.3).
 			header.Del("Content-Length")
 			header = append(header, httpx.Field{Name: "Transfer-Encoding", Value: responseFraming.Codings})
+		} else if transferEncoded {
+			// An empty Transfer-Encoding (or one HTTP/1.0 ignores) still overrides Content-Length,
+			// which was not validated; the body is delimited by close.
+			header.Del("Content-Length")
 		}
 	case httpx.BodyNone:
 		if httpx.ResponseHasBody(method, resp.StatusCode) {
@@ -1289,3 +1295,11 @@ const (
 	hexDigits = "0123456789abcdef"
 	lastChunk = "0\r\n\r\n"
 )
+
+// dropCredentials removes the headers that authenticate the client to its
+// origin. An internal rewrite to another origin must not hand them to it.
+func dropCredentials(header *httpx.Header) {
+	for _, name := range httpx.CredentialHeaders {
+		header.Del(name)
+	}
+}

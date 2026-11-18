@@ -17,3 +17,23 @@ func controlEndpoints(options option.ExperimentalOptions) []string {
 	}
 	return endpoints
 }
+
+// listenPorts lists the fixed ports of the inbounds and services, which MITM internal
+// rewrites aimed at this machine must not reach either.
+func listenPorts(options option.Options) []int {
+	var ports []int
+	add := func(value any) {
+		if wrapper, ok := value.(option.ListenOptionsWrapper); ok {
+			if port := wrapper.TakeListenOptions().ListenPort; port != 0 {
+				ports = append(ports, int(port))
+			}
+		}
+	}
+	for _, inbound := range options.Inbounds {
+		add(inbound.Options)
+	}
+	for _, service := range options.Services {
+		add(service.Options)
+	}
+	return ports
+}

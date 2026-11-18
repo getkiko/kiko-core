@@ -37,29 +37,42 @@ func (e *Engine) handshakeUpstream(ctx context.Context, config *compiledConfig, 
 	if !fingerprinted {
 		return e.handshakeStandard(ctx, config, conn, serverName, port, protocols)
 	}
-	tlsConn := utls.UClient(conn, &utls.Config{
+	tlsConfig := &utls.Config{
 		ServerName:         serverName,
 		RootCAs:            e.upstreamRoots(config),
-		InsecureSkipVerify: config.upstream.verifySkipped(serverName, port),
+		InsecureSkipVerify: config.upstream.verifySkipped(serverName, port) || config.upstream.appended != nil,
 		Time:               e.timeFunc,
 		NextProtos:         protocols,
 		MinVersion:         tls.VersionTLS12,
-	}, helloID)
-	err := tlsConn.BuildHandshakeState()
-	if err != nil {
-		return nil, nil, "", err
 	}
-	for _, extension := range tlsConn.Extensions {
-		if alpnExtension, isALPN := extension.(*utls.ALPNExtension); isALPN {
-			alpnExtension.AlpnProtocols = protocols
-			err = tlsConn.BuildHandshakeState()
-			if err != nil {
-				return nil, nil, "", err
-			}
-			break
+	if !config.upstream.verifySkipped(serverName, port) && config.upstream.appended != nil {
+		verify := e.verifyConnection(config)
+		tlsConfig.VerifyConnection = func(state utls.ConnectionState) error {
+			return verify(tls.ConnectionState{ServerName: state.ServerName, PeerCertificates: state.PeerCertificates})
 		}
 	}
-	err = tlsConn.HandshakeContext(ctx)
+	var tlsConn *utls.UConn
+	if config.upstream.mirrorHello {
+		tlsConn = e.mirroredClient(ctx, conn, tlsConfig, protocols)
+	}
+	if tlsConn == nil {
+		tlsConn = utls.UClient(conn, tlsConfig, helloID)
+		err := tlsConn.BuildHandshakeState()
+		if err != nil {
+			return nil, nil, "", err
+		}
+		for _, extension := range tlsConn.Extensions {
+			if alpnExtension, isALPN := extension.(*utls.ALPNExtension); isALPN {
+				alpnExtension.AlpnProtocols = protocols
+				err = tlsConn.BuildHandshakeState()
+				if err != nil {
+					return nil, nil, "", err
+				}
+				break
+			}
+		}
+	}
+	err := tlsConn.HandshakeContext(ctx)
 	if err != nil {
 		return nil, nil, "", err
 	}

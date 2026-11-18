@@ -100,6 +100,7 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 		// new URL (never the URL rules again) decide the rest.
 		if !in.SameOrigin("https", hostOnly(authority), authorityPort(authority, 443)) {
 			external = in
+			r.Header = withoutCredentials(r.Header)
 		}
 		newTarget, err := url.ParseRequestURI(in.Target)
 		if err != nil {
@@ -194,6 +195,7 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 			external = nil
 			if !in.SameOrigin("https", hostOnly(clientAuthority), authorityPort(clientAuthority, 443)) {
 				external = in
+				header = withoutCredentials(header)
 			}
 		}
 		if out.BodyChanged && held != nil {
@@ -446,7 +448,7 @@ func (s *session) respond(w http.ResponseWriter, r *http.Request, resp *http.Res
 	}
 	ob.trailers(flow.Response, resp.Trailer)
 	for k, vv := range resp.Trailer {
-		if hopByHop(k) {
+		if hopByHop(k) || !httpx.TrailerAllowed(k) {
 			continue
 		}
 		h[http.TrailerPrefix+k] = vv
@@ -804,4 +806,15 @@ func hostOnly(s string) string {
 	s = strings.TrimSuffix(strings.TrimPrefix(s, "["), "]")
 	s = strings.TrimSuffix(s, ".")
 	return strings.ToLower(s)
+}
+
+// withoutCredentials returns a copy of header without the headers that
+// authenticate the client to its origin. An internal rewrite to another origin
+// must not hand them to it.
+func withoutCredentials(header http.Header) http.Header {
+	header = header.Clone()
+	for _, name := range httpx.CredentialHeaders {
+		header.Del(name)
+	}
+	return header
 }

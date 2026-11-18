@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 
@@ -94,7 +95,13 @@ func ParseEncodings(value string) []string {
 
 // Decode decodes r according to the Content-Encoding value. Encodings undo in
 // reverse order. On failure it returns the data decoded so far and an *Error.
-func Decode(encoding string, r io.Reader, limits Limits) ([]byte, error) {
+func Decode(encoding string, r io.Reader, limits Limits) (result []byte, err error) {
+	// The third-party decoders panic on some malformed input (brotli v1.1.0 indexes out of range).
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			result, err = nil, &Error{Kind: ErrCorrupt, Encoding: encoding, Err: fmt.Errorf("decoder panic: %v", recovered)}
+		}
+	}()
 	if limits.MaxOutput <= 0 {
 		limits.MaxOutput = DefaultMaxOutput
 	}

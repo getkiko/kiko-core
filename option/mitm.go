@@ -1,6 +1,9 @@
 package option
 
 import (
+	"strings"
+	"time"
+
 	"github.com/sagernet/sing/common/byteformats"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -59,6 +62,16 @@ type MITMUpstreamOptions struct {
 	// (the default), safari or firefox. Builds without uTLS always use
 	// standard TLS. It applies to all hosts.
 	Fingerprint string `json:"fingerprint,omitempty" enum:"none,chrome,safari,firefox"`
+	// H2Profile is how the upstream HTTP/2 connection looks on the wire:
+	// default (net/http's client) or chrome (Chrome's SETTINGS, window update,
+	// pseudo-header and header order, request priority). It goes with the
+	// chrome fingerprint but is independent of it.
+	H2Profile string `json:"h2_profile,omitempty" enum:"default,chrome"`
+	// MirrorClientHello builds the upstream ClientHello from the client's own
+	// (cipher suites, extensions and their order) instead of the fixed
+	// fingerprint. It needs a fingerprint other than none and a build with
+	// uTLS; a hello that cannot be mirrored falls back to the fingerprint.
+	MirrorClientHello bool `json:"mirror_client_hello,omitempty"`
 	// SkipVerify lists hosts whose upstream certificate is not verified.
 	SkipVerify badoption.Listable[string] `json:"skip_verify,omitempty"`
 	// CustomRoots lists PEM files added to the roots that verify upstream
@@ -90,6 +103,101 @@ type MITMCaptureOptions struct {
 	MaxMemory *byteformats.Bytes `json:"max_memory,omitempty"`
 	// MaxRecords is the most records kept (default 5000).
 	MaxRecords int `json:"max_records,omitempty"`
+	// Persist writes finished exchanges to disk. It is off unless enabled.
+	Persist *MITMCapturePersistOptions `json:"persist,omitempty"`
+}
+
+const (
+	MITMCapturePersistDefaultMaxBytes   = 256 << 20
+	MITMCapturePersistDefaultMaxRecords = 20000
+	MITMCapturePersistDefaultRetention  = 7 * 24 * time.Hour
+
+	MITMCapturePersistMinBytes      = 1 << 20
+	MITMCapturePersistMaxBytesLimit = int64(64) << 30
+	MITMCapturePersistMaxRecords    = 1000000
+	MITMCapturePersistMinRetention  = time.Minute
+	MITMCapturePersistMaxRetention  = 3650 * 24 * time.Hour
+	MITMCapturePersistMaxRedact     = 64
+)
+
+// MITMCapturePersistOptions configures the on-disk copy of captured
+// exchanges. Sensitive headers are masked before anything is written.
+type MITMCapturePersistOptions struct {
+	Enabled bool `json:"enabled,omitempty"`
+	// Path is the directory of the files; it is created with mode 0700.
+	Path string `json:"path,omitempty"`
+	// MaxBytes bounds the files on disk (default 256MiB); the oldest records
+	// are dropped first.
+	MaxBytes *byteformats.Bytes `json:"max_bytes,omitempty"`
+	// MaxRecords bounds the records on disk (default 20000).
+	MaxRecords int `json:"max_records,omitempty"`
+	// Retention is how long a record is kept (default 168h).
+	Retention badoption.Duration `json:"retention,omitempty"`
+	// Body also writes the bodies kept in memory (needs capture.body).
+	Body bool `json:"body,omitempty"`
+	// RedactHeaders names headers masked besides the built-in list.
+	RedactHeaders badoption.Listable[string] `json:"redact_headers,omitempty"`
+}
+
+// MITMCapturePersistSettings is MITMCapturePersistOptions with defaults
+// applied.
+type MITMCapturePersistSettings struct {
+	Enabled       bool
+	Path          string
+	MaxBytes      int64
+	MaxRecords    int
+	Retention     time.Duration
+	Body          bool
+	RedactHeaders []string
+}
+
+// Resolve applies defaults and checks value ranges. A nil receiver yields
+// disabled settings.
+func (o *MITMCapturePersistOptions) Resolve() (MITMCapturePersistSettings, error) {
+	if o == nil {
+		return MITMCapturePersistSettings{}, nil
+	}
+	settings := MITMCapturePersistSettings{
+		Enabled:    o.Enabled,
+		Path:       o.Path,
+		MaxBytes:   MITMCapturePersistDefaultMaxBytes,
+		MaxRecords: MITMCapturePersistDefaultMaxRecords,
+		Retention:  MITMCapturePersistDefaultRetention,
+		Body:       o.Body,
+	}
+	if o.Enabled && o.Path == "" {
+		return settings, E.New("capture.persist.path is required")
+	}
+	if o.MaxBytes != nil {
+		value := int64(o.MaxBytes.Value())
+		if value < MITMCapturePersistMinBytes || value > MITMCapturePersistMaxBytesLimit {
+			return settings, E.New("capture.persist.max_bytes must be between ", MITMCapturePersistMinBytes, " and ", MITMCapturePersistMaxBytesLimit, " bytes")
+		}
+		settings.MaxBytes = value
+	}
+	if o.MaxRecords != 0 {
+		if o.MaxRecords < 0 || o.MaxRecords > MITMCapturePersistMaxRecords {
+			return settings, E.New("capture.persist.max_records must be between 1 and ", MITMCapturePersistMaxRecords)
+		}
+		settings.MaxRecords = o.MaxRecords
+	}
+	if retention := time.Duration(o.Retention); retention != 0 {
+		if retention < MITMCapturePersistMinRetention || retention > MITMCapturePersistMaxRetention {
+			return settings, E.New("capture.persist.retention must be between ", MITMCapturePersistMinRetention, " and ", MITMCapturePersistMaxRetention)
+		}
+		settings.Retention = retention
+	}
+	if len(o.RedactHeaders) > MITMCapturePersistMaxRedact {
+		return settings, E.New("capture.persist.redact_headers has at most ", MITMCapturePersistMaxRedact, " names")
+	}
+	for _, name := range o.RedactHeaders {
+		name = strings.TrimSpace(name)
+		if name == "" || strings.ContainsAny(name, " \t:\r\n") {
+			return settings, E.New("capture.persist.redact_headers has an invalid header name")
+		}
+		settings.RedactHeaders = append(settings.RedactHeaders, name)
+	}
+	return settings, nil
 }
 
 // MITMCaptureSettings is MITMCaptureOptions with defaults applied.
@@ -99,6 +207,7 @@ type MITMCaptureSettings struct {
 	MaxBody    int64
 	MaxMemory  int64
 	MaxRecords int
+	Persist    MITMCapturePersistSettings
 }
 
 // Resolve applies defaults and checks value ranges. A nil receiver yields the
@@ -137,6 +246,11 @@ func (o *MITMCaptureOptions) Resolve() (MITMCaptureSettings, error) {
 		}
 		settings.MaxRecords = o.MaxRecords
 	}
+	persist, err := o.Persist.Resolve()
+	if err != nil {
+		return settings, err
+	}
+	settings.Persist = persist
 	return settings, nil
 }
 
@@ -150,6 +264,11 @@ type MITMHTTPRewriteOptions struct {
 	// between 1 KiB and 32 MiB). Larger bodies pass through unmodified.
 	MaxBodySize *byteformats.MemoryBytes `json:"max_body_size,omitempty"`
 	Body        []MITMBodyRewriteRule    `json:"body,omitempty"`
+	// ProtectedPorts are ports of listeners outside the core (the control application's
+	// API) that internal rewrites must not reach on this machine, besides the ports of the
+	// core's own inbounds, services and control APIs, which are protected without being
+	// listed.
+	ProtectedPorts badoption.Listable[uint16] `json:"protected_ports,omitempty"`
 }
 
 // MITMURLRewriteRule answers or redirects matching requests. Action is
