@@ -29,8 +29,13 @@ type ConnectionEvent struct {
 
 const closedConnectionsLimit = 1000
 
+// rejectedConnectionsLimit bounds the refusals kept apart from the closed
+// connections, so that a storm of them does not push those out.
+const rejectedConnectionsLimit = 256
+
 var (
 	_ adapter.ConnectionTracker = (*Manager)(nil)
+	_ adapter.RejectTracker     = (*Manager)(nil)
 	_ adapter.LifecycleService  = (*Manager)(nil)
 )
 
@@ -38,8 +43,12 @@ type Manager struct {
 	connections             compatible.Map[uuid.UUID, Tracker]
 	closedConnectionsAccess sync.Mutex
 	closedConnections       list.List[TrackerMetadata]
+	rejectedConnections     list.List[TrackerMetadata]
 	closedUploadTotal       int64
 	closedDownloadTotal     int64
+
+	rejectAccess sync.Mutex
+	rejects      map[rejectKey]rejectRecord
 
 	eventSubscriber *observable.Subscriber[ConnectionEvent]
 	eventObserver   *observable.Observer[ConnectionEvent]
@@ -97,12 +106,7 @@ func (m *Manager) leave(tracker Tracker) {
 	}
 	metadata.ClosedAt = closedAt
 	metadataCopy := *metadata
-	if m.closedConnections.Len() >= closedConnectionsLimit {
-		evicted := m.closedConnections.PopFront()
-		m.closedUploadTotal += evicted.Upload.Load()
-		m.closedDownloadTotal += evicted.Download.Load()
-	}
-	m.closedConnections.PushBack(metadataCopy)
+	m.pushClosedLocked(metadataCopy)
 	m.closedConnectionsAccess.Unlock()
 	m.eventSubscriber.Emit(ConnectionEvent{
 		Type:     ConnectionEventClosed,
@@ -110,6 +114,17 @@ func (m *Manager) leave(tracker Tracker) {
 		Metadata: &metadataCopy,
 		ClosedAt: closedAt,
 	})
+}
+
+// pushClosedLocked keeps metadata among the closed connections, the
+// oldest going past the limit.
+func (m *Manager) pushClosedLocked(metadata TrackerMetadata) {
+	if m.closedConnections.Len() >= closedConnectionsLimit {
+		evicted := m.closedConnections.PopFront()
+		m.closedUploadTotal += evicted.Upload.Load()
+		m.closedDownloadTotal += evicted.Download.Load()
+	}
+	m.closedConnections.PushBack(metadata)
 }
 
 func (m *Manager) Total() (uplinkTotal int64, downlinkTotal int64) {
@@ -143,9 +158,11 @@ func (m *Manager) Connections() []*TrackerMetadata {
 	return connections
 }
 
+// ClosedConnections are the closed connections, then the refused ones
+// (RejectedConnection), each oldest first.
 func (m *Manager) ClosedConnections() []*TrackerMetadata {
 	m.closedConnectionsAccess.Lock()
-	values := m.closedConnections.Array()
+	values := append(m.closedConnections.Array(), m.rejectedConnections.Array()...)
 	m.closedConnectionsAccess.Unlock()
 	if len(values) == 0 {
 		return nil
@@ -180,4 +197,5 @@ func (m *Manager) Clear() {
 		m.closedDownloadTotal += element.Value.Download.Load()
 	}
 	m.closedConnections.Init()
+	m.rejectedConnections.Init()
 }

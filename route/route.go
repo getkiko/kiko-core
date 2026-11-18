@@ -133,6 +133,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 			}
 		case *R.RuleActionReject:
 			buf.ReleaseMulti(buffers)
+			r.trackRejected(ctx, metadata, selectedRule)
 			if action.Method == C.RuleActionRejectMethodReply {
 				return E.New("reject method `reply` is not supported for TCP connections")
 			}
@@ -330,6 +331,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 			}
 		case *R.RuleActionReject:
 			N.ReleaseMultiPacketBuffer(packetBuffers)
+			r.trackRejected(ctx, metadata, selectedRule)
 			if action.Method == C.RuleActionRejectMethodReply {
 				return E.New("reject method `reply` is not supported for UDP connections")
 			}
@@ -370,6 +372,16 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		r.connection.NewPacketConnection(ctx, outbound, conn, metadata, onClose)
 	}
 	return nil
+}
+
+// trackRejected tells the trackers that record rejections of a connection
+// rule refused.
+func (r *Router) trackRejected(ctx context.Context, metadata adapter.InboundContext, rule adapter.Rule) {
+	for _, tracker := range r.trackers {
+		if rejectTracker, ok := tracker.(adapter.RejectTracker); ok {
+			rejectTracker.RejectedConnection(ctx, metadata, rule)
+		}
+	}
 }
 
 func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) adapter.PreMatchResult {
@@ -465,6 +477,7 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 			if rejectErr == nil && metadata.Network == N.NetworkICMP {
 				return continueResult
 			}
+			r.trackRejected(ctx, metadata, currentRule)
 			if errors.Is(rejectErr, R.ErrDrop) {
 				return adapter.PreMatchResult{Action: adapter.PreMatchDrop}
 			}

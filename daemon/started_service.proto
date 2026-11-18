@@ -228,6 +228,9 @@ message Connection {
   string outboundType = 20;
   repeated string chainList = 21;
   ProcessInfo processInfo = 22;
+  // rejectCount is how many times a reject rule refused the connection
+  // within the merge window; 0 for a carried connection.
+  int64 rejectCount = 23;
 }
 
 message ProcessInfo {

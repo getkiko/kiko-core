@@ -1101,7 +1101,15 @@ func buildConnectionProto(metadata *trafficcontrol.TrackerMetadata, router adapt
 		OutboundType:  metadata.OutboundType,
 		ChainList:     metadata.Chain,
 		ProcessInfo:   processInfo,
+		RejectCount:   rejectCount(metadata),
 	}
+}
+
+func rejectCount(metadata *trafficcontrol.TrackerMetadata) int64 {
+	if metadata.Rejects == nil {
+		return 0
+	}
+	return metadata.Rejects.Load()
 }
 
 func (s *StartedService) CloseConnection(ctx context.Context, request *CloseConnectionRequest) (*emptypb.Empty, error) {

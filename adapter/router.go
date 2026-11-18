@@ -111,6 +111,12 @@ type ConnectionTracker interface {
 	RoutedFlow(ctx context.Context, metadata InboundContext, matchedRule Rule, matchOutbound Outbound) tun.FlowTracker
 }
 
+// RejectTracker is a ConnectionTracker that also records the connections
+// a reject rule refuses, which no outbound carries.
+type RejectTracker interface {
+	RejectedConnection(ctx context.Context, metadata InboundContext, matchedRule Rule)
+}
+
 // Deprecated: Use ConnectionRouterEx instead.
 type ConnectionRouter interface {
 	RouteConnection(ctx context.Context, conn net.Conn, metadata InboundContext) error

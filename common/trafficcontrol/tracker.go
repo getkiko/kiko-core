@@ -27,6 +27,9 @@ type TrackerMetadata struct {
 	Rule         adapter.Rule
 	Outbound     string
 	OutboundType string
+	// Rejects counts the refusals of a connection a reject rule refused
+	// (RejectedConnection); nil for a carried connection.
+	Rejects *atomic.Int64
 }
 
 type Tracker interface {
