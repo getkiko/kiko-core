@@ -232,6 +232,10 @@ func (r *Router) RuleSet(tag string) (adapter.RuleSet, bool) {
 	return ruleSet, loaded
 }
 
+func (r *Router) RuleSets() []adapter.RuleSet {
+	return append([]adapter.RuleSet(nil), r.ruleSets...)
+}
+
 func (r *Router) Rules() []adapter.Rule {
 	return r.rules
 }

@@ -51,6 +51,8 @@ type TailscalePingResult struct {
 }
 
 type TailscaleEndpointStatus struct {
+	Health             []string
+	ObservedAt         int64
 	BackendState       string
 	AuthURL            string
 	NetworkName        string

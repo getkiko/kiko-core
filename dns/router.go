@@ -295,6 +295,9 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 		metadata.ResetRuleCache()
 		metadata.DestinationAddressMatchFromResponse = false
 		if currentRule.LegacyPreMatch(metadata) {
+			if trace := policyTraceFrom(ctx); trace != nil {
+				trace.setRule(currentRuleIndex, currentRule.String())
+			}
 			dnsmonitor.Policy(ctx, F.ToString("match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action()))
 			if ruleDescription := currentRule.String(); ruleDescription != "" {
 				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action())
@@ -418,6 +421,9 @@ func (r *Router) resolveDNSRoute(server string, routeOptions R.RuleActionDNSRout
 }
 
 func (r *Router) logRuleMatch(ctx context.Context, ruleIndex int, currentRule adapter.DNSRule) {
+	if trace := policyTraceFrom(ctx); trace != nil {
+		trace.setRule(ruleIndex, currentRule.String())
+	}
 	dnsmonitor.Policy(ctx, F.ToString("match[", ruleIndex, "] ", currentRule, " => ", currentRule.Action()))
 	if ruleDescription := currentRule.String(); ruleDescription != "" {
 		r.logger.DebugContext(ctx, "match[", ruleIndex, "] ", currentRule, " => ", currentRule.Action())
@@ -1231,6 +1237,13 @@ func (r *Router) exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	}
 	if transport != nil {
 		dnsmonitor.Resolver(ctx, transport.Tag(), transport.Type())
+		if trace := policyTraceFrom(ctx); trace != nil {
+			var detour string
+			if configured, ok := transport.(interface{ DNSMonitorDetour() (string, bool) }); ok {
+				detour, _ = configured.DNSMonitorDetour()
+			}
+			trace.setServer(transport.Tag(), detour)
+		}
 	}
 	r.recordReverseMapping(message, response, transport)
 	return response, nil

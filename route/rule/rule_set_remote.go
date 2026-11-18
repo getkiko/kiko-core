@@ -48,6 +48,7 @@ type RemoteRuleSet struct {
 	rules          []adapter.HeadlessRule
 	metadata       adapter.RuleSetMetadata
 	lastUpdated    time.Time
+	lastUpdatedAt  atomic.Int64
 	lastEtag       string
 	cacheFile      adapter.CacheFile
 	pauseManager   pause.Manager
@@ -88,6 +89,15 @@ func (s *RemoteRuleSet) Name() string {
 	return s.tag
 }
 
+func (s *RemoteRuleSet) LastUpdatedAtMillis() int64 {
+	return s.lastUpdatedAt.Load()
+}
+
+func (s *RemoteRuleSet) setLastUpdated(value time.Time) {
+	s.lastUpdated = value
+	s.lastUpdatedAt.Store(value.UnixMilli())
+}
+
 func (s *RemoteRuleSet) String() string {
 	return strings.Join(F.MapToString(s.rules), " ")
 }
@@ -110,7 +120,7 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 				if err != nil {
 					s.logger.Warn(E.Cause(err, "restore cached rule-set, will refetch"))
 				} else {
-					s.lastUpdated = savedSet.LastUpdated
+					s.setLastUpdated(savedSet.LastUpdated)
 					s.lastEtag = savedSet.LastEtag
 				}
 			}
@@ -253,7 +263,7 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
 	switch response.StatusCode {
 	case http.StatusOK:
 	case http.StatusNotModified:
-		s.lastUpdated = time.Now()
+		s.setLastUpdated(time.Now())
 		if s.cacheFile != nil {
 			savedRuleSet := s.cacheFile.LoadRuleSet(s.tag)
 			if savedRuleSet != nil {
@@ -283,7 +293,7 @@ func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
 	if eTagHeader != "" {
 		s.lastEtag = eTagHeader
 	}
-	s.lastUpdated = time.Now()
+	s.setLastUpdated(time.Now())
 	if s.cacheFile != nil {
 		err = s.cacheFile.SaveRuleSet(s.tag, &adapter.SavedBinary{
 			LastUpdated: s.lastUpdated,

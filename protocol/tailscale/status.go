@@ -28,11 +28,14 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 		}
 	}
 	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-updateSignal:
+			case <-ticker.C:
 			}
 			status := localBackend.Status()
 			result := convertTailscaleStatus(status)
@@ -76,9 +79,7 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 				busError = *roNotify.ErrMessage
 				return false
 			}
-			if roNotify.State != nil || roNotify.SelfChange != nil ||
-				len(roNotify.PeersChanged) > 0 || len(roNotify.PeersRemoved) > 0 || len(roNotify.PeerChangedPatch) > 0 ||
-				roNotify.BrowseToURL != nil || roNotify.Prefs != nil {
+			if statusNotificationChanged(roNotify) {
 				scheduleUpdate()
 			}
 			return true
@@ -100,8 +101,16 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 	}
 }
 
+func statusNotificationChanged(n *ipn.Notify) bool {
+	return n.State != nil || n.Health != nil || n.SelfChange != nil ||
+		len(n.PeersChanged) > 0 || len(n.PeersRemoved) > 0 || len(n.PeerChangedPatch) > 0 ||
+		n.BrowseToURL != nil || n.Prefs != nil
+}
+
 func convertTailscaleStatus(status *ipnstate.Status) *adapter.TailscaleEndpointStatus {
 	result := &adapter.TailscaleEndpointStatus{
+		Health:       slices.Clone(status.Health),
+		ObservedAt:   time.Now().UnixMilli(),
 		BackendState: status.BackendState,
 		AuthURL:      status.AuthURL,
 	}
