@@ -30,7 +30,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -50,6 +49,85 @@ type RealityClientConfig struct {
 	uClient   *UTLSClientConfig
 	publicKey []byte
 	shortID   [8]byte
+}
+
+func containsRealityCurve(curves []utls.CurveID) bool {
+	for _, curve := range curves {
+		if curve == utls.X25519MLKEM768 {
+			return true
+		}
+	}
+	return false
+}
+
+func containsRealityKeyShare(shares []utls.KeyShare) bool {
+	for _, share := range shares {
+		if share.Group == utls.X25519MLKEM768 {
+			return true
+		}
+	}
+	return false
+}
+
+func isRealityGREASECurve(curve utls.CurveID) bool {
+	return uint16(curve)&0x0f0f == 0x0a0a
+}
+
+func buildRealityHandshakeState(conn net.Conn, config *utls.Config, id utls.ClientHelloID) (*utls.UConn, error) {
+	uConn := utls.UClient(conn, config, id)
+	if err := uConn.BuildHandshakeState(); err != nil {
+		return nil, err
+	}
+	var curves *utls.SupportedCurvesExtension
+	var shares *utls.KeyShareExtension
+	for _, extension := range uConn.Extensions {
+		if ce, ok := extension.(*utls.SupportedCurvesExtension); ok {
+			curves = ce
+		}
+		if ks, ok := extension.(*utls.KeyShareExtension); ok {
+			shares = ks
+		}
+	}
+	if curves == nil || shares == nil {
+		return nil, E.New("Reality requires a TLS 1.3 fingerprint with X25519MLKEM768 key share")
+	}
+	if !containsRealityCurve(curves.Curves) || !containsRealityKeyShare(shares.KeyShares) {
+		if !containsRealityCurve(curves.Curves) {
+			curves.Curves = append([]utls.CurveID{utls.X25519MLKEM768}, curves.Curves...)
+		}
+		if !containsRealityKeyShare(shares.KeyShares) {
+			index := 0
+			for index < len(shares.KeyShares) && isRealityGREASECurve(shares.KeyShares[index].Group) {
+				index++
+			}
+			shares.KeyShares = append(shares.KeyShares, utls.KeyShare{})
+			copy(shares.KeyShares[index+1:], shares.KeyShares[index:])
+			shares.KeyShares[index] = utls.KeyShare{Group: utls.X25519MLKEM768}
+		}
+		// ApplyPreset regenerates the private keys for every real key share.
+		for index := range shares.KeyShares {
+			if !isRealityGREASECurve(shares.KeyShares[index].Group) {
+				shares.KeyShares[index].Data = nil
+			}
+		}
+		hello := uConn.HandshakeState.Hello
+		extensions := uConn.Extensions
+		uConn = utls.UClient(conn, config, utls.HelloCustom)
+		if err := uConn.ApplyPreset(&utls.ClientHelloSpec{
+			CipherSuites:       hello.CipherSuites,
+			CompressionMethods: hello.CompressionMethods,
+			Extensions:         extensions,
+		}); err != nil {
+			return nil, err
+		}
+		if err := uConn.BuildHandshakeState(); err != nil {
+			return nil, err
+		}
+	}
+	if uConn.HandshakeState.State13.KeyShareKeys == nil || uConn.HandshakeState.State13.KeyShareKeys.MlkemEcdhe == nil {
+		return nil, E.New("Reality X25519MLKEM768 key share is unavailable")
+	}
+	return uConn, nil
 }
 
 func NewRealityClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
@@ -140,33 +218,19 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	uConfig.InsecureSkipVerify = true
 	uConfig.SessionTicketsDisabled = true
 	uConfig.VerifyPeerCertificate = verifier.VerifyPeerCertificate
-	uConn := utls.UClient(conn, uConfig, e.uClient.id)
+	uConn, err := buildRealityHandshakeState(conn, uConfig, e.uClient.id)
+	if err != nil {
+		return nil, err
+	}
 	verifier.UConn = uConn
-	err := uConn.BuildHandshakeState()
-	if err != nil {
-		return nil, err
-	}
-	for _, extension := range uConn.Extensions {
-		if ce, ok := extension.(*utls.SupportedCurvesExtension); ok {
-			ce.Curves = common.Filter(ce.Curves, func(curveID utls.CurveID) bool {
-				return curveID != utls.X25519MLKEM768
-			})
-		}
-		if ks, ok := extension.(*utls.KeyShareExtension); ok {
-			ks.KeyShares = common.Filter(ks.KeyShares, func(share utls.KeyShare) bool {
-				return share.Group != utls.X25519MLKEM768
-			})
-		}
-	}
-	err = uConn.BuildHandshakeState()
-	if err != nil {
-		return nil, err
-	}
 
 	if len(uConfig.NextProtos) > 0 {
 		for _, extension := range uConn.Extensions {
 			if alpnExtension, isALPN := extension.(*utls.ALPNExtension); isALPN {
 				alpnExtension.AlpnProtocols = uConfig.NextProtos
+				if err := uConn.BuildHandshakeState(); err != nil {
+					return nil, err
+				}
 				break
 			}
 		}
@@ -184,9 +248,10 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	}
 	binary.BigEndian.PutUint64(hello.SessionId, uint64(nowTime.Unix()))
 
-	hello.SessionId[0] = 1
-	hello.SessionId[1] = 8
-	hello.SessionId[2] = 1
+	// Identify the Xray Reality generation supported by this handshake.
+	hello.SessionId[0] = 26
+	hello.SessionId[1] = 9
+	hello.SessionId[2] = 9
 	binary.BigEndian.PutUint32(hello.SessionId[4:], uint32(time.Now().Unix()))
 	copy(hello.SessionId[8:], e.shortID[:])
 	if debug.Enabled {
@@ -200,9 +265,15 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	if keyShareKeys == nil {
 		return nil, E.New("nil KeyShareKeys")
 	}
-	ecdheKey := keyShareKeys.Ecdhe
+	ecdheKey := keyShareKeys.MlkemEcdhe
+	for _, share := range hello.KeyShares {
+		if share.Group == utls.X25519 && len(share.Data) == 32 {
+			ecdheKey = keyShareKeys.Ecdhe
+			break
+		}
+	}
 	if ecdheKey == nil {
-		return nil, E.New("nil ecdheKey")
+		return nil, E.New("Reality X25519MLKEM768 key share is unavailable")
 	}
 	authKey, err := ecdheKey.ECDH(publicKey)
 	if err != nil {
