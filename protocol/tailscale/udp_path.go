@@ -113,7 +113,7 @@ func (m udpPathMode) String() string {
 func (m udpPathMode) label() string {
 	switch m {
 	case udpPathDetour:
-		return "detour"
+		return "proxied"
 	case udpPathRelay:
 		return "relay"
 	default:
@@ -918,7 +918,7 @@ func (m *udpPathManager) logSummary() {
 		return
 	}
 	var builder strings.Builder
-	builder.WriteString("tailscale udp: summary detour tx ")
+	builder.WriteString("tailscale udp: summary proxied tx ")
 	builder.WriteString(formatUDPPathTraffic(detourTxPackets, detourTxBytes))
 	builder.WriteString(" rx ")
 	builder.WriteString(formatUDPPathTraffic(detourRxPackets, detourRxBytes))
@@ -1600,4 +1600,23 @@ func clearNetnsListenPacketFunc(endpoint *Endpoint) {
 	}
 	udpPathEndpoints.listenerOwner = nil
 	netns.SetListenPacketFunc(nil)
+}
+
+// stunPath is the path the network check's STUN requests take.
+func (m *udpPathManager) stunPath() string {
+	path := m.config.defaultPath
+	if path == udpPathDetour && m.proxyDegraded.Load() {
+		path = udpPathRelay
+	}
+	return path.String()
+}
+
+// candidatePath is the path magicsock's packets to a peer's candidate
+// address take, for display, as statusPath classifies.
+func (m *udpPathManager) candidatePath(address netip.AddrPort) string {
+	path := m.config.classify(address, m.state.Load()).path
+	if path == udpPathDetour && m.proxyDegraded.Load() {
+		path = udpPathRelay
+	}
+	return path.String()
 }

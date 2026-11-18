@@ -3101,6 +3101,554 @@ func (x *TailscalePingResponse) GetPeerRelay() string {
 	return ""
 }
 
+type TailscaleDiagnosticsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EndpointTag   string                 `protobuf:"bytes,1,opt,name=endpointTag,proto3" json:"endpointTag,omitempty"`
+	Refresh       bool                   `protobuf:"varint,2,opt,name=refresh,proto3" json:"refresh,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleDiagnosticsRequest) Reset() {
+	*x = TailscaleDiagnosticsRequest{}
+	mi := &file_daemon_started_service_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleDiagnosticsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleDiagnosticsRequest) ProtoMessage() {}
+
+func (x *TailscaleDiagnosticsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleDiagnosticsRequest.ProtoReflect.Descriptor instead.
+func (*TailscaleDiagnosticsRequest) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *TailscaleDiagnosticsRequest) GetEndpointTag() string {
+	if x != nil {
+		return x.EndpointTag
+	}
+	return ""
+}
+
+func (x *TailscaleDiagnosticsRequest) GetRefresh() bool {
+	if x != nil {
+		return x.Refresh
+	}
+	return false
+}
+
+type TailscaleDiagnostics struct {
+	state         protoimpl.MessageState      `protogen:"open.v1"`
+	Netcheck      *TailscaleNetcheck          `protobuf:"bytes,1,opt,name=netcheck,proto3" json:"netcheck,omitempty"`
+	Peers         []*TailscalePeerDiagnostics `protobuf:"bytes,2,rep,name=peers,proto3" json:"peers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleDiagnostics) Reset() {
+	*x = TailscaleDiagnostics{}
+	mi := &file_daemon_started_service_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleDiagnostics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleDiagnostics) ProtoMessage() {}
+
+func (x *TailscaleDiagnostics) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleDiagnostics.ProtoReflect.Descriptor instead.
+func (*TailscaleDiagnostics) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *TailscaleDiagnostics) GetNetcheck() *TailscaleNetcheck {
+	if x != nil {
+		return x.Netcheck
+	}
+	return nil
+}
+
+func (x *TailscaleDiagnostics) GetPeers() []*TailscalePeerDiagnostics {
+	if x != nil {
+		return x.Peers
+	}
+	return nil
+}
+
+type TailscaleNetcheck struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CheckedAt             int64                  `protobuf:"varint,1,opt,name=checkedAt,proto3" json:"checkedAt,omitempty"`
+	Udp                   bool                   `protobuf:"varint,2,opt,name=udp,proto3" json:"udp,omitempty"`
+	Ipv4                  bool                   `protobuf:"varint,3,opt,name=ipv4,proto3" json:"ipv4,omitempty"`
+	Ipv6                  bool                   `protobuf:"varint,4,opt,name=ipv6,proto3" json:"ipv6,omitempty"`
+	Ipv4CanSend           bool                   `protobuf:"varint,5,opt,name=ipv4CanSend,proto3" json:"ipv4CanSend,omitempty"`
+	Ipv6CanSend           bool                   `protobuf:"varint,6,opt,name=ipv6CanSend,proto3" json:"ipv6CanSend,omitempty"`
+	OsHasIPv6             bool                   `protobuf:"varint,7,opt,name=osHasIPv6,proto3" json:"osHasIPv6,omitempty"`
+	GlobalV4              string                 `protobuf:"bytes,8,opt,name=globalV4,proto3" json:"globalV4,omitempty"`
+	GlobalV6              string                 `protobuf:"bytes,9,opt,name=globalV6,proto3" json:"globalV6,omitempty"`
+	MappingVariesByDestIP string                 `protobuf:"bytes,10,opt,name=mappingVariesByDestIP,proto3" json:"mappingVariesByDestIP,omitempty"`
+	Upnp                  string                 `protobuf:"bytes,11,opt,name=upnp,proto3" json:"upnp,omitempty"`
+	Pmp                   string                 `protobuf:"bytes,12,opt,name=pmp,proto3" json:"pmp,omitempty"`
+	Pcp                   string                 `protobuf:"bytes,13,opt,name=pcp,proto3" json:"pcp,omitempty"`
+	CaptivePortal         string                 `protobuf:"bytes,14,opt,name=captivePortal,proto3" json:"captivePortal,omitempty"`
+	PreferredDERP         int32                  `protobuf:"varint,15,opt,name=preferredDERP,proto3" json:"preferredDERP,omitempty"`
+	Regions               []*TailscaleDERPRegion `protobuf:"bytes,16,rep,name=regions,proto3" json:"regions,omitempty"`
+	SelfEndpoints         []string               `protobuf:"bytes,17,rep,name=selfEndpoints,proto3" json:"selfEndpoints,omitempty"`
+	StunPath              string                 `protobuf:"bytes,18,opt,name=stunPath,proto3" json:"stunPath,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *TailscaleNetcheck) Reset() {
+	*x = TailscaleNetcheck{}
+	mi := &file_daemon_started_service_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleNetcheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleNetcheck) ProtoMessage() {}
+
+func (x *TailscaleNetcheck) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleNetcheck.ProtoReflect.Descriptor instead.
+func (*TailscaleNetcheck) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *TailscaleNetcheck) GetCheckedAt() int64 {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return 0
+}
+
+func (x *TailscaleNetcheck) GetUdp() bool {
+	if x != nil {
+		return x.Udp
+	}
+	return false
+}
+
+func (x *TailscaleNetcheck) GetIpv4() bool {
+	if x != nil {
+		return x.Ipv4
+	}
+	return false
+}
+
+func (x *TailscaleNetcheck) GetIpv6() bool {
+	if x != nil {
+		return x.Ipv6
+	}
+	return false
+}
+
+func (x *TailscaleNetcheck) GetIpv4CanSend() bool {
+	if x != nil {
+		return x.Ipv4CanSend
+	}
+	return false
+}
+
+func (x *TailscaleNetcheck) GetIpv6CanSend() bool {
+	if x != nil {
+		return x.Ipv6CanSend
+	}
+	return false
+}
+
+func (x *TailscaleNetcheck) GetOsHasIPv6() bool {
+	if x != nil {
+		return x.OsHasIPv6
+	}
+	return false
+}
+
+func (x *TailscaleNetcheck) GetGlobalV4() string {
+	if x != nil {
+		return x.GlobalV4
+	}
+	return ""
+}
+
+func (x *TailscaleNetcheck) GetGlobalV6() string {
+	if x != nil {
+		return x.GlobalV6
+	}
+	return ""
+}
+
+func (x *TailscaleNetcheck) GetMappingVariesByDestIP() string {
+	if x != nil {
+		return x.MappingVariesByDestIP
+	}
+	return ""
+}
+
+func (x *TailscaleNetcheck) GetUpnp() string {
+	if x != nil {
+		return x.Upnp
+	}
+	return ""
+}
+
+func (x *TailscaleNetcheck) GetPmp() string {
+	if x != nil {
+		return x.Pmp
+	}
+	return ""
+}
+
+func (x *TailscaleNetcheck) GetPcp() string {
+	if x != nil {
+		return x.Pcp
+	}
+	return ""
+}
+
+func (x *TailscaleNetcheck) GetCaptivePortal() string {
+	if x != nil {
+		return x.CaptivePortal
+	}
+	return ""
+}
+
+func (x *TailscaleNetcheck) GetPreferredDERP() int32 {
+	if x != nil {
+		return x.PreferredDERP
+	}
+	return 0
+}
+
+func (x *TailscaleNetcheck) GetRegions() []*TailscaleDERPRegion {
+	if x != nil {
+		return x.Regions
+	}
+	return nil
+}
+
+func (x *TailscaleNetcheck) GetSelfEndpoints() []string {
+	if x != nil {
+		return x.SelfEndpoints
+	}
+	return nil
+}
+
+func (x *TailscaleNetcheck) GetStunPath() string {
+	if x != nil {
+		return x.StunPath
+	}
+	return ""
+}
+
+type TailscaleDERPRegion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	LatencyMs     float64                `protobuf:"fixed64,4,opt,name=latencyMs,proto3" json:"latencyMs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleDERPRegion) Reset() {
+	*x = TailscaleDERPRegion{}
+	mi := &file_daemon_started_service_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleDERPRegion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleDERPRegion) ProtoMessage() {}
+
+func (x *TailscaleDERPRegion) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleDERPRegion.ProtoReflect.Descriptor instead.
+func (*TailscaleDERPRegion) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *TailscaleDERPRegion) GetId() int32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *TailscaleDERPRegion) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *TailscaleDERPRegion) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *TailscaleDERPRegion) GetLatencyMs() float64 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
+type TailscalePeerDiagnostics struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	StableID      string                   `protobuf:"bytes,1,opt,name=stableID,proto3" json:"stableID,omitempty"`
+	Endpoints     []*TailscalePeerEndpoint `protobuf:"bytes,2,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
+	LastHandshake int64                    `protobuf:"varint,3,opt,name=lastHandshake,proto3" json:"lastHandshake,omitempty"`
+	PeerRelay     string                   `protobuf:"bytes,4,opt,name=peerRelay,proto3" json:"peerRelay,omitempty"`
+	Changes       []*TailscalePathChange   `protobuf:"bytes,5,rep,name=changes,proto3" json:"changes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscalePeerDiagnostics) Reset() {
+	*x = TailscalePeerDiagnostics{}
+	mi := &file_daemon_started_service_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscalePeerDiagnostics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscalePeerDiagnostics) ProtoMessage() {}
+
+func (x *TailscalePeerDiagnostics) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscalePeerDiagnostics.ProtoReflect.Descriptor instead.
+func (*TailscalePeerDiagnostics) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *TailscalePeerDiagnostics) GetStableID() string {
+	if x != nil {
+		return x.StableID
+	}
+	return ""
+}
+
+func (x *TailscalePeerDiagnostics) GetEndpoints() []*TailscalePeerEndpoint {
+	if x != nil {
+		return x.Endpoints
+	}
+	return nil
+}
+
+func (x *TailscalePeerDiagnostics) GetLastHandshake() int64 {
+	if x != nil {
+		return x.LastHandshake
+	}
+	return 0
+}
+
+func (x *TailscalePeerDiagnostics) GetPeerRelay() string {
+	if x != nil {
+		return x.PeerRelay
+	}
+	return ""
+}
+
+func (x *TailscalePeerDiagnostics) GetChanges() []*TailscalePathChange {
+	if x != nil {
+		return x.Changes
+	}
+	return nil
+}
+
+type TailscalePeerEndpoint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Address       string                 `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscalePeerEndpoint) Reset() {
+	*x = TailscalePeerEndpoint{}
+	mi := &file_daemon_started_service_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscalePeerEndpoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscalePeerEndpoint) ProtoMessage() {}
+
+func (x *TailscalePeerEndpoint) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscalePeerEndpoint.ProtoReflect.Descriptor instead.
+func (*TailscalePeerEndpoint) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *TailscalePeerEndpoint) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *TailscalePeerEndpoint) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type TailscalePathChange struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	At            int64                  `protobuf:"varint,1,opt,name=at,proto3" json:"at,omitempty"`
+	What          string                 `protobuf:"bytes,2,opt,name=what,proto3" json:"what,omitempty"`
+	From          string                 `protobuf:"bytes,3,opt,name=from,proto3" json:"from,omitempty"`
+	To            string                 `protobuf:"bytes,4,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscalePathChange) Reset() {
+	*x = TailscalePathChange{}
+	mi := &file_daemon_started_service_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscalePathChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscalePathChange) ProtoMessage() {}
+
+func (x *TailscalePathChange) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscalePathChange.ProtoReflect.Descriptor instead.
+func (*TailscalePathChange) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *TailscalePathChange) GetAt() int64 {
+	if x != nil {
+		return x.At
+	}
+	return 0
+}
+
+func (x *TailscalePathChange) GetWhat() string {
+	if x != nil {
+		return x.What
+	}
+	return ""
+}
+
+func (x *TailscalePathChange) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *TailscalePathChange) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
 type SetTailscaleExitNodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EndpointTag   string                 `protobuf:"bytes,1,opt,name=endpointTag,proto3" json:"endpointTag,omitempty"`
@@ -3111,7 +3659,7 @@ type SetTailscaleExitNodeRequest struct {
 
 func (x *SetTailscaleExitNodeRequest) Reset() {
 	*x = SetTailscaleExitNodeRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[36]
+	mi := &file_daemon_started_service_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3123,7 +3671,7 @@ func (x *SetTailscaleExitNodeRequest) String() string {
 func (*SetTailscaleExitNodeRequest) ProtoMessage() {}
 
 func (x *SetTailscaleExitNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[36]
+	mi := &file_daemon_started_service_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3136,7 +3684,7 @@ func (x *SetTailscaleExitNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTailscaleExitNodeRequest.ProtoReflect.Descriptor instead.
 func (*SetTailscaleExitNodeRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{36}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *SetTailscaleExitNodeRequest) GetEndpointTag() string {
@@ -3162,7 +3710,7 @@ type TailscaleLogoutRequest struct {
 
 func (x *TailscaleLogoutRequest) Reset() {
 	*x = TailscaleLogoutRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[37]
+	mi := &file_daemon_started_service_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3174,7 +3722,7 @@ func (x *TailscaleLogoutRequest) String() string {
 func (*TailscaleLogoutRequest) ProtoMessage() {}
 
 func (x *TailscaleLogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[37]
+	mi := &file_daemon_started_service_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3187,7 +3735,7 @@ func (x *TailscaleLogoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleLogoutRequest.ProtoReflect.Descriptor instead.
 func (*TailscaleLogoutRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{37}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *TailscaleLogoutRequest) GetEndpointTag() string {
@@ -3208,7 +3756,7 @@ type TailscaleCertificateRequest struct {
 
 func (x *TailscaleCertificateRequest) Reset() {
 	*x = TailscaleCertificateRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[38]
+	mi := &file_daemon_started_service_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3220,7 +3768,7 @@ func (x *TailscaleCertificateRequest) String() string {
 func (*TailscaleCertificateRequest) ProtoMessage() {}
 
 func (x *TailscaleCertificateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[38]
+	mi := &file_daemon_started_service_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3233,7 +3781,7 @@ func (x *TailscaleCertificateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleCertificateRequest.ProtoReflect.Descriptor instead.
 func (*TailscaleCertificateRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{38}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *TailscaleCertificateRequest) GetEndpointTag() string {
@@ -3267,7 +3815,7 @@ type TailscaleCertificate struct {
 
 func (x *TailscaleCertificate) Reset() {
 	*x = TailscaleCertificate{}
-	mi := &file_daemon_started_service_proto_msgTypes[39]
+	mi := &file_daemon_started_service_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3279,7 +3827,7 @@ func (x *TailscaleCertificate) String() string {
 func (*TailscaleCertificate) ProtoMessage() {}
 
 func (x *TailscaleCertificate) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[39]
+	mi := &file_daemon_started_service_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3292,7 +3840,7 @@ func (x *TailscaleCertificate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleCertificate.ProtoReflect.Descriptor instead.
 func (*TailscaleCertificate) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{39}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *TailscaleCertificate) GetCertificatePEM() []byte {
@@ -3323,7 +3871,7 @@ type TailscaleSSHClientMessage struct {
 
 func (x *TailscaleSSHClientMessage) Reset() {
 	*x = TailscaleSSHClientMessage{}
-	mi := &file_daemon_started_service_proto_msgTypes[40]
+	mi := &file_daemon_started_service_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3335,7 +3883,7 @@ func (x *TailscaleSSHClientMessage) String() string {
 func (*TailscaleSSHClientMessage) ProtoMessage() {}
 
 func (x *TailscaleSSHClientMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[40]
+	mi := &file_daemon_started_service_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3348,7 +3896,7 @@ func (x *TailscaleSSHClientMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHClientMessage.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHClientMessage) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{40}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *TailscaleSSHClientMessage) GetMessage() isTailscaleSSHClientMessage_Message {
@@ -3425,7 +3973,7 @@ type TailscaleSSHStart struct {
 
 func (x *TailscaleSSHStart) Reset() {
 	*x = TailscaleSSHStart{}
-	mi := &file_daemon_started_service_proto_msgTypes[41]
+	mi := &file_daemon_started_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3437,7 +3985,7 @@ func (x *TailscaleSSHStart) String() string {
 func (*TailscaleSSHStart) ProtoMessage() {}
 
 func (x *TailscaleSSHStart) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[41]
+	mi := &file_daemon_started_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3450,7 +3998,7 @@ func (x *TailscaleSSHStart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHStart.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHStart) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{41}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *TailscaleSSHStart) GetEndpointTag() string {
@@ -3532,7 +4080,7 @@ type TailscaleSSHInput struct {
 
 func (x *TailscaleSSHInput) Reset() {
 	*x = TailscaleSSHInput{}
-	mi := &file_daemon_started_service_proto_msgTypes[42]
+	mi := &file_daemon_started_service_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3544,7 +4092,7 @@ func (x *TailscaleSSHInput) String() string {
 func (*TailscaleSSHInput) ProtoMessage() {}
 
 func (x *TailscaleSSHInput) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[42]
+	mi := &file_daemon_started_service_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3557,7 +4105,7 @@ func (x *TailscaleSSHInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHInput.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHInput) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{42}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *TailscaleSSHInput) GetData() []byte {
@@ -3579,7 +4127,7 @@ type TailscaleSSHResize struct {
 
 func (x *TailscaleSSHResize) Reset() {
 	*x = TailscaleSSHResize{}
-	mi := &file_daemon_started_service_proto_msgTypes[43]
+	mi := &file_daemon_started_service_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3591,7 +4139,7 @@ func (x *TailscaleSSHResize) String() string {
 func (*TailscaleSSHResize) ProtoMessage() {}
 
 func (x *TailscaleSSHResize) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[43]
+	mi := &file_daemon_started_service_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3604,7 +4152,7 @@ func (x *TailscaleSSHResize) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHResize.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHResize) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{43}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *TailscaleSSHResize) GetColumns() int32 {
@@ -3651,7 +4199,7 @@ type TailscaleSSHServerMessage struct {
 
 func (x *TailscaleSSHServerMessage) Reset() {
 	*x = TailscaleSSHServerMessage{}
-	mi := &file_daemon_started_service_proto_msgTypes[44]
+	mi := &file_daemon_started_service_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3663,7 +4211,7 @@ func (x *TailscaleSSHServerMessage) String() string {
 func (*TailscaleSSHServerMessage) ProtoMessage() {}
 
 func (x *TailscaleSSHServerMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[44]
+	mi := &file_daemon_started_service_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3676,7 +4224,7 @@ func (x *TailscaleSSHServerMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHServerMessage.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHServerMessage) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{44}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *TailscaleSSHServerMessage) GetMessage() isTailscaleSSHServerMessage_Message {
@@ -3774,7 +4322,7 @@ type TailscaleSSHAuthBanner struct {
 
 func (x *TailscaleSSHAuthBanner) Reset() {
 	*x = TailscaleSSHAuthBanner{}
-	mi := &file_daemon_started_service_proto_msgTypes[45]
+	mi := &file_daemon_started_service_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3786,7 +4334,7 @@ func (x *TailscaleSSHAuthBanner) String() string {
 func (*TailscaleSSHAuthBanner) ProtoMessage() {}
 
 func (x *TailscaleSSHAuthBanner) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[45]
+	mi := &file_daemon_started_service_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3799,7 +4347,7 @@ func (x *TailscaleSSHAuthBanner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHAuthBanner.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHAuthBanner) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{45}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *TailscaleSSHAuthBanner) GetMessage() string {
@@ -3817,7 +4365,7 @@ type TailscaleSSHReady struct {
 
 func (x *TailscaleSSHReady) Reset() {
 	*x = TailscaleSSHReady{}
-	mi := &file_daemon_started_service_proto_msgTypes[46]
+	mi := &file_daemon_started_service_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3829,7 +4377,7 @@ func (x *TailscaleSSHReady) String() string {
 func (*TailscaleSSHReady) ProtoMessage() {}
 
 func (x *TailscaleSSHReady) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[46]
+	mi := &file_daemon_started_service_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3842,7 +4390,7 @@ func (x *TailscaleSSHReady) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHReady.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHReady) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{46}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{53}
 }
 
 type TailscaleSSHOutput struct {
@@ -3854,7 +4402,7 @@ type TailscaleSSHOutput struct {
 
 func (x *TailscaleSSHOutput) Reset() {
 	*x = TailscaleSSHOutput{}
-	mi := &file_daemon_started_service_proto_msgTypes[47]
+	mi := &file_daemon_started_service_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3866,7 +4414,7 @@ func (x *TailscaleSSHOutput) String() string {
 func (*TailscaleSSHOutput) ProtoMessage() {}
 
 func (x *TailscaleSSHOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[47]
+	mi := &file_daemon_started_service_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3879,7 +4427,7 @@ func (x *TailscaleSSHOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHOutput.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHOutput) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{47}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *TailscaleSSHOutput) GetData() []byte {
@@ -3900,7 +4448,7 @@ type TailscaleSSHExit struct {
 
 func (x *TailscaleSSHExit) Reset() {
 	*x = TailscaleSSHExit{}
-	mi := &file_daemon_started_service_proto_msgTypes[48]
+	mi := &file_daemon_started_service_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3912,7 +4460,7 @@ func (x *TailscaleSSHExit) String() string {
 func (*TailscaleSSHExit) ProtoMessage() {}
 
 func (x *TailscaleSSHExit) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[48]
+	mi := &file_daemon_started_service_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3925,7 +4473,7 @@ func (x *TailscaleSSHExit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHExit.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHExit) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{48}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *TailscaleSSHExit) GetExitCode() int32 {
@@ -3958,7 +4506,7 @@ type TailscaleSSHError struct {
 
 func (x *TailscaleSSHError) Reset() {
 	*x = TailscaleSSHError{}
-	mi := &file_daemon_started_service_proto_msgTypes[49]
+	mi := &file_daemon_started_service_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3970,7 +4518,7 @@ func (x *TailscaleSSHError) String() string {
 func (*TailscaleSSHError) ProtoMessage() {}
 
 func (x *TailscaleSSHError) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[49]
+	mi := &file_daemon_started_service_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3983,7 +4531,7 @@ func (x *TailscaleSSHError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TailscaleSSHError.ProtoReflect.Descriptor instead.
 func (*TailscaleSSHError) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{49}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *TailscaleSSHError) GetMessage() string {
@@ -4002,7 +4550,7 @@ type SubscribeTaildropInboxRequest struct {
 
 func (x *SubscribeTaildropInboxRequest) Reset() {
 	*x = SubscribeTaildropInboxRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[50]
+	mi := &file_daemon_started_service_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4014,7 +4562,7 @@ func (x *SubscribeTaildropInboxRequest) String() string {
 func (*SubscribeTaildropInboxRequest) ProtoMessage() {}
 
 func (x *SubscribeTaildropInboxRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[50]
+	mi := &file_daemon_started_service_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4027,7 +4575,7 @@ func (x *SubscribeTaildropInboxRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeTaildropInboxRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeTaildropInboxRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{50}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *SubscribeTaildropInboxRequest) GetEndpointTag() string {
@@ -4046,7 +4594,7 @@ type MarkTaildropInboxReadRequest struct {
 
 func (x *MarkTaildropInboxReadRequest) Reset() {
 	*x = MarkTaildropInboxReadRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[51]
+	mi := &file_daemon_started_service_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4058,7 +4606,7 @@ func (x *MarkTaildropInboxReadRequest) String() string {
 func (*MarkTaildropInboxReadRequest) ProtoMessage() {}
 
 func (x *MarkTaildropInboxReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[51]
+	mi := &file_daemon_started_service_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4071,7 +4619,7 @@ func (x *MarkTaildropInboxReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkTaildropInboxReadRequest.ProtoReflect.Descriptor instead.
 func (*MarkTaildropInboxReadRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{51}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *MarkTaildropInboxReadRequest) GetEndpointTag() string {
@@ -4092,7 +4640,7 @@ type TaildropInbox struct {
 
 func (x *TaildropInbox) Reset() {
 	*x = TaildropInbox{}
-	mi := &file_daemon_started_service_proto_msgTypes[52]
+	mi := &file_daemon_started_service_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4104,7 +4652,7 @@ func (x *TaildropInbox) String() string {
 func (*TaildropInbox) ProtoMessage() {}
 
 func (x *TaildropInbox) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[52]
+	mi := &file_daemon_started_service_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4117,7 +4665,7 @@ func (x *TaildropInbox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropInbox.ProtoReflect.Descriptor instead.
 func (*TaildropInbox) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{52}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *TaildropInbox) GetEndpointTag() string {
@@ -4153,7 +4701,7 @@ type TaildropFile struct {
 
 func (x *TaildropFile) Reset() {
 	*x = TaildropFile{}
-	mi := &file_daemon_started_service_proto_msgTypes[53]
+	mi := &file_daemon_started_service_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4165,7 +4713,7 @@ func (x *TaildropFile) String() string {
 func (*TaildropFile) ProtoMessage() {}
 
 func (x *TaildropFile) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[53]
+	mi := &file_daemon_started_service_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4178,7 +4726,7 @@ func (x *TaildropFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropFile.ProtoReflect.Descriptor instead.
 func (*TaildropFile) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{53}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *TaildropFile) GetName() string {
@@ -4222,7 +4770,7 @@ type TaildropReceivingFile struct {
 
 func (x *TaildropReceivingFile) Reset() {
 	*x = TaildropReceivingFile{}
-	mi := &file_daemon_started_service_proto_msgTypes[54]
+	mi := &file_daemon_started_service_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4234,7 +4782,7 @@ func (x *TaildropReceivingFile) String() string {
 func (*TaildropReceivingFile) ProtoMessage() {}
 
 func (x *TaildropReceivingFile) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[54]
+	mi := &file_daemon_started_service_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4247,7 +4795,7 @@ func (x *TaildropReceivingFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropReceivingFile.ProtoReflect.Descriptor instead.
 func (*TaildropReceivingFile) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{54}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *TaildropReceivingFile) GetName() string {
@@ -4299,7 +4847,7 @@ type TaildropSendClientMessage struct {
 
 func (x *TaildropSendClientMessage) Reset() {
 	*x = TaildropSendClientMessage{}
-	mi := &file_daemon_started_service_proto_msgTypes[55]
+	mi := &file_daemon_started_service_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4311,7 +4859,7 @@ func (x *TaildropSendClientMessage) String() string {
 func (*TaildropSendClientMessage) ProtoMessage() {}
 
 func (x *TaildropSendClientMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[55]
+	mi := &file_daemon_started_service_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4324,7 +4872,7 @@ func (x *TaildropSendClientMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropSendClientMessage.ProtoReflect.Descriptor instead.
 func (*TaildropSendClientMessage) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{55}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *TaildropSendClientMessage) GetMessage() isTaildropSendClientMessage_Message {
@@ -4394,7 +4942,7 @@ type TaildropSendStart struct {
 
 func (x *TaildropSendStart) Reset() {
 	*x = TaildropSendStart{}
-	mi := &file_daemon_started_service_proto_msgTypes[56]
+	mi := &file_daemon_started_service_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4406,7 +4954,7 @@ func (x *TaildropSendStart) String() string {
 func (*TaildropSendStart) ProtoMessage() {}
 
 func (x *TaildropSendStart) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[56]
+	mi := &file_daemon_started_service_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4419,7 +4967,7 @@ func (x *TaildropSendStart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropSendStart.ProtoReflect.Descriptor instead.
 func (*TaildropSendStart) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{56}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *TaildropSendStart) GetEndpointTag() string {
@@ -4453,7 +5001,7 @@ type TaildropOutgoingFile struct {
 
 func (x *TaildropOutgoingFile) Reset() {
 	*x = TaildropOutgoingFile{}
-	mi := &file_daemon_started_service_proto_msgTypes[57]
+	mi := &file_daemon_started_service_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4465,7 +5013,7 @@ func (x *TaildropOutgoingFile) String() string {
 func (*TaildropOutgoingFile) ProtoMessage() {}
 
 func (x *TaildropOutgoingFile) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[57]
+	mi := &file_daemon_started_service_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4478,7 +5026,7 @@ func (x *TaildropOutgoingFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropOutgoingFile.ProtoReflect.Descriptor instead.
 func (*TaildropOutgoingFile) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{57}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *TaildropOutgoingFile) GetName() string {
@@ -4504,7 +5052,7 @@ type TaildropFileChunk struct {
 
 func (x *TaildropFileChunk) Reset() {
 	*x = TaildropFileChunk{}
-	mi := &file_daemon_started_service_proto_msgTypes[58]
+	mi := &file_daemon_started_service_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4516,7 +5064,7 @@ func (x *TaildropFileChunk) String() string {
 func (*TaildropFileChunk) ProtoMessage() {}
 
 func (x *TaildropFileChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[58]
+	mi := &file_daemon_started_service_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4529,7 +5077,7 @@ func (x *TaildropFileChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropFileChunk.ProtoReflect.Descriptor instead.
 func (*TaildropFileChunk) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{58}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *TaildropFileChunk) GetData() []byte {
@@ -4547,7 +5095,7 @@ type TaildropFileDone struct {
 
 func (x *TaildropFileDone) Reset() {
 	*x = TaildropFileDone{}
-	mi := &file_daemon_started_service_proto_msgTypes[59]
+	mi := &file_daemon_started_service_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4559,7 +5107,7 @@ func (x *TaildropFileDone) String() string {
 func (*TaildropFileDone) ProtoMessage() {}
 
 func (x *TaildropFileDone) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[59]
+	mi := &file_daemon_started_service_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4572,7 +5120,7 @@ func (x *TaildropFileDone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropFileDone.ProtoReflect.Descriptor instead.
 func (*TaildropFileDone) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{59}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{66}
 }
 
 type TaildropSendServerMessage struct {
@@ -4588,7 +5136,7 @@ type TaildropSendServerMessage struct {
 
 func (x *TaildropSendServerMessage) Reset() {
 	*x = TaildropSendServerMessage{}
-	mi := &file_daemon_started_service_proto_msgTypes[60]
+	mi := &file_daemon_started_service_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4600,7 +5148,7 @@ func (x *TaildropSendServerMessage) String() string {
 func (*TaildropSendServerMessage) ProtoMessage() {}
 
 func (x *TaildropSendServerMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[60]
+	mi := &file_daemon_started_service_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4613,7 +5161,7 @@ func (x *TaildropSendServerMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropSendServerMessage.ProtoReflect.Descriptor instead.
 func (*TaildropSendServerMessage) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{60}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *TaildropSendServerMessage) GetMessage() isTaildropSendServerMessage_Message {
@@ -4668,7 +5216,7 @@ type TaildropSendProgress struct {
 
 func (x *TaildropSendProgress) Reset() {
 	*x = TaildropSendProgress{}
-	mi := &file_daemon_started_service_proto_msgTypes[61]
+	mi := &file_daemon_started_service_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4680,7 +5228,7 @@ func (x *TaildropSendProgress) String() string {
 func (*TaildropSendProgress) ProtoMessage() {}
 
 func (x *TaildropSendProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[61]
+	mi := &file_daemon_started_service_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4693,7 +5241,7 @@ func (x *TaildropSendProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaildropSendProgress.ProtoReflect.Descriptor instead.
 func (*TaildropSendProgress) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{61}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *TaildropSendProgress) GetFileIndex() int32 {
@@ -4727,7 +5275,7 @@ type DownloadTaildropFileRequest struct {
 
 func (x *DownloadTaildropFileRequest) Reset() {
 	*x = DownloadTaildropFileRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[62]
+	mi := &file_daemon_started_service_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4739,7 +5287,7 @@ func (x *DownloadTaildropFileRequest) String() string {
 func (*DownloadTaildropFileRequest) ProtoMessage() {}
 
 func (x *DownloadTaildropFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[62]
+	mi := &file_daemon_started_service_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4752,7 +5300,7 @@ func (x *DownloadTaildropFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadTaildropFileRequest.ProtoReflect.Descriptor instead.
 func (*DownloadTaildropFileRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{62}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *DownloadTaildropFileRequest) GetEndpointTag() string {
@@ -4779,7 +5327,7 @@ type DownloadTaildropFileChunk struct {
 
 func (x *DownloadTaildropFileChunk) Reset() {
 	*x = DownloadTaildropFileChunk{}
-	mi := &file_daemon_started_service_proto_msgTypes[63]
+	mi := &file_daemon_started_service_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4791,7 +5339,7 @@ func (x *DownloadTaildropFileChunk) String() string {
 func (*DownloadTaildropFileChunk) ProtoMessage() {}
 
 func (x *DownloadTaildropFileChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[63]
+	mi := &file_daemon_started_service_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4804,7 +5352,7 @@ func (x *DownloadTaildropFileChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadTaildropFileChunk.ProtoReflect.Descriptor instead.
 func (*DownloadTaildropFileChunk) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{63}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *DownloadTaildropFileChunk) GetSize() int64 {
@@ -4831,7 +5379,7 @@ type DeleteTaildropFileRequest struct {
 
 func (x *DeleteTaildropFileRequest) Reset() {
 	*x = DeleteTaildropFileRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[64]
+	mi := &file_daemon_started_service_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4843,7 +5391,7 @@ func (x *DeleteTaildropFileRequest) String() string {
 func (*DeleteTaildropFileRequest) ProtoMessage() {}
 
 func (x *DeleteTaildropFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[64]
+	mi := &file_daemon_started_service_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4856,7 +5404,7 @@ func (x *DeleteTaildropFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTaildropFileRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTaildropFileRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{64}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *DeleteTaildropFileRequest) GetEndpointTag() string {
@@ -4884,7 +5432,7 @@ type CancelTaildropReceivingRequest struct {
 
 func (x *CancelTaildropReceivingRequest) Reset() {
 	*x = CancelTaildropReceivingRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[65]
+	mi := &file_daemon_started_service_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4896,7 +5444,7 @@ func (x *CancelTaildropReceivingRequest) String() string {
 func (*CancelTaildropReceivingRequest) ProtoMessage() {}
 
 func (x *CancelTaildropReceivingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[65]
+	mi := &file_daemon_started_service_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4909,7 +5457,7 @@ func (x *CancelTaildropReceivingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTaildropReceivingRequest.ProtoReflect.Descriptor instead.
 func (*CancelTaildropReceivingRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{65}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *CancelTaildropReceivingRequest) GetEndpointTag() string {
@@ -4947,7 +5495,7 @@ type USBProviderMessage struct {
 
 func (x *USBProviderMessage) Reset() {
 	*x = USBProviderMessage{}
-	mi := &file_daemon_started_service_proto_msgTypes[66]
+	mi := &file_daemon_started_service_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4959,7 +5507,7 @@ func (x *USBProviderMessage) String() string {
 func (*USBProviderMessage) ProtoMessage() {}
 
 func (x *USBProviderMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[66]
+	mi := &file_daemon_started_service_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4972,7 +5520,7 @@ func (x *USBProviderMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBProviderMessage.ProtoReflect.Descriptor instead.
 func (*USBProviderMessage) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{66}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *USBProviderMessage) GetMessage() isUSBProviderMessage_Message {
@@ -5046,7 +5594,7 @@ type USBServerMessage struct {
 
 func (x *USBServerMessage) Reset() {
 	*x = USBServerMessage{}
-	mi := &file_daemon_started_service_proto_msgTypes[67]
+	mi := &file_daemon_started_service_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5058,7 +5606,7 @@ func (x *USBServerMessage) String() string {
 func (*USBServerMessage) ProtoMessage() {}
 
 func (x *USBServerMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[67]
+	mi := &file_daemon_started_service_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5071,7 +5619,7 @@ func (x *USBServerMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBServerMessage.ProtoReflect.Descriptor instead.
 func (*USBServerMessage) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{67}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *USBServerMessage) GetMessage() isUSBServerMessage_Message {
@@ -5168,7 +5716,7 @@ type USBDeviceDescriptor struct {
 
 func (x *USBDeviceDescriptor) Reset() {
 	*x = USBDeviceDescriptor{}
-	mi := &file_daemon_started_service_proto_msgTypes[68]
+	mi := &file_daemon_started_service_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5180,7 +5728,7 @@ func (x *USBDeviceDescriptor) String() string {
 func (*USBDeviceDescriptor) ProtoMessage() {}
 
 func (x *USBDeviceDescriptor) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[68]
+	mi := &file_daemon_started_service_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5193,7 +5741,7 @@ func (x *USBDeviceDescriptor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBDeviceDescriptor.ProtoReflect.Descriptor instead.
 func (*USBDeviceDescriptor) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{68}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *USBDeviceDescriptor) GetDeviceId() string {
@@ -5311,7 +5859,7 @@ type USBDeviceAttach struct {
 
 func (x *USBDeviceAttach) Reset() {
 	*x = USBDeviceAttach{}
-	mi := &file_daemon_started_service_proto_msgTypes[69]
+	mi := &file_daemon_started_service_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5323,7 +5871,7 @@ func (x *USBDeviceAttach) String() string {
 func (*USBDeviceAttach) ProtoMessage() {}
 
 func (x *USBDeviceAttach) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[69]
+	mi := &file_daemon_started_service_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5336,7 +5884,7 @@ func (x *USBDeviceAttach) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBDeviceAttach.ProtoReflect.Descriptor instead.
 func (*USBDeviceAttach) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{69}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *USBDeviceAttach) GetServerTag() string {
@@ -5364,7 +5912,7 @@ type USBInterface struct {
 
 func (x *USBInterface) Reset() {
 	*x = USBInterface{}
-	mi := &file_daemon_started_service_proto_msgTypes[70]
+	mi := &file_daemon_started_service_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5376,7 +5924,7 @@ func (x *USBInterface) String() string {
 func (*USBInterface) ProtoMessage() {}
 
 func (x *USBInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[70]
+	mi := &file_daemon_started_service_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5389,7 +5937,7 @@ func (x *USBInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBInterface.ProtoReflect.Descriptor instead.
 func (*USBInterface) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{70}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *USBInterface) GetInterfaceClass() uint32 {
@@ -5422,7 +5970,7 @@ type USBDeviceDetach struct {
 
 func (x *USBDeviceDetach) Reset() {
 	*x = USBDeviceDetach{}
-	mi := &file_daemon_started_service_proto_msgTypes[71]
+	mi := &file_daemon_started_service_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5434,7 +5982,7 @@ func (x *USBDeviceDetach) String() string {
 func (*USBDeviceDetach) ProtoMessage() {}
 
 func (x *USBDeviceDetach) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[71]
+	mi := &file_daemon_started_service_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5447,7 +5995,7 @@ func (x *USBDeviceDetach) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBDeviceDetach.ProtoReflect.Descriptor instead.
 func (*USBDeviceDetach) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{71}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *USBDeviceDetach) GetDeviceId() string {
@@ -5467,7 +6015,7 @@ type USBDeviceReady struct {
 
 func (x *USBDeviceReady) Reset() {
 	*x = USBDeviceReady{}
-	mi := &file_daemon_started_service_proto_msgTypes[72]
+	mi := &file_daemon_started_service_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5479,7 +6027,7 @@ func (x *USBDeviceReady) String() string {
 func (*USBDeviceReady) ProtoMessage() {}
 
 func (x *USBDeviceReady) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[72]
+	mi := &file_daemon_started_service_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5492,7 +6040,7 @@ func (x *USBDeviceReady) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBDeviceReady.ProtoReflect.Descriptor instead.
 func (*USBDeviceReady) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{72}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *USBDeviceReady) GetDeviceId() string {
@@ -5529,7 +6077,7 @@ type USBURBRequest struct {
 
 func (x *USBURBRequest) Reset() {
 	*x = USBURBRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[73]
+	mi := &file_daemon_started_service_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5541,7 +6089,7 @@ func (x *USBURBRequest) String() string {
 func (*USBURBRequest) ProtoMessage() {}
 
 func (x *USBURBRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[73]
+	mi := &file_daemon_started_service_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5554,7 +6102,7 @@ func (x *USBURBRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBURBRequest.ProtoReflect.Descriptor instead.
 func (*USBURBRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{73}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *USBURBRequest) GetDeviceId() string {
@@ -5655,7 +6203,7 @@ type USBURBResponse struct {
 
 func (x *USBURBResponse) Reset() {
 	*x = USBURBResponse{}
-	mi := &file_daemon_started_service_proto_msgTypes[74]
+	mi := &file_daemon_started_service_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5667,7 +6215,7 @@ func (x *USBURBResponse) String() string {
 func (*USBURBResponse) ProtoMessage() {}
 
 func (x *USBURBResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[74]
+	mi := &file_daemon_started_service_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5680,7 +6228,7 @@ func (x *USBURBResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBURBResponse.ProtoReflect.Descriptor instead.
 func (*USBURBResponse) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{74}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *USBURBResponse) GetDeviceId() string {
@@ -5737,7 +6285,7 @@ type USBIsoPacket struct {
 
 func (x *USBIsoPacket) Reset() {
 	*x = USBIsoPacket{}
-	mi := &file_daemon_started_service_proto_msgTypes[75]
+	mi := &file_daemon_started_service_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5749,7 +6297,7 @@ func (x *USBIsoPacket) String() string {
 func (*USBIsoPacket) ProtoMessage() {}
 
 func (x *USBIsoPacket) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[75]
+	mi := &file_daemon_started_service_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5762,7 +6310,7 @@ func (x *USBIsoPacket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBIsoPacket.ProtoReflect.Descriptor instead.
 func (*USBIsoPacket) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{75}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *USBIsoPacket) GetOffset() int32 {
@@ -5803,7 +6351,7 @@ type USBEndpointAbort struct {
 
 func (x *USBEndpointAbort) Reset() {
 	*x = USBEndpointAbort{}
-	mi := &file_daemon_started_service_proto_msgTypes[76]
+	mi := &file_daemon_started_service_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5815,7 +6363,7 @@ func (x *USBEndpointAbort) String() string {
 func (*USBEndpointAbort) ProtoMessage() {}
 
 func (x *USBEndpointAbort) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[76]
+	mi := &file_daemon_started_service_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5828,7 +6376,7 @@ func (x *USBEndpointAbort) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBEndpointAbort.ProtoReflect.Descriptor instead.
 func (*USBEndpointAbort) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{76}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *USBEndpointAbort) GetDeviceId() string {
@@ -5855,7 +6403,7 @@ type USBError struct {
 
 func (x *USBError) Reset() {
 	*x = USBError{}
-	mi := &file_daemon_started_service_proto_msgTypes[77]
+	mi := &file_daemon_started_service_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5867,7 +6415,7 @@ func (x *USBError) String() string {
 func (*USBError) ProtoMessage() {}
 
 func (x *USBError) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[77]
+	mi := &file_daemon_started_service_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5880,7 +6428,7 @@ func (x *USBError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBError.ProtoReflect.Descriptor instead.
 func (*USBError) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{77}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *USBError) GetDeviceId() string {
@@ -5906,7 +6454,7 @@ type USBIPServerStatusUpdate struct {
 
 func (x *USBIPServerStatusUpdate) Reset() {
 	*x = USBIPServerStatusUpdate{}
-	mi := &file_daemon_started_service_proto_msgTypes[78]
+	mi := &file_daemon_started_service_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5918,7 +6466,7 @@ func (x *USBIPServerStatusUpdate) String() string {
 func (*USBIPServerStatusUpdate) ProtoMessage() {}
 
 func (x *USBIPServerStatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[78]
+	mi := &file_daemon_started_service_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5931,7 +6479,7 @@ func (x *USBIPServerStatusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBIPServerStatusUpdate.ProtoReflect.Descriptor instead.
 func (*USBIPServerStatusUpdate) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{78}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *USBIPServerStatusUpdate) GetServers() []*USBIPServerStatus {
@@ -5951,7 +6499,7 @@ type USBIPServerStatus struct {
 
 func (x *USBIPServerStatus) Reset() {
 	*x = USBIPServerStatus{}
-	mi := &file_daemon_started_service_proto_msgTypes[79]
+	mi := &file_daemon_started_service_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5963,7 +6511,7 @@ func (x *USBIPServerStatus) String() string {
 func (*USBIPServerStatus) ProtoMessage() {}
 
 func (x *USBIPServerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[79]
+	mi := &file_daemon_started_service_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5976,7 +6524,7 @@ func (x *USBIPServerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBIPServerStatus.ProtoReflect.Descriptor instead.
 func (*USBIPServerStatus) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{79}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *USBIPServerStatus) GetServerTag() string {
@@ -6006,7 +6554,7 @@ type USBSharedDevice struct {
 
 func (x *USBSharedDevice) Reset() {
 	*x = USBSharedDevice{}
-	mi := &file_daemon_started_service_proto_msgTypes[80]
+	mi := &file_daemon_started_service_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6018,7 +6566,7 @@ func (x *USBSharedDevice) String() string {
 func (*USBSharedDevice) ProtoMessage() {}
 
 func (x *USBSharedDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[80]
+	mi := &file_daemon_started_service_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6031,7 +6579,7 @@ func (x *USBSharedDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use USBSharedDevice.ProtoReflect.Descriptor instead.
 func (*USBSharedDevice) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{80}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *USBSharedDevice) GetDescriptor_() *USBDeviceDescriptor {
@@ -6078,7 +6626,7 @@ type OpenConnectStatusUpdate struct {
 
 func (x *OpenConnectStatusUpdate) Reset() {
 	*x = OpenConnectStatusUpdate{}
-	mi := &file_daemon_started_service_proto_msgTypes[81]
+	mi := &file_daemon_started_service_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6090,7 +6638,7 @@ func (x *OpenConnectStatusUpdate) String() string {
 func (*OpenConnectStatusUpdate) ProtoMessage() {}
 
 func (x *OpenConnectStatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[81]
+	mi := &file_daemon_started_service_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6103,7 +6651,7 @@ func (x *OpenConnectStatusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectStatusUpdate.ProtoReflect.Descriptor instead.
 func (*OpenConnectStatusUpdate) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{81}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *OpenConnectStatusUpdate) GetEndpoints() []*OpenConnectEndpointStatus {
@@ -6127,7 +6675,7 @@ type OpenConnectEndpointStatus struct {
 
 func (x *OpenConnectEndpointStatus) Reset() {
 	*x = OpenConnectEndpointStatus{}
-	mi := &file_daemon_started_service_proto_msgTypes[82]
+	mi := &file_daemon_started_service_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6139,7 +6687,7 @@ func (x *OpenConnectEndpointStatus) String() string {
 func (*OpenConnectEndpointStatus) ProtoMessage() {}
 
 func (x *OpenConnectEndpointStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[82]
+	mi := &file_daemon_started_service_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6152,7 +6700,7 @@ func (x *OpenConnectEndpointStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectEndpointStatus.ProtoReflect.Descriptor instead.
 func (*OpenConnectEndpointStatus) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{82}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *OpenConnectEndpointStatus) GetEndpointTag() string {
@@ -6213,7 +6761,7 @@ type OpenConnectTunnelInfo struct {
 
 func (x *OpenConnectTunnelInfo) Reset() {
 	*x = OpenConnectTunnelInfo{}
-	mi := &file_daemon_started_service_proto_msgTypes[83]
+	mi := &file_daemon_started_service_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6225,7 +6773,7 @@ func (x *OpenConnectTunnelInfo) String() string {
 func (*OpenConnectTunnelInfo) ProtoMessage() {}
 
 func (x *OpenConnectTunnelInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[83]
+	mi := &file_daemon_started_service_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6238,7 +6786,7 @@ func (x *OpenConnectTunnelInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectTunnelInfo.ProtoReflect.Descriptor instead.
 func (*OpenConnectTunnelInfo) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{83}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *OpenConnectTunnelInfo) GetServer() string {
@@ -6314,7 +6862,7 @@ type OpenConnectAuthChallenge struct {
 
 func (x *OpenConnectAuthChallenge) Reset() {
 	*x = OpenConnectAuthChallenge{}
-	mi := &file_daemon_started_service_proto_msgTypes[84]
+	mi := &file_daemon_started_service_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6326,7 +6874,7 @@ func (x *OpenConnectAuthChallenge) String() string {
 func (*OpenConnectAuthChallenge) ProtoMessage() {}
 
 func (x *OpenConnectAuthChallenge) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[84]
+	mi := &file_daemon_started_service_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6339,7 +6887,7 @@ func (x *OpenConnectAuthChallenge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectAuthChallenge.ProtoReflect.Descriptor instead.
 func (*OpenConnectAuthChallenge) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{84}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *OpenConnectAuthChallenge) GetId() string {
@@ -6420,7 +6968,7 @@ type OpenConnectAuthForm struct {
 
 func (x *OpenConnectAuthForm) Reset() {
 	*x = OpenConnectAuthForm{}
-	mi := &file_daemon_started_service_proto_msgTypes[85]
+	mi := &file_daemon_started_service_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6432,7 +6980,7 @@ func (x *OpenConnectAuthForm) String() string {
 func (*OpenConnectAuthForm) ProtoMessage() {}
 
 func (x *OpenConnectAuthForm) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[85]
+	mi := &file_daemon_started_service_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6445,7 +6993,7 @@ func (x *OpenConnectAuthForm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectAuthForm.ProtoReflect.Descriptor instead.
 func (*OpenConnectAuthForm) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{85}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *OpenConnectAuthForm) GetFields() []*OpenConnectAuthFormField {
@@ -6469,7 +7017,7 @@ type OpenConnectAuthFormField struct {
 
 func (x *OpenConnectAuthFormField) Reset() {
 	*x = OpenConnectAuthFormField{}
-	mi := &file_daemon_started_service_proto_msgTypes[86]
+	mi := &file_daemon_started_service_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6481,7 +7029,7 @@ func (x *OpenConnectAuthFormField) String() string {
 func (*OpenConnectAuthFormField) ProtoMessage() {}
 
 func (x *OpenConnectAuthFormField) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[86]
+	mi := &file_daemon_started_service_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6494,7 +7042,7 @@ func (x *OpenConnectAuthFormField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectAuthFormField.ProtoReflect.Descriptor instead.
 func (*OpenConnectAuthFormField) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{86}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *OpenConnectAuthFormField) GetSubmissionKey() string {
@@ -6549,7 +7097,7 @@ type OpenConnectAuthFormChoice struct {
 
 func (x *OpenConnectAuthFormChoice) Reset() {
 	*x = OpenConnectAuthFormChoice{}
-	mi := &file_daemon_started_service_proto_msgTypes[87]
+	mi := &file_daemon_started_service_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6561,7 +7109,7 @@ func (x *OpenConnectAuthFormChoice) String() string {
 func (*OpenConnectAuthFormChoice) ProtoMessage() {}
 
 func (x *OpenConnectAuthFormChoice) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[87]
+	mi := &file_daemon_started_service_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6574,7 +7122,7 @@ func (x *OpenConnectAuthFormChoice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectAuthFormChoice.ProtoReflect.Descriptor instead.
 func (*OpenConnectAuthFormChoice) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{87}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *OpenConnectAuthFormChoice) GetValue() string {
@@ -6606,7 +7154,7 @@ type OpenConnectBrowserRequest struct {
 
 func (x *OpenConnectBrowserRequest) Reset() {
 	*x = OpenConnectBrowserRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[88]
+	mi := &file_daemon_started_service_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6618,7 +7166,7 @@ func (x *OpenConnectBrowserRequest) String() string {
 func (*OpenConnectBrowserRequest) ProtoMessage() {}
 
 func (x *OpenConnectBrowserRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[88]
+	mi := &file_daemon_started_service_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6631,7 +7179,7 @@ func (x *OpenConnectBrowserRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectBrowserRequest.ProtoReflect.Descriptor instead.
 func (*OpenConnectBrowserRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{88}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *OpenConnectBrowserRequest) GetUrl() string {
@@ -6693,7 +7241,7 @@ type OpenConnectBrowserCookie struct {
 
 func (x *OpenConnectBrowserCookie) Reset() {
 	*x = OpenConnectBrowserCookie{}
-	mi := &file_daemon_started_service_proto_msgTypes[89]
+	mi := &file_daemon_started_service_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6705,7 +7253,7 @@ func (x *OpenConnectBrowserCookie) String() string {
 func (*OpenConnectBrowserCookie) ProtoMessage() {}
 
 func (x *OpenConnectBrowserCookie) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[89]
+	mi := &file_daemon_started_service_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6718,7 +7266,7 @@ func (x *OpenConnectBrowserCookie) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectBrowserCookie.ProtoReflect.Descriptor instead.
 func (*OpenConnectBrowserCookie) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{89}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *OpenConnectBrowserCookie) GetName() string {
@@ -6745,7 +7293,7 @@ type OpenConnectBrowserHeader struct {
 
 func (x *OpenConnectBrowserHeader) Reset() {
 	*x = OpenConnectBrowserHeader{}
-	mi := &file_daemon_started_service_proto_msgTypes[90]
+	mi := &file_daemon_started_service_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6757,7 +7305,7 @@ func (x *OpenConnectBrowserHeader) String() string {
 func (*OpenConnectBrowserHeader) ProtoMessage() {}
 
 func (x *OpenConnectBrowserHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[90]
+	mi := &file_daemon_started_service_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6770,7 +7318,7 @@ func (x *OpenConnectBrowserHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectBrowserHeader.ProtoReflect.Descriptor instead.
 func (*OpenConnectBrowserHeader) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{90}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *OpenConnectBrowserHeader) GetName() string {
@@ -6796,7 +7344,7 @@ type OpenConnectAuthFormResponse struct {
 
 func (x *OpenConnectAuthFormResponse) Reset() {
 	*x = OpenConnectAuthFormResponse{}
-	mi := &file_daemon_started_service_proto_msgTypes[91]
+	mi := &file_daemon_started_service_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6808,7 +7356,7 @@ func (x *OpenConnectAuthFormResponse) String() string {
 func (*OpenConnectAuthFormResponse) ProtoMessage() {}
 
 func (x *OpenConnectAuthFormResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[91]
+	mi := &file_daemon_started_service_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6821,7 +7369,7 @@ func (x *OpenConnectAuthFormResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectAuthFormResponse.ProtoReflect.Descriptor instead.
 func (*OpenConnectAuthFormResponse) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{91}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *OpenConnectAuthFormResponse) GetValues() map[string]string {
@@ -6842,7 +7390,7 @@ type OpenConnectBrowserResult struct {
 
 func (x *OpenConnectBrowserResult) Reset() {
 	*x = OpenConnectBrowserResult{}
-	mi := &file_daemon_started_service_proto_msgTypes[92]
+	mi := &file_daemon_started_service_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6854,7 +7402,7 @@ func (x *OpenConnectBrowserResult) String() string {
 func (*OpenConnectBrowserResult) ProtoMessage() {}
 
 func (x *OpenConnectBrowserResult) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[92]
+	mi := &file_daemon_started_service_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6867,7 +7415,7 @@ func (x *OpenConnectBrowserResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectBrowserResult.ProtoReflect.Descriptor instead.
 func (*OpenConnectBrowserResult) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{92}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *OpenConnectBrowserResult) GetFinalURL() string {
@@ -6906,7 +7454,7 @@ type OpenConnectAuthResponseSubmission struct {
 
 func (x *OpenConnectAuthResponseSubmission) Reset() {
 	*x = OpenConnectAuthResponseSubmission{}
-	mi := &file_daemon_started_service_proto_msgTypes[93]
+	mi := &file_daemon_started_service_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6918,7 +7466,7 @@ func (x *OpenConnectAuthResponseSubmission) String() string {
 func (*OpenConnectAuthResponseSubmission) ProtoMessage() {}
 
 func (x *OpenConnectAuthResponseSubmission) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[93]
+	mi := &file_daemon_started_service_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6931,7 +7479,7 @@ func (x *OpenConnectAuthResponseSubmission) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use OpenConnectAuthResponseSubmission.ProtoReflect.Descriptor instead.
 func (*OpenConnectAuthResponseSubmission) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{93}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *OpenConnectAuthResponseSubmission) GetEndpointTag() string {
@@ -6999,7 +7547,7 @@ type OpenConnectAuthChallengeCancel struct {
 
 func (x *OpenConnectAuthChallengeCancel) Reset() {
 	*x = OpenConnectAuthChallengeCancel{}
-	mi := &file_daemon_started_service_proto_msgTypes[94]
+	mi := &file_daemon_started_service_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7011,7 +7559,7 @@ func (x *OpenConnectAuthChallengeCancel) String() string {
 func (*OpenConnectAuthChallengeCancel) ProtoMessage() {}
 
 func (x *OpenConnectAuthChallengeCancel) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[94]
+	mi := &file_daemon_started_service_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7024,7 +7572,7 @@ func (x *OpenConnectAuthChallengeCancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenConnectAuthChallengeCancel.ProtoReflect.Descriptor instead.
 func (*OpenConnectAuthChallengeCancel) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{94}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *OpenConnectAuthChallengeCancel) GetEndpointTag() string {
@@ -7050,7 +7598,7 @@ type OpenVPNStatusUpdate struct {
 
 func (x *OpenVPNStatusUpdate) Reset() {
 	*x = OpenVPNStatusUpdate{}
-	mi := &file_daemon_started_service_proto_msgTypes[95]
+	mi := &file_daemon_started_service_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7062,7 +7610,7 @@ func (x *OpenVPNStatusUpdate) String() string {
 func (*OpenVPNStatusUpdate) ProtoMessage() {}
 
 func (x *OpenVPNStatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[95]
+	mi := &file_daemon_started_service_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7075,7 +7623,7 @@ func (x *OpenVPNStatusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenVPNStatusUpdate.ProtoReflect.Descriptor instead.
 func (*OpenVPNStatusUpdate) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{95}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *OpenVPNStatusUpdate) GetEndpoints() []*OpenVPNEndpointStatus {
@@ -7099,7 +7647,7 @@ type OpenVPNEndpointStatus struct {
 
 func (x *OpenVPNEndpointStatus) Reset() {
 	*x = OpenVPNEndpointStatus{}
-	mi := &file_daemon_started_service_proto_msgTypes[96]
+	mi := &file_daemon_started_service_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7111,7 +7659,7 @@ func (x *OpenVPNEndpointStatus) String() string {
 func (*OpenVPNEndpointStatus) ProtoMessage() {}
 
 func (x *OpenVPNEndpointStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[96]
+	mi := &file_daemon_started_service_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7124,7 +7672,7 @@ func (x *OpenVPNEndpointStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenVPNEndpointStatus.ProtoReflect.Descriptor instead.
 func (*OpenVPNEndpointStatus) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{96}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *OpenVPNEndpointStatus) GetEndpointTag() string {
@@ -7185,7 +7733,7 @@ type OpenVPNTunnelInfo struct {
 
 func (x *OpenVPNTunnelInfo) Reset() {
 	*x = OpenVPNTunnelInfo{}
-	mi := &file_daemon_started_service_proto_msgTypes[97]
+	mi := &file_daemon_started_service_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7197,7 +7745,7 @@ func (x *OpenVPNTunnelInfo) String() string {
 func (*OpenVPNTunnelInfo) ProtoMessage() {}
 
 func (x *OpenVPNTunnelInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[97]
+	mi := &file_daemon_started_service_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7210,7 +7758,7 @@ func (x *OpenVPNTunnelInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenVPNTunnelInfo.ProtoReflect.Descriptor instead.
 func (*OpenVPNTunnelInfo) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{97}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *OpenVPNTunnelInfo) GetServer() string {
@@ -7286,7 +7834,7 @@ type OpenVPNChallenge struct {
 
 func (x *OpenVPNChallenge) Reset() {
 	*x = OpenVPNChallenge{}
-	mi := &file_daemon_started_service_proto_msgTypes[98]
+	mi := &file_daemon_started_service_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7298,7 +7846,7 @@ func (x *OpenVPNChallenge) String() string {
 func (*OpenVPNChallenge) ProtoMessage() {}
 
 func (x *OpenVPNChallenge) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[98]
+	mi := &file_daemon_started_service_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7311,7 +7859,7 @@ func (x *OpenVPNChallenge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenVPNChallenge.ProtoReflect.Descriptor instead.
 func (*OpenVPNChallenge) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{98}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *OpenVPNChallenge) GetId() string {
@@ -7390,7 +7938,7 @@ type OpenVPNChallengeSubmission struct {
 
 func (x *OpenVPNChallengeSubmission) Reset() {
 	*x = OpenVPNChallengeSubmission{}
-	mi := &file_daemon_started_service_proto_msgTypes[99]
+	mi := &file_daemon_started_service_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7402,7 +7950,7 @@ func (x *OpenVPNChallengeSubmission) String() string {
 func (*OpenVPNChallengeSubmission) ProtoMessage() {}
 
 func (x *OpenVPNChallengeSubmission) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[99]
+	mi := &file_daemon_started_service_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7415,7 +7963,7 @@ func (x *OpenVPNChallengeSubmission) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenVPNChallengeSubmission.ProtoReflect.Descriptor instead.
 func (*OpenVPNChallengeSubmission) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{99}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *OpenVPNChallengeSubmission) GetEndpointTag() string {
@@ -7463,7 +8011,7 @@ type OpenVPNChallengeCancel struct {
 
 func (x *OpenVPNChallengeCancel) Reset() {
 	*x = OpenVPNChallengeCancel{}
-	mi := &file_daemon_started_service_proto_msgTypes[100]
+	mi := &file_daemon_started_service_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7475,7 +8023,7 @@ func (x *OpenVPNChallengeCancel) String() string {
 func (*OpenVPNChallengeCancel) ProtoMessage() {}
 
 func (x *OpenVPNChallengeCancel) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[100]
+	mi := &file_daemon_started_service_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7488,7 +8036,7 @@ func (x *OpenVPNChallengeCancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenVPNChallengeCancel.ProtoReflect.Descriptor instead.
 func (*OpenVPNChallengeCancel) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{100}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *OpenVPNChallengeCancel) GetEndpointTag() string {
@@ -7518,7 +8066,7 @@ type NotificationEvent struct {
 
 func (x *NotificationEvent) Reset() {
 	*x = NotificationEvent{}
-	mi := &file_daemon_started_service_proto_msgTypes[101]
+	mi := &file_daemon_started_service_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7530,7 +8078,7 @@ func (x *NotificationEvent) String() string {
 func (*NotificationEvent) ProtoMessage() {}
 
 func (x *NotificationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[101]
+	mi := &file_daemon_started_service_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7543,7 +8091,7 @@ func (x *NotificationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationEvent.ProtoReflect.Descriptor instead.
 func (*NotificationEvent) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{101}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *NotificationEvent) GetEvent() isNotificationEvent_Event {
@@ -7602,7 +8150,7 @@ type Notification struct {
 
 func (x *Notification) Reset() {
 	*x = Notification{}
-	mi := &file_daemon_started_service_proto_msgTypes[102]
+	mi := &file_daemon_started_service_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7614,7 +8162,7 @@ func (x *Notification) String() string {
 func (*Notification) ProtoMessage() {}
 
 func (x *Notification) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[102]
+	mi := &file_daemon_started_service_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7627,7 +8175,7 @@ func (x *Notification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Notification.ProtoReflect.Descriptor instead.
 func (*Notification) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{102}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *Notification) GetIdentifier() string {
@@ -7689,7 +8237,7 @@ type NotificationCancel struct {
 
 func (x *NotificationCancel) Reset() {
 	*x = NotificationCancel{}
-	mi := &file_daemon_started_service_proto_msgTypes[103]
+	mi := &file_daemon_started_service_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7701,7 +8249,7 @@ func (x *NotificationCancel) String() string {
 func (*NotificationCancel) ProtoMessage() {}
 
 func (x *NotificationCancel) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[103]
+	mi := &file_daemon_started_service_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7714,7 +8262,7 @@ func (x *NotificationCancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationCancel.ProtoReflect.Descriptor instead.
 func (*NotificationCancel) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{103}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *NotificationCancel) GetIdentifier() string {
@@ -7741,7 +8289,7 @@ type LiveConfigRequest struct {
 
 func (x *LiveConfigRequest) Reset() {
 	*x = LiveConfigRequest{}
-	mi := &file_daemon_started_service_proto_msgTypes[104]
+	mi := &file_daemon_started_service_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7753,7 +8301,7 @@ func (x *LiveConfigRequest) String() string {
 func (*LiveConfigRequest) ProtoMessage() {}
 
 func (x *LiveConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[104]
+	mi := &file_daemon_started_service_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7766,7 +8314,7 @@ func (x *LiveConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LiveConfigRequest.ProtoReflect.Descriptor instead.
 func (*LiveConfigRequest) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{104}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *LiveConfigRequest) GetConfigJson() string {
@@ -7794,7 +8342,7 @@ type LiveConfigResult struct {
 
 func (x *LiveConfigResult) Reset() {
 	*x = LiveConfigResult{}
-	mi := &file_daemon_started_service_proto_msgTypes[105]
+	mi := &file_daemon_started_service_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7806,7 +8354,7 @@ func (x *LiveConfigResult) String() string {
 func (*LiveConfigResult) ProtoMessage() {}
 
 func (x *LiveConfigResult) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[105]
+	mi := &file_daemon_started_service_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7819,7 +8367,7 @@ func (x *LiveConfigResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LiveConfigResult.ProtoReflect.Descriptor instead.
 func (*LiveConfigResult) Descriptor() ([]byte, []int) {
-	return file_daemon_started_service_proto_rawDescGZIP(), []int{105}
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *LiveConfigResult) GetApplied() bool {
@@ -7853,7 +8401,7 @@ type Log_Message struct {
 
 func (x *Log_Message) Reset() {
 	*x = Log_Message{}
-	mi := &file_daemon_started_service_proto_msgTypes[106]
+	mi := &file_daemon_started_service_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7865,7 +8413,7 @@ func (x *Log_Message) String() string {
 func (*Log_Message) ProtoMessage() {}
 
 func (x *Log_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[106]
+	mi := &file_daemon_started_service_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8162,7 +8710,52 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\fderpRegionID\x18\x04 \x01(\x05R\fderpRegionID\x12&\n" +
 	"\x0ederpRegionCode\x18\x05 \x01(\tR\x0ederpRegionCode\x12\x14\n" +
 	"\x05error\x18\x06 \x01(\tR\x05error\x12\x1c\n" +
-	"\tpeerRelay\x18\a \x01(\tR\tpeerRelay\"[\n" +
+	"\tpeerRelay\x18\a \x01(\tR\tpeerRelay\"Y\n" +
+	"\x1bTailscaleDiagnosticsRequest\x12 \n" +
+	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x18\n" +
+	"\arefresh\x18\x02 \x01(\bR\arefresh\"\x85\x01\n" +
+	"\x14TailscaleDiagnostics\x125\n" +
+	"\bnetcheck\x18\x01 \x01(\v2\x19.daemon.TailscaleNetcheckR\bnetcheck\x126\n" +
+	"\x05peers\x18\x02 \x03(\v2 .daemon.TailscalePeerDiagnosticsR\x05peers\"\xb8\x04\n" +
+	"\x11TailscaleNetcheck\x12\x1c\n" +
+	"\tcheckedAt\x18\x01 \x01(\x03R\tcheckedAt\x12\x10\n" +
+	"\x03udp\x18\x02 \x01(\bR\x03udp\x12\x12\n" +
+	"\x04ipv4\x18\x03 \x01(\bR\x04ipv4\x12\x12\n" +
+	"\x04ipv6\x18\x04 \x01(\bR\x04ipv6\x12 \n" +
+	"\vipv4CanSend\x18\x05 \x01(\bR\vipv4CanSend\x12 \n" +
+	"\vipv6CanSend\x18\x06 \x01(\bR\vipv6CanSend\x12\x1c\n" +
+	"\tosHasIPv6\x18\a \x01(\bR\tosHasIPv6\x12\x1a\n" +
+	"\bglobalV4\x18\b \x01(\tR\bglobalV4\x12\x1a\n" +
+	"\bglobalV6\x18\t \x01(\tR\bglobalV6\x124\n" +
+	"\x15mappingVariesByDestIP\x18\n" +
+	" \x01(\tR\x15mappingVariesByDestIP\x12\x12\n" +
+	"\x04upnp\x18\v \x01(\tR\x04upnp\x12\x10\n" +
+	"\x03pmp\x18\f \x01(\tR\x03pmp\x12\x10\n" +
+	"\x03pcp\x18\r \x01(\tR\x03pcp\x12$\n" +
+	"\rcaptivePortal\x18\x0e \x01(\tR\rcaptivePortal\x12$\n" +
+	"\rpreferredDERP\x18\x0f \x01(\x05R\rpreferredDERP\x125\n" +
+	"\aregions\x18\x10 \x03(\v2\x1b.daemon.TailscaleDERPRegionR\aregions\x12$\n" +
+	"\rselfEndpoints\x18\x11 \x03(\tR\rselfEndpoints\x12\x1a\n" +
+	"\bstunPath\x18\x12 \x01(\tR\bstunPath\"k\n" +
+	"\x13TailscaleDERPRegion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1c\n" +
+	"\tlatencyMs\x18\x04 \x01(\x01R\tlatencyMs\"\xee\x01\n" +
+	"\x18TailscalePeerDiagnostics\x12\x1a\n" +
+	"\bstableID\x18\x01 \x01(\tR\bstableID\x12;\n" +
+	"\tendpoints\x18\x02 \x03(\v2\x1d.daemon.TailscalePeerEndpointR\tendpoints\x12$\n" +
+	"\rlastHandshake\x18\x03 \x01(\x03R\rlastHandshake\x12\x1c\n" +
+	"\tpeerRelay\x18\x04 \x01(\tR\tpeerRelay\x125\n" +
+	"\achanges\x18\x05 \x03(\v2\x1b.daemon.TailscalePathChangeR\achanges\"E\n" +
+	"\x15TailscalePeerEndpoint\x12\x18\n" +
+	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\"]\n" +
+	"\x13TailscalePathChange\x12\x0e\n" +
+	"\x02at\x18\x01 \x01(\x03R\x02at\x12\x12\n" +
+	"\x04what\x18\x02 \x01(\tR\x04what\x12\x12\n" +
+	"\x04from\x18\x03 \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\x04 \x01(\tR\x02to\"[\n" +
 	"\x1bSetTailscaleExitNodeRequest\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x1a\n" +
 	"\bstableID\x18\x02 \x01(\tR\bstableID\":\n" +
@@ -8539,7 +9132,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x17USB_BACKEND_LINUX_SYSFS\x10\x01\x12\x17\n" +
 	"\x13USB_BACKEND_DYNAMIC\x10\x02\x12\x1c\n" +
 	"\x18USB_BACKEND_DARWIN_IOKIT\x10\x03\x12\x1f\n" +
-	"\x1bUSB_BACKEND_WINDOWS_VBOXUSB\x10\x042\xea\x1b\n" +
+	"\x1bUSB_BACKEND_WINDOWS_VBOXUSB\x10\x042\xca\x1c\n" +
 	"\x0eStartedService\x127\n" +
 	"\n" +
 	"GetVersion\x12\x16.google.protobuf.Empty\x1a\x0f.daemon.Version\"\x00\x12K\n" +
@@ -8566,7 +9159,8 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x17StartNetworkQualityTest\x12!.daemon.NetworkQualityTestRequest\x1a\".daemon.NetworkQualityTestProgress\"\x000\x01\x12F\n" +
 	"\rStartSTUNTest\x12\x17.daemon.STUNTestRequest\x1a\x18.daemon.STUNTestProgress\"\x000\x01\x12U\n" +
 	"\x18SubscribeTailscaleStatus\x12\x16.google.protobuf.Empty\x1a\x1d.daemon.TailscaleStatusUpdate\"\x000\x01\x12U\n" +
-	"\x12StartTailscalePing\x12\x1c.daemon.TailscalePingRequest\x1a\x1d.daemon.TailscalePingResponse\"\x000\x01\x12U\n" +
+	"\x12StartTailscalePing\x12\x1c.daemon.TailscalePingRequest\x1a\x1d.daemon.TailscalePingResponse\"\x000\x01\x12^\n" +
+	"\x17GetTailscaleDiagnostics\x12#.daemon.TailscaleDiagnosticsRequest\x1a\x1c.daemon.TailscaleDiagnostics\"\x00\x12U\n" +
 	"\x14SetTailscaleExitNode\x12#.daemon.SetTailscaleExitNodeRequest\x1a\x16.google.protobuf.Empty\"\x00\x12K\n" +
 	"\x0fTailscaleLogout\x12\x1e.daemon.TailscaleLogoutRequest\x1a\x16.google.protobuf.Empty\"\x00\x12^\n" +
 	"\x17GetTailscaleCertificate\x12#.daemon.TailscaleCertificateRequest\x1a\x1c.daemon.TailscaleCertificate\"\x00\x12f\n" +
@@ -8601,7 +9195,7 @@ func file_daemon_started_service_proto_rawDescGZIP() []byte {
 }
 
 var file_daemon_started_service_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_daemon_started_service_proto_msgTypes = make([]protoimpl.MessageInfo, 108)
+var file_daemon_started_service_proto_msgTypes = make([]protoimpl.MessageInfo, 115)
 var file_daemon_started_service_proto_goTypes = []any{
 	(LogLevel)(0),                             // 0: daemon.LogLevel
 	(ConnectionEventType)(0),                  // 1: daemon.ConnectionEventType
@@ -8644,83 +9238,90 @@ var file_daemon_started_service_proto_goTypes = []any{
 	(*TailscalePeer)(nil),                     // 38: daemon.TailscalePeer
 	(*TailscalePingRequest)(nil),              // 39: daemon.TailscalePingRequest
 	(*TailscalePingResponse)(nil),             // 40: daemon.TailscalePingResponse
-	(*SetTailscaleExitNodeRequest)(nil),       // 41: daemon.SetTailscaleExitNodeRequest
-	(*TailscaleLogoutRequest)(nil),            // 42: daemon.TailscaleLogoutRequest
-	(*TailscaleCertificateRequest)(nil),       // 43: daemon.TailscaleCertificateRequest
-	(*TailscaleCertificate)(nil),              // 44: daemon.TailscaleCertificate
-	(*TailscaleSSHClientMessage)(nil),         // 45: daemon.TailscaleSSHClientMessage
-	(*TailscaleSSHStart)(nil),                 // 46: daemon.TailscaleSSHStart
-	(*TailscaleSSHInput)(nil),                 // 47: daemon.TailscaleSSHInput
-	(*TailscaleSSHResize)(nil),                // 48: daemon.TailscaleSSHResize
-	(*TailscaleSSHServerMessage)(nil),         // 49: daemon.TailscaleSSHServerMessage
-	(*TailscaleSSHAuthBanner)(nil),            // 50: daemon.TailscaleSSHAuthBanner
-	(*TailscaleSSHReady)(nil),                 // 51: daemon.TailscaleSSHReady
-	(*TailscaleSSHOutput)(nil),                // 52: daemon.TailscaleSSHOutput
-	(*TailscaleSSHExit)(nil),                  // 53: daemon.TailscaleSSHExit
-	(*TailscaleSSHError)(nil),                 // 54: daemon.TailscaleSSHError
-	(*SubscribeTaildropInboxRequest)(nil),     // 55: daemon.SubscribeTaildropInboxRequest
-	(*MarkTaildropInboxReadRequest)(nil),      // 56: daemon.MarkTaildropInboxReadRequest
-	(*TaildropInbox)(nil),                     // 57: daemon.TaildropInbox
-	(*TaildropFile)(nil),                      // 58: daemon.TaildropFile
-	(*TaildropReceivingFile)(nil),             // 59: daemon.TaildropReceivingFile
-	(*TaildropSendClientMessage)(nil),         // 60: daemon.TaildropSendClientMessage
-	(*TaildropSendStart)(nil),                 // 61: daemon.TaildropSendStart
-	(*TaildropOutgoingFile)(nil),              // 62: daemon.TaildropOutgoingFile
-	(*TaildropFileChunk)(nil),                 // 63: daemon.TaildropFileChunk
-	(*TaildropFileDone)(nil),                  // 64: daemon.TaildropFileDone
-	(*TaildropSendServerMessage)(nil),         // 65: daemon.TaildropSendServerMessage
-	(*TaildropSendProgress)(nil),              // 66: daemon.TaildropSendProgress
-	(*DownloadTaildropFileRequest)(nil),       // 67: daemon.DownloadTaildropFileRequest
-	(*DownloadTaildropFileChunk)(nil),         // 68: daemon.DownloadTaildropFileChunk
-	(*DeleteTaildropFileRequest)(nil),         // 69: daemon.DeleteTaildropFileRequest
-	(*CancelTaildropReceivingRequest)(nil),    // 70: daemon.CancelTaildropReceivingRequest
-	(*USBProviderMessage)(nil),                // 71: daemon.USBProviderMessage
-	(*USBServerMessage)(nil),                  // 72: daemon.USBServerMessage
-	(*USBDeviceDescriptor)(nil),               // 73: daemon.USBDeviceDescriptor
-	(*USBDeviceAttach)(nil),                   // 74: daemon.USBDeviceAttach
-	(*USBInterface)(nil),                      // 75: daemon.USBInterface
-	(*USBDeviceDetach)(nil),                   // 76: daemon.USBDeviceDetach
-	(*USBDeviceReady)(nil),                    // 77: daemon.USBDeviceReady
-	(*USBURBRequest)(nil),                     // 78: daemon.USBURBRequest
-	(*USBURBResponse)(nil),                    // 79: daemon.USBURBResponse
-	(*USBIsoPacket)(nil),                      // 80: daemon.USBIsoPacket
-	(*USBEndpointAbort)(nil),                  // 81: daemon.USBEndpointAbort
-	(*USBError)(nil),                          // 82: daemon.USBError
-	(*USBIPServerStatusUpdate)(nil),           // 83: daemon.USBIPServerStatusUpdate
-	(*USBIPServerStatus)(nil),                 // 84: daemon.USBIPServerStatus
-	(*USBSharedDevice)(nil),                   // 85: daemon.USBSharedDevice
-	(*OpenConnectStatusUpdate)(nil),           // 86: daemon.OpenConnectStatusUpdate
-	(*OpenConnectEndpointStatus)(nil),         // 87: daemon.OpenConnectEndpointStatus
-	(*OpenConnectTunnelInfo)(nil),             // 88: daemon.OpenConnectTunnelInfo
-	(*OpenConnectAuthChallenge)(nil),          // 89: daemon.OpenConnectAuthChallenge
-	(*OpenConnectAuthForm)(nil),               // 90: daemon.OpenConnectAuthForm
-	(*OpenConnectAuthFormField)(nil),          // 91: daemon.OpenConnectAuthFormField
-	(*OpenConnectAuthFormChoice)(nil),         // 92: daemon.OpenConnectAuthFormChoice
-	(*OpenConnectBrowserRequest)(nil),         // 93: daemon.OpenConnectBrowserRequest
-	(*OpenConnectBrowserCookie)(nil),          // 94: daemon.OpenConnectBrowserCookie
-	(*OpenConnectBrowserHeader)(nil),          // 95: daemon.OpenConnectBrowserHeader
-	(*OpenConnectAuthFormResponse)(nil),       // 96: daemon.OpenConnectAuthFormResponse
-	(*OpenConnectBrowserResult)(nil),          // 97: daemon.OpenConnectBrowserResult
-	(*OpenConnectAuthResponseSubmission)(nil), // 98: daemon.OpenConnectAuthResponseSubmission
-	(*OpenConnectAuthChallengeCancel)(nil),    // 99: daemon.OpenConnectAuthChallengeCancel
-	(*OpenVPNStatusUpdate)(nil),               // 100: daemon.OpenVPNStatusUpdate
-	(*OpenVPNEndpointStatus)(nil),             // 101: daemon.OpenVPNEndpointStatus
-	(*OpenVPNTunnelInfo)(nil),                 // 102: daemon.OpenVPNTunnelInfo
-	(*OpenVPNChallenge)(nil),                  // 103: daemon.OpenVPNChallenge
-	(*OpenVPNChallengeSubmission)(nil),        // 104: daemon.OpenVPNChallengeSubmission
-	(*OpenVPNChallengeCancel)(nil),            // 105: daemon.OpenVPNChallengeCancel
-	(*NotificationEvent)(nil),                 // 106: daemon.NotificationEvent
-	(*Notification)(nil),                      // 107: daemon.Notification
-	(*NotificationCancel)(nil),                // 108: daemon.NotificationCancel
-	(*LiveConfigRequest)(nil),                 // 109: daemon.LiveConfigRequest
-	(*LiveConfigResult)(nil),                  // 110: daemon.LiveConfigResult
-	(*Log_Message)(nil),                       // 111: daemon.Log.Message
-	nil,                                       // 112: daemon.OpenConnectAuthFormResponse.ValuesEntry
-	(*emptypb.Empty)(nil),                     // 113: google.protobuf.Empty
+	(*TailscaleDiagnosticsRequest)(nil),       // 41: daemon.TailscaleDiagnosticsRequest
+	(*TailscaleDiagnostics)(nil),              // 42: daemon.TailscaleDiagnostics
+	(*TailscaleNetcheck)(nil),                 // 43: daemon.TailscaleNetcheck
+	(*TailscaleDERPRegion)(nil),               // 44: daemon.TailscaleDERPRegion
+	(*TailscalePeerDiagnostics)(nil),          // 45: daemon.TailscalePeerDiagnostics
+	(*TailscalePeerEndpoint)(nil),             // 46: daemon.TailscalePeerEndpoint
+	(*TailscalePathChange)(nil),               // 47: daemon.TailscalePathChange
+	(*SetTailscaleExitNodeRequest)(nil),       // 48: daemon.SetTailscaleExitNodeRequest
+	(*TailscaleLogoutRequest)(nil),            // 49: daemon.TailscaleLogoutRequest
+	(*TailscaleCertificateRequest)(nil),       // 50: daemon.TailscaleCertificateRequest
+	(*TailscaleCertificate)(nil),              // 51: daemon.TailscaleCertificate
+	(*TailscaleSSHClientMessage)(nil),         // 52: daemon.TailscaleSSHClientMessage
+	(*TailscaleSSHStart)(nil),                 // 53: daemon.TailscaleSSHStart
+	(*TailscaleSSHInput)(nil),                 // 54: daemon.TailscaleSSHInput
+	(*TailscaleSSHResize)(nil),                // 55: daemon.TailscaleSSHResize
+	(*TailscaleSSHServerMessage)(nil),         // 56: daemon.TailscaleSSHServerMessage
+	(*TailscaleSSHAuthBanner)(nil),            // 57: daemon.TailscaleSSHAuthBanner
+	(*TailscaleSSHReady)(nil),                 // 58: daemon.TailscaleSSHReady
+	(*TailscaleSSHOutput)(nil),                // 59: daemon.TailscaleSSHOutput
+	(*TailscaleSSHExit)(nil),                  // 60: daemon.TailscaleSSHExit
+	(*TailscaleSSHError)(nil),                 // 61: daemon.TailscaleSSHError
+	(*SubscribeTaildropInboxRequest)(nil),     // 62: daemon.SubscribeTaildropInboxRequest
+	(*MarkTaildropInboxReadRequest)(nil),      // 63: daemon.MarkTaildropInboxReadRequest
+	(*TaildropInbox)(nil),                     // 64: daemon.TaildropInbox
+	(*TaildropFile)(nil),                      // 65: daemon.TaildropFile
+	(*TaildropReceivingFile)(nil),             // 66: daemon.TaildropReceivingFile
+	(*TaildropSendClientMessage)(nil),         // 67: daemon.TaildropSendClientMessage
+	(*TaildropSendStart)(nil),                 // 68: daemon.TaildropSendStart
+	(*TaildropOutgoingFile)(nil),              // 69: daemon.TaildropOutgoingFile
+	(*TaildropFileChunk)(nil),                 // 70: daemon.TaildropFileChunk
+	(*TaildropFileDone)(nil),                  // 71: daemon.TaildropFileDone
+	(*TaildropSendServerMessage)(nil),         // 72: daemon.TaildropSendServerMessage
+	(*TaildropSendProgress)(nil),              // 73: daemon.TaildropSendProgress
+	(*DownloadTaildropFileRequest)(nil),       // 74: daemon.DownloadTaildropFileRequest
+	(*DownloadTaildropFileChunk)(nil),         // 75: daemon.DownloadTaildropFileChunk
+	(*DeleteTaildropFileRequest)(nil),         // 76: daemon.DeleteTaildropFileRequest
+	(*CancelTaildropReceivingRequest)(nil),    // 77: daemon.CancelTaildropReceivingRequest
+	(*USBProviderMessage)(nil),                // 78: daemon.USBProviderMessage
+	(*USBServerMessage)(nil),                  // 79: daemon.USBServerMessage
+	(*USBDeviceDescriptor)(nil),               // 80: daemon.USBDeviceDescriptor
+	(*USBDeviceAttach)(nil),                   // 81: daemon.USBDeviceAttach
+	(*USBInterface)(nil),                      // 82: daemon.USBInterface
+	(*USBDeviceDetach)(nil),                   // 83: daemon.USBDeviceDetach
+	(*USBDeviceReady)(nil),                    // 84: daemon.USBDeviceReady
+	(*USBURBRequest)(nil),                     // 85: daemon.USBURBRequest
+	(*USBURBResponse)(nil),                    // 86: daemon.USBURBResponse
+	(*USBIsoPacket)(nil),                      // 87: daemon.USBIsoPacket
+	(*USBEndpointAbort)(nil),                  // 88: daemon.USBEndpointAbort
+	(*USBError)(nil),                          // 89: daemon.USBError
+	(*USBIPServerStatusUpdate)(nil),           // 90: daemon.USBIPServerStatusUpdate
+	(*USBIPServerStatus)(nil),                 // 91: daemon.USBIPServerStatus
+	(*USBSharedDevice)(nil),                   // 92: daemon.USBSharedDevice
+	(*OpenConnectStatusUpdate)(nil),           // 93: daemon.OpenConnectStatusUpdate
+	(*OpenConnectEndpointStatus)(nil),         // 94: daemon.OpenConnectEndpointStatus
+	(*OpenConnectTunnelInfo)(nil),             // 95: daemon.OpenConnectTunnelInfo
+	(*OpenConnectAuthChallenge)(nil),          // 96: daemon.OpenConnectAuthChallenge
+	(*OpenConnectAuthForm)(nil),               // 97: daemon.OpenConnectAuthForm
+	(*OpenConnectAuthFormField)(nil),          // 98: daemon.OpenConnectAuthFormField
+	(*OpenConnectAuthFormChoice)(nil),         // 99: daemon.OpenConnectAuthFormChoice
+	(*OpenConnectBrowserRequest)(nil),         // 100: daemon.OpenConnectBrowserRequest
+	(*OpenConnectBrowserCookie)(nil),          // 101: daemon.OpenConnectBrowserCookie
+	(*OpenConnectBrowserHeader)(nil),          // 102: daemon.OpenConnectBrowserHeader
+	(*OpenConnectAuthFormResponse)(nil),       // 103: daemon.OpenConnectAuthFormResponse
+	(*OpenConnectBrowserResult)(nil),          // 104: daemon.OpenConnectBrowserResult
+	(*OpenConnectAuthResponseSubmission)(nil), // 105: daemon.OpenConnectAuthResponseSubmission
+	(*OpenConnectAuthChallengeCancel)(nil),    // 106: daemon.OpenConnectAuthChallengeCancel
+	(*OpenVPNStatusUpdate)(nil),               // 107: daemon.OpenVPNStatusUpdate
+	(*OpenVPNEndpointStatus)(nil),             // 108: daemon.OpenVPNEndpointStatus
+	(*OpenVPNTunnelInfo)(nil),                 // 109: daemon.OpenVPNTunnelInfo
+	(*OpenVPNChallenge)(nil),                  // 110: daemon.OpenVPNChallenge
+	(*OpenVPNChallengeSubmission)(nil),        // 111: daemon.OpenVPNChallengeSubmission
+	(*OpenVPNChallengeCancel)(nil),            // 112: daemon.OpenVPNChallengeCancel
+	(*NotificationEvent)(nil),                 // 113: daemon.NotificationEvent
+	(*Notification)(nil),                      // 114: daemon.Notification
+	(*NotificationCancel)(nil),                // 115: daemon.NotificationCancel
+	(*LiveConfigRequest)(nil),                 // 116: daemon.LiveConfigRequest
+	(*LiveConfigResult)(nil),                  // 117: daemon.LiveConfigResult
+	(*Log_Message)(nil),                       // 118: daemon.Log.Message
+	nil,                                       // 119: daemon.OpenConnectAuthFormResponse.ValuesEntry
+	(*emptypb.Empty)(nil),                     // 120: google.protobuf.Empty
 }
 var file_daemon_started_service_proto_depIdxs = []int32{
 	4,   // 0: daemon.ServiceStatus.status:type_name -> daemon.ServiceStatus.Type
-	111, // 1: daemon.Log.messages:type_name -> daemon.Log.Message
+	118, // 1: daemon.Log.messages:type_name -> daemon.Log.Message
 	0,   // 2: daemon.DefaultLogLevel.level:type_name -> daemon.LogLevel
 	14,  // 3: daemon.Groups.group:type_name -> daemon.Group
 	15,  // 4: daemon.Group.items:type_name -> daemon.GroupItem
@@ -8735,148 +9336,155 @@ var file_daemon_started_service_proto_depIdxs = []int32{
 	37,  // 13: daemon.TailscaleEndpointStatus.userGroups:type_name -> daemon.TailscaleUserGroup
 	38,  // 14: daemon.TailscaleEndpointStatus.exitNode:type_name -> daemon.TailscalePeer
 	38,  // 15: daemon.TailscaleUserGroup.peers:type_name -> daemon.TailscalePeer
-	46,  // 16: daemon.TailscaleSSHClientMessage.start:type_name -> daemon.TailscaleSSHStart
-	47,  // 17: daemon.TailscaleSSHClientMessage.input:type_name -> daemon.TailscaleSSHInput
-	48,  // 18: daemon.TailscaleSSHClientMessage.resize:type_name -> daemon.TailscaleSSHResize
-	50,  // 19: daemon.TailscaleSSHServerMessage.authBanner:type_name -> daemon.TailscaleSSHAuthBanner
-	51,  // 20: daemon.TailscaleSSHServerMessage.ready:type_name -> daemon.TailscaleSSHReady
-	52,  // 21: daemon.TailscaleSSHServerMessage.output:type_name -> daemon.TailscaleSSHOutput
-	53,  // 22: daemon.TailscaleSSHServerMessage.exit:type_name -> daemon.TailscaleSSHExit
-	54,  // 23: daemon.TailscaleSSHServerMessage.error:type_name -> daemon.TailscaleSSHError
-	58,  // 24: daemon.TaildropInbox.files:type_name -> daemon.TaildropFile
-	59,  // 25: daemon.TaildropInbox.receiving:type_name -> daemon.TaildropReceivingFile
-	61,  // 26: daemon.TaildropSendClientMessage.start:type_name -> daemon.TaildropSendStart
-	63,  // 27: daemon.TaildropSendClientMessage.chunk:type_name -> daemon.TaildropFileChunk
-	64,  // 28: daemon.TaildropSendClientMessage.fileDone:type_name -> daemon.TaildropFileDone
-	62,  // 29: daemon.TaildropSendStart.files:type_name -> daemon.TaildropOutgoingFile
-	66,  // 30: daemon.TaildropSendServerMessage.progress:type_name -> daemon.TaildropSendProgress
-	74,  // 31: daemon.USBProviderMessage.attach:type_name -> daemon.USBDeviceAttach
-	76,  // 32: daemon.USBProviderMessage.detach:type_name -> daemon.USBDeviceDetach
-	79,  // 33: daemon.USBProviderMessage.urbResponse:type_name -> daemon.USBURBResponse
-	77,  // 34: daemon.USBServerMessage.ready:type_name -> daemon.USBDeviceReady
-	78,  // 35: daemon.USBServerMessage.urbRequest:type_name -> daemon.USBURBRequest
-	81,  // 36: daemon.USBServerMessage.abort:type_name -> daemon.USBEndpointAbort
-	82,  // 37: daemon.USBServerMessage.error:type_name -> daemon.USBError
-	75,  // 38: daemon.USBDeviceDescriptor.interfaces:type_name -> daemon.USBInterface
-	73,  // 39: daemon.USBDeviceAttach.descriptor:type_name -> daemon.USBDeviceDescriptor
-	80,  // 40: daemon.USBURBRequest.isoPackets:type_name -> daemon.USBIsoPacket
-	80,  // 41: daemon.USBURBResponse.isoPackets:type_name -> daemon.USBIsoPacket
-	84,  // 42: daemon.USBIPServerStatusUpdate.servers:type_name -> daemon.USBIPServerStatus
-	85,  // 43: daemon.USBIPServerStatus.devices:type_name -> daemon.USBSharedDevice
-	73,  // 44: daemon.USBSharedDevice.descriptor:type_name -> daemon.USBDeviceDescriptor
-	3,   // 45: daemon.USBSharedDevice.backend:type_name -> daemon.USBBackend
-	2,   // 46: daemon.USBSharedDevice.state:type_name -> daemon.USBDeviceState
-	87,  // 47: daemon.OpenConnectStatusUpdate.endpoints:type_name -> daemon.OpenConnectEndpointStatus
-	89,  // 48: daemon.OpenConnectEndpointStatus.authChallenge:type_name -> daemon.OpenConnectAuthChallenge
-	88,  // 49: daemon.OpenConnectEndpointStatus.tunnelInfo:type_name -> daemon.OpenConnectTunnelInfo
-	90,  // 50: daemon.OpenConnectAuthChallenge.form:type_name -> daemon.OpenConnectAuthForm
-	93,  // 51: daemon.OpenConnectAuthChallenge.browser:type_name -> daemon.OpenConnectBrowserRequest
-	91,  // 52: daemon.OpenConnectAuthForm.fields:type_name -> daemon.OpenConnectAuthFormField
-	92,  // 53: daemon.OpenConnectAuthFormField.options:type_name -> daemon.OpenConnectAuthFormChoice
-	112, // 54: daemon.OpenConnectAuthFormResponse.values:type_name -> daemon.OpenConnectAuthFormResponse.ValuesEntry
-	94,  // 55: daemon.OpenConnectBrowserResult.cookies:type_name -> daemon.OpenConnectBrowserCookie
-	95,  // 56: daemon.OpenConnectBrowserResult.headers:type_name -> daemon.OpenConnectBrowserHeader
-	96,  // 57: daemon.OpenConnectAuthResponseSubmission.form:type_name -> daemon.OpenConnectAuthFormResponse
-	97,  // 58: daemon.OpenConnectAuthResponseSubmission.browser:type_name -> daemon.OpenConnectBrowserResult
-	101, // 59: daemon.OpenVPNStatusUpdate.endpoints:type_name -> daemon.OpenVPNEndpointStatus
-	103, // 60: daemon.OpenVPNEndpointStatus.challenge:type_name -> daemon.OpenVPNChallenge
-	102, // 61: daemon.OpenVPNEndpointStatus.tunnelInfo:type_name -> daemon.OpenVPNTunnelInfo
-	107, // 62: daemon.NotificationEvent.send:type_name -> daemon.Notification
-	108, // 63: daemon.NotificationEvent.cancel:type_name -> daemon.NotificationCancel
-	0,   // 64: daemon.Log.Message.level:type_name -> daemon.LogLevel
-	113, // 65: daemon.StartedService.GetVersion:input_type -> google.protobuf.Empty
-	113, // 66: daemon.StartedService.SubscribeServiceStatus:input_type -> google.protobuf.Empty
-	113, // 67: daemon.StartedService.SubscribeLog:input_type -> google.protobuf.Empty
-	113, // 68: daemon.StartedService.GetDefaultLogLevel:input_type -> google.protobuf.Empty
-	113, // 69: daemon.StartedService.ClearLogs:input_type -> google.protobuf.Empty
-	9,   // 70: daemon.StartedService.SubscribeStatus:input_type -> daemon.SubscribeStatusRequest
-	113, // 71: daemon.StartedService.SubscribeGroups:input_type -> google.protobuf.Empty
-	6,   // 72: daemon.StartedService.TestPolicy:input_type -> daemon.PolicyTestRequest
-	113, // 73: daemon.StartedService.GetClashModeStatus:input_type -> google.protobuf.Empty
-	113, // 74: daemon.StartedService.SubscribeClashMode:input_type -> google.protobuf.Empty
-	19,  // 75: daemon.StartedService.SetClashMode:input_type -> daemon.ClashMode
-	16,  // 76: daemon.StartedService.URLTest:input_type -> daemon.URLTestRequest
-	17,  // 77: daemon.StartedService.SelectOutbound:input_type -> daemon.SelectOutboundRequest
-	18,  // 78: daemon.StartedService.SetGroupExpand:input_type -> daemon.SetGroupExpandRequest
-	21,  // 79: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
-	26,  // 80: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
-	113, // 81: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
-	113, // 82: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
-	113, // 83: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
-	113, // 84: daemon.StartedService.SubscribeOutbounds:input_type -> google.protobuf.Empty
-	31,  // 85: daemon.StartedService.StartNetworkQualityTest:input_type -> daemon.NetworkQualityTestRequest
-	33,  // 86: daemon.StartedService.StartSTUNTest:input_type -> daemon.STUNTestRequest
-	113, // 87: daemon.StartedService.SubscribeTailscaleStatus:input_type -> google.protobuf.Empty
-	39,  // 88: daemon.StartedService.StartTailscalePing:input_type -> daemon.TailscalePingRequest
-	41,  // 89: daemon.StartedService.SetTailscaleExitNode:input_type -> daemon.SetTailscaleExitNodeRequest
-	42,  // 90: daemon.StartedService.TailscaleLogout:input_type -> daemon.TailscaleLogoutRequest
-	43,  // 91: daemon.StartedService.GetTailscaleCertificate:input_type -> daemon.TailscaleCertificateRequest
-	45,  // 92: daemon.StartedService.StartTailscaleSSHSession:input_type -> daemon.TailscaleSSHClientMessage
-	55,  // 93: daemon.StartedService.SubscribeTaildropInbox:input_type -> daemon.SubscribeTaildropInboxRequest
-	56,  // 94: daemon.StartedService.MarkTaildropInboxRead:input_type -> daemon.MarkTaildropInboxReadRequest
-	60,  // 95: daemon.StartedService.SendTaildropFiles:input_type -> daemon.TaildropSendClientMessage
-	67,  // 96: daemon.StartedService.DownloadTaildropFile:input_type -> daemon.DownloadTaildropFileRequest
-	69,  // 97: daemon.StartedService.DeleteTaildropFile:input_type -> daemon.DeleteTaildropFileRequest
-	70,  // 98: daemon.StartedService.CancelTaildropReceiving:input_type -> daemon.CancelTaildropReceivingRequest
-	71,  // 99: daemon.StartedService.ProvideUSBDevices:input_type -> daemon.USBProviderMessage
-	113, // 100: daemon.StartedService.SubscribeUSBIPServerStatus:input_type -> google.protobuf.Empty
-	113, // 101: daemon.StartedService.SubscribeOpenConnectStatus:input_type -> google.protobuf.Empty
-	98,  // 102: daemon.StartedService.SubmitOpenConnectAuthResponse:input_type -> daemon.OpenConnectAuthResponseSubmission
-	99,  // 103: daemon.StartedService.CancelOpenConnectAuthChallenge:input_type -> daemon.OpenConnectAuthChallengeCancel
-	113, // 104: daemon.StartedService.SubscribeOpenVPNStatus:input_type -> google.protobuf.Empty
-	104, // 105: daemon.StartedService.SubmitOpenVPNChallengeResponse:input_type -> daemon.OpenVPNChallengeSubmission
-	105, // 106: daemon.StartedService.CancelOpenVPNChallenge:input_type -> daemon.OpenVPNChallengeCancel
-	113, // 107: daemon.StartedService.SubscribeNotifications:input_type -> google.protobuf.Empty
-	109, // 108: daemon.StartedService.ApplyLiveConfig:input_type -> daemon.LiveConfigRequest
-	5,   // 109: daemon.StartedService.GetVersion:output_type -> daemon.Version
-	8,   // 110: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
-	10,  // 111: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
-	11,  // 112: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
-	113, // 113: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
-	12,  // 114: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
-	13,  // 115: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
-	7,   // 116: daemon.StartedService.TestPolicy:output_type -> daemon.PolicyTestResult
-	20,  // 117: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
-	19,  // 118: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
-	113, // 119: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
-	113, // 120: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
-	113, // 121: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
-	113, // 122: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
-	23,  // 123: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
-	113, // 124: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
-	113, // 125: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
-	27,  // 126: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
-	29,  // 127: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
-	30,  // 128: daemon.StartedService.SubscribeOutbounds:output_type -> daemon.OutboundList
-	32,  // 129: daemon.StartedService.StartNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
-	34,  // 130: daemon.StartedService.StartSTUNTest:output_type -> daemon.STUNTestProgress
-	35,  // 131: daemon.StartedService.SubscribeTailscaleStatus:output_type -> daemon.TailscaleStatusUpdate
-	40,  // 132: daemon.StartedService.StartTailscalePing:output_type -> daemon.TailscalePingResponse
-	113, // 133: daemon.StartedService.SetTailscaleExitNode:output_type -> google.protobuf.Empty
-	113, // 134: daemon.StartedService.TailscaleLogout:output_type -> google.protobuf.Empty
-	44,  // 135: daemon.StartedService.GetTailscaleCertificate:output_type -> daemon.TailscaleCertificate
-	49,  // 136: daemon.StartedService.StartTailscaleSSHSession:output_type -> daemon.TailscaleSSHServerMessage
-	57,  // 137: daemon.StartedService.SubscribeTaildropInbox:output_type -> daemon.TaildropInbox
-	113, // 138: daemon.StartedService.MarkTaildropInboxRead:output_type -> google.protobuf.Empty
-	65,  // 139: daemon.StartedService.SendTaildropFiles:output_type -> daemon.TaildropSendServerMessage
-	68,  // 140: daemon.StartedService.DownloadTaildropFile:output_type -> daemon.DownloadTaildropFileChunk
-	113, // 141: daemon.StartedService.DeleteTaildropFile:output_type -> google.protobuf.Empty
-	113, // 142: daemon.StartedService.CancelTaildropReceiving:output_type -> google.protobuf.Empty
-	72,  // 143: daemon.StartedService.ProvideUSBDevices:output_type -> daemon.USBServerMessage
-	83,  // 144: daemon.StartedService.SubscribeUSBIPServerStatus:output_type -> daemon.USBIPServerStatusUpdate
-	86,  // 145: daemon.StartedService.SubscribeOpenConnectStatus:output_type -> daemon.OpenConnectStatusUpdate
-	113, // 146: daemon.StartedService.SubmitOpenConnectAuthResponse:output_type -> google.protobuf.Empty
-	113, // 147: daemon.StartedService.CancelOpenConnectAuthChallenge:output_type -> google.protobuf.Empty
-	100, // 148: daemon.StartedService.SubscribeOpenVPNStatus:output_type -> daemon.OpenVPNStatusUpdate
-	113, // 149: daemon.StartedService.SubmitOpenVPNChallengeResponse:output_type -> google.protobuf.Empty
-	113, // 150: daemon.StartedService.CancelOpenVPNChallenge:output_type -> google.protobuf.Empty
-	106, // 151: daemon.StartedService.SubscribeNotifications:output_type -> daemon.NotificationEvent
-	110, // 152: daemon.StartedService.ApplyLiveConfig:output_type -> daemon.LiveConfigResult
-	109, // [109:153] is the sub-list for method output_type
-	65,  // [65:109] is the sub-list for method input_type
-	65,  // [65:65] is the sub-list for extension type_name
-	65,  // [65:65] is the sub-list for extension extendee
-	0,   // [0:65] is the sub-list for field type_name
+	43,  // 16: daemon.TailscaleDiagnostics.netcheck:type_name -> daemon.TailscaleNetcheck
+	45,  // 17: daemon.TailscaleDiagnostics.peers:type_name -> daemon.TailscalePeerDiagnostics
+	44,  // 18: daemon.TailscaleNetcheck.regions:type_name -> daemon.TailscaleDERPRegion
+	46,  // 19: daemon.TailscalePeerDiagnostics.endpoints:type_name -> daemon.TailscalePeerEndpoint
+	47,  // 20: daemon.TailscalePeerDiagnostics.changes:type_name -> daemon.TailscalePathChange
+	53,  // 21: daemon.TailscaleSSHClientMessage.start:type_name -> daemon.TailscaleSSHStart
+	54,  // 22: daemon.TailscaleSSHClientMessage.input:type_name -> daemon.TailscaleSSHInput
+	55,  // 23: daemon.TailscaleSSHClientMessage.resize:type_name -> daemon.TailscaleSSHResize
+	57,  // 24: daemon.TailscaleSSHServerMessage.authBanner:type_name -> daemon.TailscaleSSHAuthBanner
+	58,  // 25: daemon.TailscaleSSHServerMessage.ready:type_name -> daemon.TailscaleSSHReady
+	59,  // 26: daemon.TailscaleSSHServerMessage.output:type_name -> daemon.TailscaleSSHOutput
+	60,  // 27: daemon.TailscaleSSHServerMessage.exit:type_name -> daemon.TailscaleSSHExit
+	61,  // 28: daemon.TailscaleSSHServerMessage.error:type_name -> daemon.TailscaleSSHError
+	65,  // 29: daemon.TaildropInbox.files:type_name -> daemon.TaildropFile
+	66,  // 30: daemon.TaildropInbox.receiving:type_name -> daemon.TaildropReceivingFile
+	68,  // 31: daemon.TaildropSendClientMessage.start:type_name -> daemon.TaildropSendStart
+	70,  // 32: daemon.TaildropSendClientMessage.chunk:type_name -> daemon.TaildropFileChunk
+	71,  // 33: daemon.TaildropSendClientMessage.fileDone:type_name -> daemon.TaildropFileDone
+	69,  // 34: daemon.TaildropSendStart.files:type_name -> daemon.TaildropOutgoingFile
+	73,  // 35: daemon.TaildropSendServerMessage.progress:type_name -> daemon.TaildropSendProgress
+	81,  // 36: daemon.USBProviderMessage.attach:type_name -> daemon.USBDeviceAttach
+	83,  // 37: daemon.USBProviderMessage.detach:type_name -> daemon.USBDeviceDetach
+	86,  // 38: daemon.USBProviderMessage.urbResponse:type_name -> daemon.USBURBResponse
+	84,  // 39: daemon.USBServerMessage.ready:type_name -> daemon.USBDeviceReady
+	85,  // 40: daemon.USBServerMessage.urbRequest:type_name -> daemon.USBURBRequest
+	88,  // 41: daemon.USBServerMessage.abort:type_name -> daemon.USBEndpointAbort
+	89,  // 42: daemon.USBServerMessage.error:type_name -> daemon.USBError
+	82,  // 43: daemon.USBDeviceDescriptor.interfaces:type_name -> daemon.USBInterface
+	80,  // 44: daemon.USBDeviceAttach.descriptor:type_name -> daemon.USBDeviceDescriptor
+	87,  // 45: daemon.USBURBRequest.isoPackets:type_name -> daemon.USBIsoPacket
+	87,  // 46: daemon.USBURBResponse.isoPackets:type_name -> daemon.USBIsoPacket
+	91,  // 47: daemon.USBIPServerStatusUpdate.servers:type_name -> daemon.USBIPServerStatus
+	92,  // 48: daemon.USBIPServerStatus.devices:type_name -> daemon.USBSharedDevice
+	80,  // 49: daemon.USBSharedDevice.descriptor:type_name -> daemon.USBDeviceDescriptor
+	3,   // 50: daemon.USBSharedDevice.backend:type_name -> daemon.USBBackend
+	2,   // 51: daemon.USBSharedDevice.state:type_name -> daemon.USBDeviceState
+	94,  // 52: daemon.OpenConnectStatusUpdate.endpoints:type_name -> daemon.OpenConnectEndpointStatus
+	96,  // 53: daemon.OpenConnectEndpointStatus.authChallenge:type_name -> daemon.OpenConnectAuthChallenge
+	95,  // 54: daemon.OpenConnectEndpointStatus.tunnelInfo:type_name -> daemon.OpenConnectTunnelInfo
+	97,  // 55: daemon.OpenConnectAuthChallenge.form:type_name -> daemon.OpenConnectAuthForm
+	100, // 56: daemon.OpenConnectAuthChallenge.browser:type_name -> daemon.OpenConnectBrowserRequest
+	98,  // 57: daemon.OpenConnectAuthForm.fields:type_name -> daemon.OpenConnectAuthFormField
+	99,  // 58: daemon.OpenConnectAuthFormField.options:type_name -> daemon.OpenConnectAuthFormChoice
+	119, // 59: daemon.OpenConnectAuthFormResponse.values:type_name -> daemon.OpenConnectAuthFormResponse.ValuesEntry
+	101, // 60: daemon.OpenConnectBrowserResult.cookies:type_name -> daemon.OpenConnectBrowserCookie
+	102, // 61: daemon.OpenConnectBrowserResult.headers:type_name -> daemon.OpenConnectBrowserHeader
+	103, // 62: daemon.OpenConnectAuthResponseSubmission.form:type_name -> daemon.OpenConnectAuthFormResponse
+	104, // 63: daemon.OpenConnectAuthResponseSubmission.browser:type_name -> daemon.OpenConnectBrowserResult
+	108, // 64: daemon.OpenVPNStatusUpdate.endpoints:type_name -> daemon.OpenVPNEndpointStatus
+	110, // 65: daemon.OpenVPNEndpointStatus.challenge:type_name -> daemon.OpenVPNChallenge
+	109, // 66: daemon.OpenVPNEndpointStatus.tunnelInfo:type_name -> daemon.OpenVPNTunnelInfo
+	114, // 67: daemon.NotificationEvent.send:type_name -> daemon.Notification
+	115, // 68: daemon.NotificationEvent.cancel:type_name -> daemon.NotificationCancel
+	0,   // 69: daemon.Log.Message.level:type_name -> daemon.LogLevel
+	120, // 70: daemon.StartedService.GetVersion:input_type -> google.protobuf.Empty
+	120, // 71: daemon.StartedService.SubscribeServiceStatus:input_type -> google.protobuf.Empty
+	120, // 72: daemon.StartedService.SubscribeLog:input_type -> google.protobuf.Empty
+	120, // 73: daemon.StartedService.GetDefaultLogLevel:input_type -> google.protobuf.Empty
+	120, // 74: daemon.StartedService.ClearLogs:input_type -> google.protobuf.Empty
+	9,   // 75: daemon.StartedService.SubscribeStatus:input_type -> daemon.SubscribeStatusRequest
+	120, // 76: daemon.StartedService.SubscribeGroups:input_type -> google.protobuf.Empty
+	6,   // 77: daemon.StartedService.TestPolicy:input_type -> daemon.PolicyTestRequest
+	120, // 78: daemon.StartedService.GetClashModeStatus:input_type -> google.protobuf.Empty
+	120, // 79: daemon.StartedService.SubscribeClashMode:input_type -> google.protobuf.Empty
+	19,  // 80: daemon.StartedService.SetClashMode:input_type -> daemon.ClashMode
+	16,  // 81: daemon.StartedService.URLTest:input_type -> daemon.URLTestRequest
+	17,  // 82: daemon.StartedService.SelectOutbound:input_type -> daemon.SelectOutboundRequest
+	18,  // 83: daemon.StartedService.SetGroupExpand:input_type -> daemon.SetGroupExpandRequest
+	21,  // 84: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
+	26,  // 85: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
+	120, // 86: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
+	120, // 87: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
+	120, // 88: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
+	120, // 89: daemon.StartedService.SubscribeOutbounds:input_type -> google.protobuf.Empty
+	31,  // 90: daemon.StartedService.StartNetworkQualityTest:input_type -> daemon.NetworkQualityTestRequest
+	33,  // 91: daemon.StartedService.StartSTUNTest:input_type -> daemon.STUNTestRequest
+	120, // 92: daemon.StartedService.SubscribeTailscaleStatus:input_type -> google.protobuf.Empty
+	39,  // 93: daemon.StartedService.StartTailscalePing:input_type -> daemon.TailscalePingRequest
+	41,  // 94: daemon.StartedService.GetTailscaleDiagnostics:input_type -> daemon.TailscaleDiagnosticsRequest
+	48,  // 95: daemon.StartedService.SetTailscaleExitNode:input_type -> daemon.SetTailscaleExitNodeRequest
+	49,  // 96: daemon.StartedService.TailscaleLogout:input_type -> daemon.TailscaleLogoutRequest
+	50,  // 97: daemon.StartedService.GetTailscaleCertificate:input_type -> daemon.TailscaleCertificateRequest
+	52,  // 98: daemon.StartedService.StartTailscaleSSHSession:input_type -> daemon.TailscaleSSHClientMessage
+	62,  // 99: daemon.StartedService.SubscribeTaildropInbox:input_type -> daemon.SubscribeTaildropInboxRequest
+	63,  // 100: daemon.StartedService.MarkTaildropInboxRead:input_type -> daemon.MarkTaildropInboxReadRequest
+	67,  // 101: daemon.StartedService.SendTaildropFiles:input_type -> daemon.TaildropSendClientMessage
+	74,  // 102: daemon.StartedService.DownloadTaildropFile:input_type -> daemon.DownloadTaildropFileRequest
+	76,  // 103: daemon.StartedService.DeleteTaildropFile:input_type -> daemon.DeleteTaildropFileRequest
+	77,  // 104: daemon.StartedService.CancelTaildropReceiving:input_type -> daemon.CancelTaildropReceivingRequest
+	78,  // 105: daemon.StartedService.ProvideUSBDevices:input_type -> daemon.USBProviderMessage
+	120, // 106: daemon.StartedService.SubscribeUSBIPServerStatus:input_type -> google.protobuf.Empty
+	120, // 107: daemon.StartedService.SubscribeOpenConnectStatus:input_type -> google.protobuf.Empty
+	105, // 108: daemon.StartedService.SubmitOpenConnectAuthResponse:input_type -> daemon.OpenConnectAuthResponseSubmission
+	106, // 109: daemon.StartedService.CancelOpenConnectAuthChallenge:input_type -> daemon.OpenConnectAuthChallengeCancel
+	120, // 110: daemon.StartedService.SubscribeOpenVPNStatus:input_type -> google.protobuf.Empty
+	111, // 111: daemon.StartedService.SubmitOpenVPNChallengeResponse:input_type -> daemon.OpenVPNChallengeSubmission
+	112, // 112: daemon.StartedService.CancelOpenVPNChallenge:input_type -> daemon.OpenVPNChallengeCancel
+	120, // 113: daemon.StartedService.SubscribeNotifications:input_type -> google.protobuf.Empty
+	116, // 114: daemon.StartedService.ApplyLiveConfig:input_type -> daemon.LiveConfigRequest
+	5,   // 115: daemon.StartedService.GetVersion:output_type -> daemon.Version
+	8,   // 116: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
+	10,  // 117: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
+	11,  // 118: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
+	120, // 119: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
+	12,  // 120: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
+	13,  // 121: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
+	7,   // 122: daemon.StartedService.TestPolicy:output_type -> daemon.PolicyTestResult
+	20,  // 123: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
+	19,  // 124: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
+	120, // 125: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
+	120, // 126: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
+	120, // 127: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
+	120, // 128: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
+	23,  // 129: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
+	120, // 130: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
+	120, // 131: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
+	27,  // 132: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
+	29,  // 133: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
+	30,  // 134: daemon.StartedService.SubscribeOutbounds:output_type -> daemon.OutboundList
+	32,  // 135: daemon.StartedService.StartNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
+	34,  // 136: daemon.StartedService.StartSTUNTest:output_type -> daemon.STUNTestProgress
+	35,  // 137: daemon.StartedService.SubscribeTailscaleStatus:output_type -> daemon.TailscaleStatusUpdate
+	40,  // 138: daemon.StartedService.StartTailscalePing:output_type -> daemon.TailscalePingResponse
+	42,  // 139: daemon.StartedService.GetTailscaleDiagnostics:output_type -> daemon.TailscaleDiagnostics
+	120, // 140: daemon.StartedService.SetTailscaleExitNode:output_type -> google.protobuf.Empty
+	120, // 141: daemon.StartedService.TailscaleLogout:output_type -> google.protobuf.Empty
+	51,  // 142: daemon.StartedService.GetTailscaleCertificate:output_type -> daemon.TailscaleCertificate
+	56,  // 143: daemon.StartedService.StartTailscaleSSHSession:output_type -> daemon.TailscaleSSHServerMessage
+	64,  // 144: daemon.StartedService.SubscribeTaildropInbox:output_type -> daemon.TaildropInbox
+	120, // 145: daemon.StartedService.MarkTaildropInboxRead:output_type -> google.protobuf.Empty
+	72,  // 146: daemon.StartedService.SendTaildropFiles:output_type -> daemon.TaildropSendServerMessage
+	75,  // 147: daemon.StartedService.DownloadTaildropFile:output_type -> daemon.DownloadTaildropFileChunk
+	120, // 148: daemon.StartedService.DeleteTaildropFile:output_type -> google.protobuf.Empty
+	120, // 149: daemon.StartedService.CancelTaildropReceiving:output_type -> google.protobuf.Empty
+	79,  // 150: daemon.StartedService.ProvideUSBDevices:output_type -> daemon.USBServerMessage
+	90,  // 151: daemon.StartedService.SubscribeUSBIPServerStatus:output_type -> daemon.USBIPServerStatusUpdate
+	93,  // 152: daemon.StartedService.SubscribeOpenConnectStatus:output_type -> daemon.OpenConnectStatusUpdate
+	120, // 153: daemon.StartedService.SubmitOpenConnectAuthResponse:output_type -> google.protobuf.Empty
+	120, // 154: daemon.StartedService.CancelOpenConnectAuthChallenge:output_type -> google.protobuf.Empty
+	107, // 155: daemon.StartedService.SubscribeOpenVPNStatus:output_type -> daemon.OpenVPNStatusUpdate
+	120, // 156: daemon.StartedService.SubmitOpenVPNChallengeResponse:output_type -> google.protobuf.Empty
+	120, // 157: daemon.StartedService.CancelOpenVPNChallenge:output_type -> google.protobuf.Empty
+	113, // 158: daemon.StartedService.SubscribeNotifications:output_type -> daemon.NotificationEvent
+	117, // 159: daemon.StartedService.ApplyLiveConfig:output_type -> daemon.LiveConfigResult
+	115, // [115:160] is the sub-list for method output_type
+	70,  // [70:115] is the sub-list for method input_type
+	70,  // [70:70] is the sub-list for extension type_name
+	70,  // [70:70] is the sub-list for extension extendee
+	0,   // [0:70] is the sub-list for field type_name
 }
 
 func init() { file_daemon_started_service_proto_init() }
@@ -8884,47 +9492,47 @@ func file_daemon_started_service_proto_init() {
 	if File_daemon_started_service_proto != nil {
 		return
 	}
-	file_daemon_started_service_proto_msgTypes[40].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[47].OneofWrappers = []any{
 		(*TailscaleSSHClientMessage_Start)(nil),
 		(*TailscaleSSHClientMessage_Input)(nil),
 		(*TailscaleSSHClientMessage_Resize)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[44].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[51].OneofWrappers = []any{
 		(*TailscaleSSHServerMessage_AuthBanner)(nil),
 		(*TailscaleSSHServerMessage_Ready)(nil),
 		(*TailscaleSSHServerMessage_Output)(nil),
 		(*TailscaleSSHServerMessage_Exit)(nil),
 		(*TailscaleSSHServerMessage_Error)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[55].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[62].OneofWrappers = []any{
 		(*TaildropSendClientMessage_Start)(nil),
 		(*TaildropSendClientMessage_Chunk)(nil),
 		(*TaildropSendClientMessage_FileDone)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[60].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[67].OneofWrappers = []any{
 		(*TaildropSendServerMessage_Progress)(nil),
 		(*TaildropSendServerMessage_ReceivedBytes)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[66].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[73].OneofWrappers = []any{
 		(*USBProviderMessage_Attach)(nil),
 		(*USBProviderMessage_Detach)(nil),
 		(*USBProviderMessage_UrbResponse)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[67].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[74].OneofWrappers = []any{
 		(*USBServerMessage_Ready)(nil),
 		(*USBServerMessage_UrbRequest)(nil),
 		(*USBServerMessage_Abort)(nil),
 		(*USBServerMessage_Error)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[84].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[91].OneofWrappers = []any{
 		(*OpenConnectAuthChallenge_Form)(nil),
 		(*OpenConnectAuthChallenge_Browser)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[93].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[100].OneofWrappers = []any{
 		(*OpenConnectAuthResponseSubmission_Form)(nil),
 		(*OpenConnectAuthResponseSubmission_Browser)(nil),
 	}
-	file_daemon_started_service_proto_msgTypes[101].OneofWrappers = []any{
+	file_daemon_started_service_proto_msgTypes[108].OneofWrappers = []any{
 		(*NotificationEvent_Send)(nil),
 		(*NotificationEvent_Cancel)(nil),
 	}
@@ -8934,7 +9542,7 @@ func file_daemon_started_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_daemon_started_service_proto_rawDesc), len(file_daemon_started_service_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   108,
+			NumMessages:   115,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

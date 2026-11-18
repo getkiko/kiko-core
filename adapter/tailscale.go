@@ -112,3 +112,71 @@ type ShellSession interface {
 	WaitExit() (int32, error)
 	Close() error
 }
+
+// TailscaleDiagnosticsProvider reports how a Tailscale endpoint reaches the
+// network and each peer, as `tailscale netcheck` and `tailscale status`
+// tell.
+type TailscaleDiagnosticsProvider interface {
+	TailscaleDiagnostics(ctx context.Context, refresh bool) (*TailscaleDiagnostics, error)
+}
+
+type TailscaleDiagnostics struct {
+	Netcheck *TailscaleNetcheck
+	Peers    []*TailscalePeerDiagnostics
+}
+
+// TailscaleNetcheck is magicsock's latest network check. Tri-state fields
+// are "true", "false" or "" when not checked.
+type TailscaleNetcheck struct {
+	CheckedAt             int64
+	UDP                   bool
+	IPv4                  bool
+	IPv6                  bool
+	IPv4CanSend           bool
+	IPv6CanSend           bool
+	OSHasIPv6             bool
+	GlobalV4              string
+	GlobalV6              string
+	MappingVariesByDestIP string
+	UPnP                  string
+	PMP                   string
+	PCP                   string
+	CaptivePortal         string
+	PreferredDERP         int32
+	Regions               []*TailscaleDERPRegion
+	// SelfEndpoints are the addresses this node advertises to its peers.
+	SelfEndpoints []string
+	// STUNPath is the udp_path STUN probes take, empty without udp_path.
+	STUNPath string
+}
+
+type TailscaleDERPRegion struct {
+	ID   int32
+	Code string
+	Name string
+	// LatencyMs is 0 when the region did not answer.
+	LatencyMs float64
+}
+
+type TailscalePeerDiagnostics struct {
+	StableID      string
+	Endpoints     []*TailscalePeerEndpoint
+	LastHandshake int64
+	PeerRelay     string
+	// Changes are the recent path changes, newest first.
+	Changes []*TailscalePathChange
+}
+
+// TailscalePeerEndpoint is a peer's candidate address and the udp_path it
+// takes (empty without udp_path).
+type TailscalePeerEndpoint struct {
+	Address string
+	Path    string
+}
+
+type TailscalePathChange struct {
+	At   int64
+	What string
+	From string
+	To   string
+}

@@ -34,6 +34,7 @@ service StartedService {
   rpc StartSTUNTest(STUNTestRequest) returns (stream STUNTestProgress) {}
   rpc SubscribeTailscaleStatus(google.protobuf.Empty) returns (stream TailscaleStatusUpdate) {}
   rpc StartTailscalePing(TailscalePingRequest) returns (stream TailscalePingResponse) {}
+  rpc GetTailscaleDiagnostics(TailscaleDiagnosticsRequest) returns (TailscaleDiagnostics) {}
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
   rpc TailscaleLogout(TailscaleLogoutRequest) returns (google.protobuf.Empty) {}
   rpc GetTailscaleCertificate(TailscaleCertificateRequest) returns (TailscaleCertificate) {}
@@ -380,6 +381,64 @@ message TailscalePingResponse {
   string derpRegionCode = 5;
   string error = 6;
   string peerRelay = 7;
+}
+
+message TailscaleDiagnosticsRequest {
+  string endpointTag = 1;
+  bool refresh = 2;
+}
+
+message TailscaleDiagnostics {
+  TailscaleNetcheck netcheck = 1;
+  repeated TailscalePeerDiagnostics peers = 2;
+}
+
+message TailscaleNetcheck {
+  int64 checkedAt = 1;
+  bool udp = 2;
+  bool ipv4 = 3;
+  bool ipv6 = 4;
+  bool ipv4CanSend = 5;
+  bool ipv6CanSend = 6;
+  bool osHasIPv6 = 7;
+  string globalV4 = 8;
+  string globalV6 = 9;
+  string mappingVariesByDestIP = 10;
+  string upnp = 11;
+  string pmp = 12;
+  string pcp = 13;
+  string captivePortal = 14;
+  int32 preferredDERP = 15;
+  repeated TailscaleDERPRegion regions = 16;
+  repeated string selfEndpoints = 17;
+  string stunPath = 18;
+}
+
+message TailscaleDERPRegion {
+  int32 id = 1;
+  string code = 2;
+  string name = 3;
+  double latencyMs = 4;
+}
+
+message TailscalePeerDiagnostics {
+  string stableID = 1;
+  repeated TailscalePeerEndpoint endpoints = 2;
+  int64 lastHandshake = 3;
+  string peerRelay = 4;
+  repeated TailscalePathChange changes = 5;
+}
+
+message TailscalePeerEndpoint {
+  string address = 1;
+  string path = 2;
+}
+
+message TailscalePathChange {
+  int64 at = 1;
+  string what = 2;
+  string from = 3;
+  string to = 4;
 }
 
 message SetTailscaleExitNodeRequest {

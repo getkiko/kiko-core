@@ -44,6 +44,7 @@ const (
 	StartedService_StartSTUNTest_FullMethodName                  = "/daemon.StartedService/StartSTUNTest"
 	StartedService_SubscribeTailscaleStatus_FullMethodName       = "/daemon.StartedService/SubscribeTailscaleStatus"
 	StartedService_StartTailscalePing_FullMethodName             = "/daemon.StartedService/StartTailscalePing"
+	StartedService_GetTailscaleDiagnostics_FullMethodName        = "/daemon.StartedService/GetTailscaleDiagnostics"
 	StartedService_SetTailscaleExitNode_FullMethodName           = "/daemon.StartedService/SetTailscaleExitNode"
 	StartedService_TailscaleLogout_FullMethodName                = "/daemon.StartedService/TailscaleLogout"
 	StartedService_GetTailscaleCertificate_FullMethodName        = "/daemon.StartedService/GetTailscaleCertificate"
@@ -94,6 +95,7 @@ type StartedServiceClient interface {
 	StartSTUNTest(ctx context.Context, in *STUNTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[STUNTestProgress], error)
 	SubscribeTailscaleStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscaleStatusUpdate], error)
 	StartTailscalePing(ctx context.Context, in *TailscalePingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscalePingResponse], error)
+	GetTailscaleDiagnostics(ctx context.Context, in *TailscaleDiagnosticsRequest, opts ...grpc.CallOption) (*TailscaleDiagnostics, error)
 	SetTailscaleExitNode(ctx context.Context, in *SetTailscaleExitNodeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	TailscaleLogout(ctx context.Context, in *TailscaleLogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetTailscaleCertificate(ctx context.Context, in *TailscaleCertificateRequest, opts ...grpc.CallOption) (*TailscaleCertificate, error)
@@ -463,6 +465,16 @@ func (c *startedServiceClient) StartTailscalePing(ctx context.Context, in *Tails
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_StartTailscalePingClient = grpc.ServerStreamingClient[TailscalePingResponse]
 
+func (c *startedServiceClient) GetTailscaleDiagnostics(ctx context.Context, in *TailscaleDiagnosticsRequest, opts ...grpc.CallOption) (*TailscaleDiagnostics, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TailscaleDiagnostics)
+	err := c.cc.Invoke(ctx, StartedService_GetTailscaleDiagnostics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *startedServiceClient) SetTailscaleExitNode(ctx context.Context, in *SetTailscaleExitNodeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -754,6 +766,7 @@ type StartedServiceServer interface {
 	StartSTUNTest(*STUNTestRequest, grpc.ServerStreamingServer[STUNTestProgress]) error
 	SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error
 	StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error
+	GetTailscaleDiagnostics(context.Context, *TailscaleDiagnosticsRequest) (*TailscaleDiagnostics, error)
 	SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error)
 	TailscaleLogout(context.Context, *TailscaleLogoutRequest) (*emptypb.Empty, error)
 	GetTailscaleCertificate(context.Context, *TailscaleCertificateRequest) (*TailscaleCertificate, error)
@@ -856,6 +869,9 @@ func (UnimplementedStartedServiceServer) SubscribeTailscaleStatus(*emptypb.Empty
 func (UnimplementedStartedServiceServer) StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error {
 	return status.Error(codes.Unimplemented, "method StartTailscalePing not implemented")
 }
+func (UnimplementedStartedServiceServer) GetTailscaleDiagnostics(context.Context, *TailscaleDiagnosticsRequest) (*TailscaleDiagnostics, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTailscaleDiagnostics not implemented")
+}
 func (UnimplementedStartedServiceServer) SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetTailscaleExitNode not implemented")
 }
@@ -913,7 +929,6 @@ func (UnimplementedStartedServiceServer) CancelOpenVPNChallenge(context.Context,
 func (UnimplementedStartedServiceServer) SubscribeNotifications(*emptypb.Empty, grpc.ServerStreamingServer[NotificationEvent]) error {
 	return status.Error(codes.Unimplemented, "method SubscribeNotifications not implemented")
 }
-
 func (UnimplementedStartedServiceServer) ApplyLiveConfig(context.Context, *LiveConfigRequest) (*LiveConfigResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method ApplyLiveConfig not implemented")
 }
@@ -1293,6 +1308,24 @@ func _StartedService_StartTailscalePing_Handler(srv interface{}, stream grpc.Ser
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_StartTailscalePingServer = grpc.ServerStreamingServer[TailscalePingResponse]
 
+func _StartedService_GetTailscaleDiagnostics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TailscaleDiagnosticsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StartedServiceServer).GetTailscaleDiagnostics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StartedService_GetTailscaleDiagnostics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StartedServiceServer).GetTailscaleDiagnostics(ctx, req.(*TailscaleDiagnosticsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StartedService_SetTailscaleExitNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetTailscaleExitNodeRequest)
 	if err := dec(in); err != nil {
@@ -1638,8 +1671,8 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _StartedService_GetStartedAt_Handler,
 		},
 		{
-			MethodName: "ApplyLiveConfig",
-			Handler:    _StartedService_ApplyLiveConfig_Handler,
+			MethodName: "GetTailscaleDiagnostics",
+			Handler:    _StartedService_GetTailscaleDiagnostics_Handler,
 		},
 		{
 			MethodName: "SetTailscaleExitNode",
@@ -1680,6 +1713,10 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelOpenVPNChallenge",
 			Handler:    _StartedService_CancelOpenVPNChallenge_Handler,
+		},
+		{
+			MethodName: "ApplyLiveConfig",
+			Handler:    _StartedService_ApplyLiveConfig_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

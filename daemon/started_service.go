@@ -1782,6 +1782,58 @@ func (s *StartedService) StartTailscalePing(
 	})
 }
 
+func (s *StartedService) GetTailscaleDiagnostics(ctx context.Context, request *TailscaleDiagnosticsRequest) (*TailscaleDiagnostics, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	provider, _, err := resolveTailscaleProvider(boxService, request.EndpointTag)
+	if err != nil {
+		return nil, err
+	}
+	diagnostics, loaded := provider.(adapter.TailscaleDiagnosticsProvider)
+	if !loaded {
+		return nil, status.Error(codes.FailedPrecondition, "endpoint does not support tailscale diagnostics")
+	}
+	result, err := diagnostics.TailscaleDiagnostics(ctx, request.Refresh)
+	if err != nil {
+		return nil, err
+	}
+	return tailscaleDiagnosticsToProto(result), nil
+}
+
+func tailscaleDiagnosticsToProto(in *adapter.TailscaleDiagnostics) *TailscaleDiagnostics {
+	out := &TailscaleDiagnostics{}
+	if n := in.Netcheck; n != nil {
+		netcheck := &TailscaleNetcheck{
+			CheckedAt: n.CheckedAt, Udp: n.UDP, Ipv4: n.IPv4, Ipv6: n.IPv6,
+			Ipv4CanSend: n.IPv4CanSend, Ipv6CanSend: n.IPv6CanSend, OsHasIPv6: n.OSHasIPv6,
+			GlobalV4: n.GlobalV4, GlobalV6: n.GlobalV6, MappingVariesByDestIP: n.MappingVariesByDestIP,
+			Upnp: n.UPnP, Pmp: n.PMP, Pcp: n.PCP, CaptivePortal: n.CaptivePortal,
+			PreferredDERP: n.PreferredDERP, SelfEndpoints: n.SelfEndpoints, StunPath: n.STUNPath,
+		}
+		for _, region := range n.Regions {
+			netcheck.Regions = append(netcheck.Regions, &TailscaleDERPRegion{Id: region.ID, Code: region.Code, Name: region.Name, LatencyMs: region.LatencyMs})
+		}
+		out.Netcheck = netcheck
+	}
+	for _, peer := range in.Peers {
+		item := &TailscalePeerDiagnostics{StableID: peer.StableID, LastHandshake: peer.LastHandshake, PeerRelay: peer.PeerRelay}
+		for _, endpoint := range peer.Endpoints {
+			item.Endpoints = append(item.Endpoints, &TailscalePeerEndpoint{Address: endpoint.Address, Path: endpoint.Path})
+		}
+		for _, change := range peer.Changes {
+			item.Changes = append(item.Changes, &TailscalePathChange{At: change.At, What: change.What, From: change.From, To: change.To})
+		}
+		out.Peers = append(out.Peers, item)
+	}
+	return out
+}
+
 func (s *StartedService) SetTailscaleExitNode(ctx context.Context, request *SetTailscaleExitNodeRequest) (*emptypb.Empty, error) {
 	err := s.waitForStarted(ctx)
 	if err != nil {
