@@ -22,6 +22,7 @@ import (
 	"github.com/sagernet/sing-box/protocol/anytls"
 	"github.com/sagernet/sing-box/protocol/block"
 	"github.com/sagernet/sing-box/protocol/bridge"
+	"github.com/sagernet/sing-box/protocol/burrow"
 	"github.com/sagernet/sing-box/protocol/direct"
 	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing-box/protocol/http"
@@ -67,6 +68,7 @@ func InboundRegistry() *inbound.Registry {
 	trojan.RegisterInbound(registry)
 	naive.RegisterInbound(registry)
 	shadowtls.RegisterInbound(registry)
+	burrow.RegisterInbound(registry)
 	vless.RegisterInbound(registry)
 	anytls.RegisterInbound(registry)
 
@@ -98,6 +100,7 @@ func OutboundRegistry() *outbound.Registry {
 	tor.RegisterOutbound(registry)
 	ssh.RegisterOutbound(registry)
 	shadowtls.RegisterOutbound(registry)
+	burrow.RegisterOutbound(registry)
 	vless.RegisterOutbound(registry)
 	anytls.RegisterOutbound(registry)
 

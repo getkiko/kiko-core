@@ -1,0 +1,211 @@
+package burrow
+
+import (
+	"errors"
+	"net/netip"
+	"os"
+	"syscall"
+	"testing"
+
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common/control"
+
+	"github.com/getkiko/burrow"
+)
+
+type stubNetworkManager struct {
+	defaultInterface string
+	autoDetect       bool
+	currentInterface *adapter.NetworkInterface
+	finder           control.InterfaceFinder
+}
+
+func (s *stubNetworkManager) InterfaceFinder() control.InterfaceFinder {
+	if s.finder != nil {
+		return s.finder
+	}
+	return control.NewDefaultInterfaceFinder()
+}
+
+// stubFinder mimics the interface table detected by the sing-box platform
+// interface without touching netlink.
+type stubFinder struct {
+	control.InterfaceFinder
+	byName map[string]*control.Interface
+	err    error
+}
+
+func (s *stubFinder) ByName(name string) (*control.Interface, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	if iif, ok := s.byName[name]; ok {
+		return iif, nil
+	}
+	return nil, os.ErrNotExist
+}
+
+func (s *stubNetworkManager) DefaultNetworkInterface() *adapter.NetworkInterface {
+	return s.currentInterface
+}
+
+func (s *stubNetworkManager) AutoDetectInterface() bool { return s.autoDetect }
+
+func (s *stubNetworkManager) AutoDetectInterfaceFunc() control.Func {
+	return func(network, address string, conn syscall.RawConn) error { return nil }
+}
+
+func (s *stubNetworkManager) DefaultOptions() adapter.NetworkOptions {
+	return adapter.NetworkOptions{BindInterface: s.defaultInterface}
+}
+
+func mustPanic(t *testing.T, name string, fn func()) {
+	t.Helper()
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatalf("%s: expected a panic, returned normally", name)
+		}
+		if msg, ok := r.(string); !ok || msg != errNoBindInterface {
+			t.Fatalf("%s: unexpected panic message, got %v", name, r)
+		}
+	}()
+	fn()
+}
+
+// Case 1: an explicit bind_interface has the highest priority.
+func TestSocketBindingExplicitInterface(t *testing.T) {
+	name, ctrl := socketBindingForNetworkManager(&stubNetworkManager{}, "en0", nil)
+	if name == nil || name() != "en0" {
+		t.Fatal("expected en0")
+	}
+	if ctrl == nil {
+		t.Fatal("expected a non-nil control")
+	}
+}
+
+// Case 2: route.default_interface is the fallback.
+func TestSocketBindingDefaultInterface(t *testing.T) {
+	nm := &stubNetworkManager{defaultInterface: "eth1"}
+	name, ctrl := socketBindingForNetworkManager(nm, "", nil)
+	if name == nil || name() != "eth1" {
+		t.Fatal("expected eth1")
+	}
+	if ctrl == nil {
+		t.Fatal("expected a non-nil control")
+	}
+}
+
+// Case 3: none of the three is available, which must panic.
+func TestSocketBindingPanicsWhenUndetermined(t *testing.T) {
+	mustPanic(t, "auto_detect=false", func() {
+		socketBindingForNetworkManager(&stubNetworkManager{autoDetect: false}, "", nil)
+	})
+}
+
+// A missing networkManager (no service in the context) panics as well.
+func TestSocketBindingPanicsWithoutNetworkManager(t *testing.T) {
+	mustPanic(t, "nil networkManager", func() {
+		socketBindingForNetworkManager(nil, "", nil)
+	})
+}
+
+// Case 4: auto_detect is enabled and finds an interface.
+func TestSocketBindingAutoDetect(t *testing.T) {
+	nm := &stubNetworkManager{
+		autoDetect:       true,
+		currentInterface: &adapter.NetworkInterface{Interface: control.Interface{Name: "wlan0"}},
+	}
+	name, _ := socketBindingForNetworkManager(nm, "", nil)
+	if name == nil || name() != "wlan0" {
+		t.Fatal("expected wlan0")
+	}
+}
+
+// Case 4, degraded: auto_detect is enabled but finds no interface at runtime,
+// which panics.
+func TestSocketBindingAutoDetectPanicsOnNilInterface(t *testing.T) {
+	nm := &stubNetworkManager{autoDetect: true, currentInterface: nil}
+	name, _ := socketBindingForNetworkManager(nm, "", nil)
+	if name == nil {
+		t.Fatal("expected a non-nil interfaceName closure")
+	}
+	mustPanic(t, "auto_detect finds no interface", func() { name() })
+}
+
+// interfaceAddrFunc takes IPv4 from the interface table sing-box already
+// detected without touching netlink. This is the path that avoids netlinkrib
+// permission denied on Android.
+func TestInterfaceAddrFuncReturnsIPv4(t *testing.T) {
+	nm := &stubNetworkManager{finder: &stubFinder{byName: map[string]*control.Interface{
+		"wlan0": {Name: "wlan0", Addresses: []netip.Prefix{
+			netip.MustParsePrefix("fe80::1/64"),      // IPv6 is skipped
+			netip.MustParsePrefix("127.0.0.1/8"),     // loopback is skipped
+			netip.MustParsePrefix("192.168.1.23/24"), // match
+		}},
+	}}}
+	addr := interfaceAddrFunc(nm, burrow.AddressFamilyIPv4, nil)
+	if addr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if got := addr("wlan0"); got != "192.168.1.23" {
+		t.Fatalf("expected 192.168.1.23, got %q", got)
+	}
+}
+
+// A failed lookup returns an empty string so the SDK falls back to its own
+// lookup; it must not panic or fail.
+func TestInterfaceAddrFuncReturnsEmptyOnError(t *testing.T) {
+	nm := &stubNetworkManager{finder: &stubFinder{err: errors.New("netlinkrib: permission denied")}}
+	addr := interfaceAddrFunc(nm, burrow.AddressFamilyIPv4, nil)
+	if addr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if got := addr("burrow-missing0"); got != "" {
+		t.Fatalf("expected an empty string, got %q", got)
+	}
+}
+
+// An interface with only IPv6 addresses returns an empty string.
+func TestInterfaceAddrFuncReturnsEmptyWithoutIPv4(t *testing.T) {
+	nm := &stubNetworkManager{finder: &stubFinder{byName: map[string]*control.Interface{
+		"burrow-v6only": {Name: "burrow-v6only", Addresses: []netip.Prefix{netip.MustParsePrefix("fe80::1/64")}},
+	}}}
+	if got := interfaceAddrFunc(nm, burrow.AddressFamilyIPv4, nil)("burrow-v6only"); got != "" {
+		t.Fatalf("expected an empty string, got %q", got)
+	}
+}
+
+func TestInterfaceAddrFuncReturnsGlobalIPv6(t *testing.T) {
+	nm := &stubNetworkManager{finder: &stubFinder{byName: map[string]*control.Interface{
+		"warp0": {Name: "warp0", Addresses: []netip.Prefix{
+			netip.MustParsePrefix("fe80::1/64"),
+			netip.MustParsePrefix("::1/128"),
+			netip.MustParsePrefix("2606:4700:110:8765::2/128"),
+			netip.MustParsePrefix("192.168.1.23/24"),
+		}},
+	}}}
+	if got := interfaceAddrFunc(nm, burrow.AddressFamilyIPv6, nil)("warp0"); got != "2606:4700:110:8765::2" {
+		t.Fatalf("expected the WARP IPv6 address, got %q", got)
+	}
+}
+
+func TestInterfaceAddrFuncIPv6FiltersLocalAddresses(t *testing.T) {
+	nm := &stubNetworkManager{finder: &stubFinder{byName: map[string]*control.Interface{
+		"local6": {Name: "local6", Addresses: []netip.Prefix{
+			netip.MustParsePrefix("::/128"),
+			netip.MustParsePrefix("::1/128"),
+			netip.MustParsePrefix("fe80::1/64"),
+		}},
+	}}}
+	if got := interfaceAddrFunc(nm, burrow.AddressFamilyIPv6, nil)("local6"); got != "" {
+		t.Fatalf("expected an empty string, got %q", got)
+	}
+}
+
+// A missing networkManager returns nil and the SDK skips this source.
+func TestInterfaceAddrFuncNilManager(t *testing.T) {
+	if interfaceAddrFunc(nil, burrow.AddressFamilyIPv6, nil) != nil {
+		t.Fatal("expected nil")
+	}
+}
