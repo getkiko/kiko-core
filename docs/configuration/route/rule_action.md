@@ -280,7 +280,8 @@ of accepted values and platform notes.
 {
   "action": "sniff",
   "sniffer": [],
-  "timeout": ""
+  "timeout": "",
+  "override_destination": false
 }
 ```
 
@@ -301,6 +302,12 @@ Available protocol values an be found on in [Protocol Sniff](../sniff/)
 Timeout for sniffing.
 
 `300ms` is used by default.
+
+#### override_destination
+
+Override the connection destination with the domain name detected by protocol sniffing.
+
+The detected domain must be a valid domain name. The original destination port is preserved.
 
 ### resolve
 

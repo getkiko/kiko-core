@@ -291,7 +291,7 @@ func (m *ConnectionManager) deleteURLTestHistory(chain []adapter.Outbound) {
 }
 
 func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn, destination net.Conn, direction bool, done *atomic.Bool, onClose N.CloseHandlerFunc) {
-	_, err := bufio.CopyWithIncreateBuffer(destination, source, bufio.DefaultIncreaseBufferAfter, bufio.DefaultBatchSize)
+	copied, err := bufio.CopyWithIncreateBuffer(destination, source, bufio.DefaultIncreaseBufferAfter, bufio.DefaultBatchSize)
 	if err != nil {
 		common.Close(source, destination)
 	} else {
@@ -314,19 +314,19 @@ func (m *ConnectionManager) connectionCopy(ctx context.Context, source net.Conn,
 	}
 	if !direction {
 		if err == nil {
-			m.logger.DebugContext(ctx, "connection upload finished")
+			m.logger.DebugContext(ctx, "connection upload finished: ", copied, " bytes")
 		} else if !E.IsClosedOrCanceled(err) {
-			m.logger.ErrorContext(ctx, "connection upload closed: ", err)
+			m.logger.ErrorContext(ctx, "connection upload closed after ", copied, " bytes: ", err)
 		} else {
-			m.logger.TraceContext(ctx, "connection upload closed")
+			m.logger.DebugContext(ctx, "connection upload closed after ", copied, " bytes (closed/canceled): ", err)
 		}
 	} else {
 		if err == nil {
-			m.logger.DebugContext(ctx, "connection download finished")
+			m.logger.DebugContext(ctx, "connection download finished: ", copied, " bytes")
 		} else if !E.IsClosedOrCanceled(err) {
-			m.logger.ErrorContext(ctx, "connection download closed: ", err)
+			m.logger.ErrorContext(ctx, "connection download closed after ", copied, " bytes: ", err)
 		} else {
-			m.logger.TraceContext(ctx, "connection download closed")
+			m.logger.DebugContext(ctx, "connection download closed after ", copied, " bytes (closed/canceled): ", err)
 		}
 	}
 }

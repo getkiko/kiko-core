@@ -270,7 +270,8 @@ UDP 连接超时时间。
 {
   "action": "sniff",
   "sniffer": [],
-  "timeout": ""
+  "timeout": "",
+  "override_destination": false
 }
 ```
 
@@ -291,6 +292,12 @@ UDP 连接超时时间。
 探测超时时间。
 
 默认使用 300ms。
+
+#### override_destination
+
+Override the connection destination with the domain name detected by protocol sniffing.
+
+The detected domain must be a valid domain name. The original destination port is preserved.
 
 ### resolve
 

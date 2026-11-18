@@ -97,7 +97,8 @@ func (f *darwinConnectionFinder) find(network string, source netip.AddrPort, des
 			continue
 		}
 		owner := &adapter.ConnectionOwner{
-			UserId: entry.uid,
+			UserId:    entry.uid,
+			ProcessID: entry.pid,
 		}
 		lastOwner = owner
 		if entry.pid == 0 {
