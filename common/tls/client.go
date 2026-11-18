@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/common/badtls"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
@@ -113,8 +114,10 @@ func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, e
 	if err != nil {
 		return nil, err
 	}
+	dnsmonitor.Alias(ctx, conn, tlsConn)
 	readWaitConn, err := badtls.NewReadWaitConn(tlsConn)
 	if err == nil {
+		dnsmonitor.Alias(ctx, tlsConn, readWaitConn)
 		return readWaitConn, nil
 	} else if err != os.ErrInvalid {
 		return nil, err
@@ -168,6 +171,7 @@ func (d *defaultDialer) dialContext(ctx context.Context, destination M.Socksaddr
 		}
 		return nil, err
 	}
+	dnsmonitor.Alias(ctx, conn, tlsConn)
 	return tlsConn, nil
 }
 

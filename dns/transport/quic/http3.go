@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -45,6 +47,7 @@ type HTTP3Transport struct {
 	tlsConfig       *tls.STDConfig
 	transportAccess sync.Mutex
 	transport       *http3.Transport
+	monitor         connectionMonitor
 }
 
 func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteHTTPSDNSServerOptions) (adapter.DNSTransport, error) {
@@ -129,6 +132,7 @@ func (t *HTTP3Transport) newTransport() *http3.Transport {
 				<-quicConn.Context().Done()
 				conn.Close()
 			}()
+			t.monitor.add(ctx, quicConn, conn, "h3", t.serverAddr.String())
 			return quicConn, nil
 		},
 	}
@@ -153,7 +157,11 @@ func (t *HTTP3Transport) Reset() {
 	t.transport = t.newTransport()
 }
 
-func (t *HTTP3Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+func (t *HTTP3Transport) Exchange(ctx context.Context, message *mDNS.Msg) (result *mDNS.Msg, resultErr error) {
+	ctx, attempt := dnsmonitor.StartAttempt(ctx, "h3")
+	defer func() { attempt.End(result, resultErr) }()
+	attempt.Update(func(v *dnsmonitor.Attempt) { v.Endpoint = t.destination.String() })
+	ctx = dnsmonitor.HTTPTrace(ctx, func(conn net.Conn) *dnsmonitor.Connection { return t.monitor.match(conn, attempt) })
 	exMessage := *message
 	exMessage.Id = 0
 	exMessage.Compress = true
@@ -180,6 +188,7 @@ func (t *HTTP3Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 		return nil, err
 	}
 	defer response.Body.Close()
+	attempt.Update(func(v *dnsmonitor.Attempt) { v.HTTPVersion = response.Proto; v.HTTPStatus = response.StatusCode })
 	if response.StatusCode != http.StatusOK {
 		return nil, E.New("unexpected status: ", response.Status)
 	}

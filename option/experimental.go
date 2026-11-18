@@ -3,10 +3,20 @@ package option
 import "github.com/sagernet/sing/common/json/badoption"
 
 type ExperimentalOptions struct {
-	CacheFile *CacheFileOptions `json:"cache_file,omitempty"`
-	ClashAPI  *ClashAPIOptions  `json:"clash_api,omitempty"`
-	V2RayAPI  *V2RayAPIOptions  `json:"v2ray_api,omitempty"`
-	Debug     *DebugOptions     `json:"debug,omitempty"`
+	CacheFile  *CacheFileOptions  `json:"cache_file,omitempty"`
+	ClashAPI   *ClashAPIOptions   `json:"clash_api,omitempty"`
+	V2RayAPI   *V2RayAPIOptions   `json:"v2ray_api,omitempty"`
+	Debug      *DebugOptions      `json:"debug,omitempty"`
+	DNSMonitor *DNSMonitorOptions `json:"dns_monitor,omitempty"`
+}
+
+// DNSMonitorOptions controls the optional DNS observation extension.
+type DNSMonitorOptions struct {
+	Enabled        bool               `json:"enabled,omitempty"`
+	HistoryEntries int                `json:"history_entries,omitempty"`
+	HistoryBytes   int                `json:"history_bytes,omitempty"`
+	HistoryAge     badoption.Duration `json:"history_age,omitempty"`
+	CaptureWire    bool               `json:"capture_wire,omitempty"`
 }
 
 type CacheFileOptions struct {

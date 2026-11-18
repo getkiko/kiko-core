@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	mDNS "github.com/miekg/dns"
@@ -30,6 +31,8 @@ const (
 )
 
 type queryMultiplexerOptions struct {
+	protocol       string
+	endpoint       string
 	dial           func(ctx context.Context) (net.Conn, error)
 	write          func(conn net.Conn, message *mDNS.Msg, queryId uint16) error
 	readNext       func(conn net.Conn) (*mDNS.Msg, error)
@@ -57,6 +60,7 @@ type queryMultiplexer struct {
 type multiplexConn struct {
 	net.Conn
 	readEpoch atomic.Uint64
+	monitor   *dnsmonitor.Connection
 }
 
 type queryMultiplexerReadError struct {
@@ -72,13 +76,15 @@ func (e *queryMultiplexerReadError) Unwrap() error {
 }
 
 type pendingQuery struct {
-	conn        *multiplexConn
-	message     *mDNS.Msg
-	readEpoch   uint64
-	callback    func(response *mDNS.Msg, err error)
-	stopContext func() bool
-	stopConn    func() bool
-	retryCtx    context.Context
+	attempt       *dnsmonitor.AttemptTrace
+	retryCallback func(*mDNS.Msg, error)
+	conn          *multiplexConn
+	message       *mDNS.Msg
+	readEpoch     uint64
+	callback      func(response *mDNS.Msg, err error)
+	stopContext   func() bool
+	stopConn      func() bool
+	retryCtx      context.Context
 }
 
 func newQueryMultiplexer(options queryMultiplexerOptions) *queryMultiplexer {
@@ -91,6 +97,7 @@ func newQueryMultiplexer(options queryMultiplexerOptions) *queryMultiplexer {
 				return conn != nil
 			},
 			Close: func(conn *multiplexConn, cause error) {
+				conn.monitor.Release()
 				conn.Close()
 			},
 		}),
@@ -159,17 +166,24 @@ func (m *queryMultiplexer) dispatch(ctx context.Context, message *mDNS.Msg, call
 }
 
 func (m *queryMultiplexer) exchangeSingle(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	ctx, attempt := dnsmonitor.StartAttempt(ctx, m.options.protocol)
+	originalCallback := callback
+	callback = func(response *mDNS.Msg, err error) { attempt.End(response, err); originalCallback(response, err) }
 	conn, err := m.options.dial(ctx)
 	if err != nil {
 		callback(nil, err)
 		return
 	}
 	defer conn.Close()
+	monitored := dnsmonitor.Freeze(ctx, conn, m.options.protocol, m.options.endpoint)
+	defer monitored.Release()
+	attempt.Bind(monitored, false)
 	stop := context.AfterFunc(ctx, func() {
 		conn.Close()
 	})
 	defer stop()
 	err = m.options.write(conn, message, message.Id)
+	attempt.Sent(message.Id, err)
 	if err != nil {
 		ctxErr := ctx.Err()
 		if ctxErr != nil {
@@ -192,8 +206,10 @@ func (m *queryMultiplexer) exchangeSingle(ctx context.Context, message *mDNS.Msg
 			return
 		}
 		if response == nil {
+			attempt.Diagnostic("invalid_response_discarded")
 			continue
 		}
+		attempt.End(response, nil)
 		response.Id = message.Id
 		callback(response, nil)
 		return
@@ -241,22 +257,40 @@ func (m *queryMultiplexer) runReuseProbe(ctx context.Context, questionName strin
 func (m *queryMultiplexer) executeReuseProbe(ctx context.Context, questionName string) (supported bool, dialFailed bool) {
 	probeCtx, cancel := context.WithTimeout(ctx, reuseProbeTimeout)
 	defer cancel()
+	queryA := new(mDNS.Msg)
+	queryA.SetQuestion(questionName, mDNS.TypeA)
+	queryAAAA := new(mDNS.Msg)
+	queryAAAA.SetQuestion(questionName, mDNS.TypeAAAA)
+	probeCtx, traceA := dnsmonitor.Begin(probeCtx, queryA, "reuse_probe")
+	otherCtx, traceB := dnsmonitor.Begin(ctx, queryAAAA, "reuse_probe")
+	probeCtx, attemptA := dnsmonitor.StartAttempt(probeCtx, m.options.protocol)
+	_, attemptB := dnsmonitor.StartAttempt(otherCtx, m.options.protocol)
+	var responseA, responseB *mDNS.Msg
+	var err error
+	defer func() {
+		if ctxErr := probeCtx.Err(); ctxErr != nil {
+			err = ctxErr
+		}
+		attemptA.End(responseA, err)
+		attemptB.End(responseB, err)
+		traceA.End(responseA, err)
+		traceB.End(responseB, err)
+	}()
 	conn, err := m.options.dial(probeCtx)
 	if err != nil {
 		return false, true
 	}
 	defer conn.Close()
-	stop := context.AfterFunc(probeCtx, func() {
-		conn.Close()
-	})
+	connection := dnsmonitor.Freeze(probeCtx, conn, m.options.protocol, m.options.endpoint)
+	attemptA.Bind(connection, false)
+	attemptB.Bind(connection, true)
+	stop := context.AfterFunc(probeCtx, func() { conn.Close() })
 	defer stop()
-	queryA := new(mDNS.Msg)
-	queryA.SetQuestion(questionName, mDNS.TypeA)
-	queryAAAA := new(mDNS.Msg)
-	queryAAAA.SetQuestion(questionName, mDNS.TypeAAAA)
 	err = m.options.write(conn, queryA, reuseProbeQueryIdA)
+	attemptA.Sent(reuseProbeQueryIdA, err)
 	if err == nil {
 		err = m.options.write(conn, queryAAAA, reuseProbeQueryIdB)
+		attemptB.Sent(reuseProbeQueryIdB, err)
 	}
 	if err != nil {
 		return false, false
@@ -274,8 +308,10 @@ func (m *queryMultiplexer) executeReuseProbe(ctx context.Context, questionName s
 		switch response.Id {
 		case reuseProbeQueryIdA:
 			seenA = true
+			responseA = response
 		case reuseProbeQueryIdB:
 			seenAAAA = true
+			responseB = response
 		}
 	}
 	return true, false
@@ -314,22 +350,27 @@ func (m *queryMultiplexer) recordConnDeath(conn *multiplexConn) {
 
 func (m *queryMultiplexer) exchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error), retryReadError bool) {
 	for firstAttempt := true; ; firstAttempt = false {
-		conn, connCtx, created, err := m.connection.AcquireShared(ctx, m.dialConn)
+		attemptCtx, attempt := dnsmonitor.StartAttempt(ctx, m.options.protocol)
+		conn, connCtx, created, err := m.connection.AcquireShared(attemptCtx, m.dialConn)
 		if err != nil {
+			attempt.End(nil, err)
 			callback(nil, err)
 			return
 		}
+		attempt.Bind(conn.monitor, !created)
 		if created {
 			go m.recvLoop(conn)
 		}
-		queryId, err := m.register(ctx, connCtx, conn, message, callback, retryReadError && m.options.retryReadError && !created)
+		queryId, err := m.register(ctx, connCtx, conn, message, callback, attempt, retryReadError && m.options.retryReadError && !created)
 		if err != nil {
 			m.connection.Release(conn, true)
 			m.closeIdleConnection()
+			attempt.End(nil, err)
 			callback(nil, err)
 			return
 		}
 		writeErr := m.options.write(conn, message, queryId)
+		attempt.Sent(queryId, writeErr)
 		if writeErr == nil {
 			return
 		}
@@ -338,6 +379,7 @@ func (m *queryMultiplexer) exchangeAsync(ctx context.Context, message *mDNS.Msg,
 		if pending == nil {
 			return
 		}
+		attempt.End(nil, E.Cause(writeErr, "write request"))
 		if !created && firstAttempt {
 			continue
 		}
@@ -351,10 +393,10 @@ func (m *queryMultiplexer) dialConn(ctx context.Context) (*multiplexConn, error)
 	if err != nil {
 		return nil, err
 	}
-	return &multiplexConn{Conn: conn}, nil
+	return &multiplexConn{Conn: conn, monitor: dnsmonitor.Freeze(ctx, conn, m.options.protocol, m.options.endpoint)}, nil
 }
 
-func (m *queryMultiplexer) register(ctx context.Context, connCtx context.Context, conn *multiplexConn, message *mDNS.Msg, callback func(response *mDNS.Msg, err error), retryReadError bool) (uint16, error) {
+func (m *queryMultiplexer) register(ctx context.Context, connCtx context.Context, conn *multiplexConn, message *mDNS.Msg, callback func(response *mDNS.Msg, err error), attempt *dnsmonitor.AttemptTrace, retryReadError bool) (uint16, error) {
 	m.queryAccess.Lock()
 	defer m.queryAccess.Unlock()
 	start := m.queryId
@@ -369,10 +411,12 @@ func (m *queryMultiplexer) register(ctx context.Context, connCtx context.Context
 	}
 	queryId := m.queryId
 	pending := &pendingQuery{
-		conn:      conn,
-		message:   message,
-		readEpoch: conn.readEpoch.Load(),
-		callback:  callback,
+		attempt:       attempt,
+		retryCallback: callback,
+		conn:          conn,
+		message:       message,
+		readEpoch:     conn.readEpoch.Load(),
+		callback:      func(response *mDNS.Msg, err error) { attempt.End(response, err); callback(response, err) },
 	}
 	if retryReadError {
 		pending.retryCtx = ctx
@@ -395,7 +439,8 @@ func (m *queryMultiplexer) completeConnDone(queryId uint16, connCtx context.Cont
 	connErr := context.Cause(connCtx)
 	_, readFailed := connErr.(*queryMultiplexerReadError)
 	if pending.retryCtx != nil && readFailed {
-		m.dispatch(pending.retryCtx, pending.message, pending.callback, false)
+		pending.attempt.End(nil, connErr)
+		m.dispatch(pending.retryCtx, pending.message, pending.retryCallback, false)
 		return
 	}
 	pending.callback(nil, connErr)
@@ -423,6 +468,7 @@ func (m *queryMultiplexer) complete(queryId uint16, response *mDNS.Msg, err erro
 	if releaseConn {
 		m.connection.Release(pending.conn, true)
 	}
+	pending.attempt.End(response, err)
 	if response != nil {
 		response.Id = pending.message.Id
 	}
@@ -455,6 +501,13 @@ func (m *queryMultiplexer) recvLoop(conn *multiplexConn) {
 		}
 		conn.readEpoch.Add(1)
 		if message == nil {
+			m.queryAccess.Lock()
+			for _, pending := range m.queries {
+				if pending.conn == conn {
+					pending.attempt.Diagnostic("invalid_response_discarded")
+				}
+			}
+			m.queryAccess.Unlock()
 			continue
 		}
 		m.complete(message.Id, message, nil, true)

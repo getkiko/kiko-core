@@ -66,6 +66,8 @@ func NewTLSRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 		serverAddr:       serverAddr,
 	}
 	t.multiplexer = newQueryMultiplexer(queryMultiplexerOptions{
+		protocol: "tls",
+		endpoint: serverAddr.String(),
 		dial: func(ctx context.Context) (net.Conn, error) {
 			conn, err := t.dialer.DialTLSContext(ctx, t.serverAddr)
 			if err != nil {

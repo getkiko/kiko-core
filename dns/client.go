@@ -12,6 +12,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/compatible"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/interrupt"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
@@ -293,13 +294,20 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 		responseChecker: responseChecker,
 		disableCache:    disableCache,
 	}
+	if disableCache {
+		dnsmonitor.Cache(ctx, "disabled")
+	} else {
+		dnsmonitor.Cache(ctx, "miss")
+	}
 	if !disableCache {
 		cacheKey := c.newCacheKey(transport, question, message, options)
 		operation.cacheKey = cacheKey
 		exchangeKey := dnsExchangeKey{dnsCacheKey: cacheKey, timeout: options.Timeout}
 		cond, loaded := c.cacheLock.LoadOrStore(exchangeKey, make(chan struct{}))
+		dnsmonitor.Flight(ctx, cond, loaded)
 		if !loaded {
 			operation.releaseCond = func() {
+				dnsmonitor.ForgetFlight(ctx, cond)
 				c.cacheLock.Delete(exchangeKey)
 				close(cond)
 			}
@@ -309,15 +317,17 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 			if response != nil && (!isStale || !options.DisableOptimisticCache) {
 				operation.release()
 				if isStale {
-					c.backgroundRefreshDNS(transport, cacheKey, message.Copy(), options, responseChecker)
+					c.backgroundRefreshDNS(ctx, transport, cacheKey, message.Copy(), options, responseChecker)
 				}
 				if responseChecker != nil && !responseChecker(response) {
 					logRejectedResponse(c.logger, ctx, response)
 					return nil, nil, exchangeDone, ErrResponseRejectedCached
 				}
 				if isStale {
+					dnsmonitor.Cache(ctx, "stale")
 					logOptimisticResponse(c.logger, ctx, response)
 				} else {
+					dnsmonitor.Cache(ctx, "hit")
 					logCachedResponse(c.logger, ctx, response, ttl)
 				}
 				response.Id = message.Id
@@ -326,6 +336,7 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 			if !loaded {
 				break
 			}
+			dnsmonitor.Cache(ctx, "coalesced")
 			if !allowWait {
 				return nil, nil, exchangeWait, nil
 			}
@@ -401,7 +412,7 @@ func (c *Client) finishExchange(transport adapter.DNSTransport, operation *excha
 	return response, nil
 }
 
-func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool) (*dns.Msg, error) {
+func (c *Client) exchange(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool) (*dns.Msg, error) {
 	if options.Timeout == 0 {
 		options.Timeout = c.timeout
 	}
@@ -419,7 +430,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 	return c.finishExchange(transport, operation, response)
 }
 
-func (c *Client) ExchangeAsync(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool, callback func(response *dns.Msg, err error)) {
+func (c *Client) exchangeAsync(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool, callback func(response *dns.Msg, err error)) {
 	if options.Timeout == 0 {
 		options.Timeout = c.timeout
 	}
@@ -539,7 +550,7 @@ func (c *Client) storeCache(key dnsCacheKey, message *dns.Msg, timeToLive uint32
 	}
 }
 
-func (c *Client) lookupToExchange(ctx context.Context, transport adapter.DNSTransport, name string, qType uint16, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool) ([]netip.Addr, error) {
+func (c *Client) lookupToExchange(ctx context.Context, transport adapter.DNSTransport, name string, qType uint16, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool) (addresses []netip.Addr, resultErr error) {
 	question := dns.Question{
 		Name:   name,
 		Qtype:  qType,
@@ -551,6 +562,9 @@ func (c *Client) lookupToExchange(ctx context.Context, transport adapter.DNSTran
 		},
 		Question: []dns.Question{question},
 	}
+	ctx, trace := dnsmonitor.Begin(ctx, &message, "lookup")
+	defer func() { trace.End(nil, resultErr) }()
+	ctx = dnsmonitor.WithResolver(ctx, transport.Tag(), transport.Type())
 	disableCache := c.disableCache || options.DisableCache
 	if !disableCache {
 		cachedAddresses, err := c.questionCache(ctx, transport, &message, options, responseChecker)
@@ -579,7 +593,7 @@ func (c *Client) questionCache(ctx context.Context, transport adapter.DNSTranspo
 		if options.DisableOptimisticCache {
 			return nil, ErrNotCached
 		}
-		c.backgroundRefreshDNS(transport, cacheKey, c.prepareExchangeMessage(message.Copy(), options), options, responseChecker)
+		c.backgroundRefreshDNS(ctx, transport, cacheKey, c.prepareExchangeMessage(message.Copy(), options), options, responseChecker)
 	}
 	if responseChecker != nil && !responseChecker(response) {
 		logRejectedResponse(c.logger, ctx, response)
@@ -587,6 +601,12 @@ func (c *Client) questionCache(ctx context.Context, transport adapter.DNSTranspo
 	}
 	if isStale {
 		logOptimisticResponse(c.logger, ctx, response)
+	}
+	dnsmonitor.Result(ctx, response)
+	if isStale {
+		dnsmonitor.Cache(ctx, "stale")
+	} else {
+		dnsmonitor.Cache(ctx, "hit")
 	}
 	if response.Rcode != dns.RcodeSuccess {
 		return nil, RcodeError(response.Rcode)
@@ -679,7 +699,7 @@ func applyResponseOptions(question dns.Question, response *dns.Msg, options adap
 	return timeToLive
 }
 
-func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, key dnsCacheKey, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool) {
+func (c *Client) backgroundRefreshDNS(parent context.Context, transport adapter.DNSTransport, key dnsCacheKey, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(response *dns.Msg) bool) {
 	_, loaded := c.backgroundRefresh.LoadOrStore(key, struct{}{})
 	if loaded {
 		return
@@ -691,9 +711,18 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, key dnsCac
 			timeout = c.timeout
 		}
 		ctx := adapter.ContextWithDNSTransportTag(c.ctx, transport.Tag())
+		if parentTrace := dnsmonitor.Current(parent); parentTrace != nil {
+			ctx = dnsmonitor.WithParent(ctx, parentTrace)
+		}
+		ctx, trace := dnsmonitor.Begin(ctx, message, "background_refresh")
+		ctx = dnsmonitor.WithResolver(ctx, transport.Tag(), transport.Type())
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
-		response, err := c.exchangeToTransport(ctx, transport, message)
+		var response *dns.Msg
+		var refreshErr error
+		defer func() { trace.End(response, refreshErr) }()
+		response, refreshErr = c.exchangeToTransport(ctx, transport, message)
+		err := refreshErr
 		if err != nil {
 			if c.logger != nil {
 				c.logger.DebugContext(ctx, "optimistic refresh failed for ", FqdnToDomain(key.Name), ": ", err)
@@ -708,6 +737,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, key dnsCac
 				rejected = !responseChecker(response)
 			}
 			if rejected {
+				refreshErr = ErrResponseRejected
 				if c.logger != nil {
 					c.logger.DebugContext(ctx, "optimistic refresh rejected for ", FqdnToDomain(key.Name))
 				}
@@ -717,6 +747,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, key dnsCac
 				return
 			}
 		} else if response.Rcode != dns.RcodeSuccess && response.Rcode != dns.RcodeNameError {
+			refreshErr = RcodeError(response.Rcode)
 			return
 		}
 		storeKey, storable := c.finishCacheKey(transport, key)
@@ -756,7 +787,9 @@ func stripDNSPadding(response *dns.Msg) {
 }
 
 func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg) (*dns.Msg, error) {
+	ctx, attempt := monitorTransport(ctx, transport)
 	response, err := transport.Exchange(ctx, message)
+	attempt.End(response, err)
 	if err == nil {
 		stripDNSPadding(response)
 		return response, nil
@@ -769,7 +802,9 @@ func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNST
 }
 
 func (c *Client) exchangeToTransportAsync(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, callback func(response *dns.Msg, err error)) {
+	ctx, attempt := monitorTransport(ctx, transport)
 	transport.ExchangeAsync(ctx, message, func(response *dns.Msg, err error) {
+		attempt.End(response, err)
 		if err == nil {
 			stripDNSPadding(response)
 			callback(response, nil)

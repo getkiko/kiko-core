@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
@@ -294,6 +295,7 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 		metadata.ResetRuleCache()
 		metadata.DestinationAddressMatchFromResponse = false
 		if currentRule.LegacyPreMatch(metadata) {
+			dnsmonitor.Policy(ctx, F.ToString("match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action()))
 			if ruleDescription := currentRule.String(); ruleDescription != "" {
 				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] ", currentRule, " => ", currentRule.Action())
 			} else {
@@ -353,8 +355,10 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 					options.RemoveClientSubnet = true
 				}
 			case *R.RuleActionReject:
+				dnsmonitor.PolicyResult(ctx, action.Type(), action.Method)
 				return nil, currentRule, currentRuleIndex
 			case *R.RuleActionPredefined:
+				dnsmonitor.PolicyResult(ctx, action.Type(), "")
 				return nil, currentRule, currentRuleIndex
 			}
 		}
@@ -414,6 +418,7 @@ func (r *Router) resolveDNSRoute(server string, routeOptions R.RuleActionDNSRout
 }
 
 func (r *Router) logRuleMatch(ctx context.Context, ruleIndex int, currentRule adapter.DNSRule) {
+	dnsmonitor.Policy(ctx, F.ToString("match[", ruleIndex, "] ", currentRule, " => ", currentRule.Action()))
 	if ruleDescription := currentRule.String(); ruleDescription != "" {
 		r.logger.DebugContext(ctx, "match[", ruleIndex, "] ", currentRule, " => ", currentRule.Action())
 	} else {
@@ -732,6 +737,7 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 			}
 			return exchangeWithRulesResult{}, &dnsWalkSuspension{pending: &dnsPendingExchange{transport: transport, options: queryOptions}}
 		case *R.RuleActionReject:
+			dnsmonitor.PolicyResult(ctx, action.Type(), action.Method)
 			if len(state.armedRules) > 0 {
 				return exchangeWithRulesResult{}, &dnsWalkSuspension{drain: true}
 			}
@@ -748,6 +754,7 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 				}, nil
 			}
 		case *R.RuleActionPredefined:
+			dnsmonitor.PolicyResult(ctx, action.Type(), "")
 			if len(state.armedRules) > 0 {
 				return exchangeWithRulesResult{}, &dnsWalkSuspension{drain: true}
 			}
@@ -873,6 +880,7 @@ func (r *Router) sweepArmedDNSRules(ctx context.Context, message *mDNS.Msg, stat
 			}
 			return exchangeWithRulesResult{}, &dnsPendingExchange{transport: transport, options: queryOptions}, true
 		case *R.RuleActionReject:
+			dnsmonitor.PolicyResult(ctx, action.Type(), action.Method)
 			switch action.Method {
 			case C.RuleActionRejectMethodDefault:
 				return exchangeWithRulesResult{
@@ -886,6 +894,7 @@ func (r *Router) sweepArmedDNSRules(ctx context.Context, message *mDNS.Msg, stat
 				}, nil, true
 			}
 		case *R.RuleActionPredefined:
+			dnsmonitor.PolicyResult(ctx, action.Type(), "")
 			return exchangeWithRulesResult{
 				response: action.Response(message),
 			}, nil, true
@@ -1030,9 +1039,18 @@ func (r *Router) lookupWithRulesType(ctx context.Context, rules []adapter.DNSRul
 			Qclass: mDNS.ClassINET,
 		}},
 	}
-	exchangeResult := r.exchangeWithRules(withLookupQueryMetadata(ctx, qType), rules, request, options, false)
+	ctx, trace := dnsmonitor.Begin(withLookupQueryMetadata(ctx, qType), request, "lookup")
+	exchangeResult := r.exchangeWithRules(ctx, rules, request, options, false)
+	monitorErr := exchangeResult.err
 	if exchangeResult.rejectAction != nil {
-		return nil, exchangeResult.rejectAction.Error(ctx)
+		monitorErr = exchangeResult.rejectAction.Error(ctx)
+	}
+	if exchangeResult.transport != nil {
+		dnsmonitor.Resolver(ctx, exchangeResult.transport.Tag(), exchangeResult.transport.Type())
+	}
+	trace.End(exchangeResult.response, monitorErr)
+	if exchangeResult.rejectAction != nil {
+		return nil, monitorErr
 	}
 	if exchangeResult.err != nil {
 		return nil, exchangeResult.err
@@ -1147,6 +1165,7 @@ func (r *Router) exchangeLegacy(ctx context.Context, exchangeCtx *dnsExchangeCon
 		if rule != nil {
 			switch action := rule.Action().(type) {
 			case *R.RuleActionReject:
+				dnsmonitor.PolicyResult(ctx, action.Type(), action.Method)
 				switch action.Method {
 				case C.RuleActionRejectMethodDefault:
 					return &mDNS.Msg{
@@ -1161,6 +1180,7 @@ func (r *Router) exchangeLegacy(ctx context.Context, exchangeCtx *dnsExchangeCon
 					return nil, nil, R.ErrDrop
 				}
 			case *R.RuleActionPredefined:
+				dnsmonitor.PolicyResult(ctx, action.Type(), "")
 				return action.Response(message), nil, nil
 			}
 		}
@@ -1187,7 +1207,7 @@ func (r *Router) exchangeLegacy(ctx context.Context, exchangeCtx *dnsExchangeCon
 	}
 }
 
-func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, error) {
+func (r *Router) exchange(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, error) {
 	exchangeCtx, earlyResponse, err := r.prepareExchange(ctx, message)
 	if exchangeCtx == nil {
 		return earlyResponse, err
@@ -1209,11 +1229,14 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	if err != nil {
 		return nil, err
 	}
+	if transport != nil {
+		dnsmonitor.Resolver(ctx, transport.Tag(), transport.Type())
+	}
 	r.recordReverseMapping(message, response, transport)
 	return response, nil
 }
 
-func (r *Router) ExchangeAsync(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, callback func(response *mDNS.Msg, err error)) {
+func (r *Router) exchangeAsync(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, callback func(response *mDNS.Msg, err error)) {
 	exchangeCtx, earlyResponse, err := r.prepareExchange(ctx, message)
 	if exchangeCtx == nil {
 		callback(earlyResponse, err)
@@ -1223,21 +1246,24 @@ func (r *Router) ExchangeAsync(ctx context.Context, message *mDNS.Msg, options a
 	if options.Transport != nil {
 		transport := options.Transport
 		r.client.ExchangeAsync(ctx, transport, message, r.finalizeExchangeOptions(options), nil, func(response *mDNS.Msg, exchangeErr error) {
-			r.finishExchangeAsync(message, transport, response, exchangeErr, callback)
+			r.finishExchangeAsync(ctx, message, transport, response, exchangeErr, callback)
 		})
 	} else if !exchangeCtx.legacyDNSMode {
 		r.exchangeWithRulesAsync(ctx, exchangeCtx.rules, message, options, true, func(result exchangeWithRulesResult) {
-			r.finishExchangeAsync(message, result.transport, result.response, result.err, callback)
+			r.finishExchangeAsync(ctx, message, result.transport, result.response, result.err, callback)
 		})
 	} else {
 		go func() {
 			response, transport, exchangeErr := r.exchangeLegacy(ctx, exchangeCtx, message, options)
-			r.finishExchangeAsync(message, transport, response, exchangeErr, callback)
+			r.finishExchangeAsync(ctx, message, transport, response, exchangeErr, callback)
 		}()
 	}
 }
 
-func (r *Router) finishExchangeAsync(message *mDNS.Msg, transport adapter.DNSTransport, response *mDNS.Msg, err error, callback func(response *mDNS.Msg, err error)) {
+func (r *Router) finishExchangeAsync(ctx context.Context, message *mDNS.Msg, transport adapter.DNSTransport, response *mDNS.Msg, err error, callback func(response *mDNS.Msg, err error)) {
+	if transport != nil {
+		dnsmonitor.Resolver(ctx, transport.Tag(), transport.Type())
+	}
 	if err != nil {
 		callback(nil, err)
 		return
@@ -1246,7 +1272,7 @@ func (r *Router) finishExchangeAsync(message *mDNS.Msg, transport adapter.DNSTra
 	callback(response, nil)
 }
 
-func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
+func (r *Router) lookup(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
 	r.rulesAccess.RLock()
 	if r.closing {
 		r.rulesAccess.RUnlock()
@@ -1309,8 +1335,10 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 			if rule != nil {
 				switch action := rule.Action().(type) {
 				case *R.RuleActionReject:
+					dnsmonitor.PolicyResult(ctx, action.Type(), action.Method)
 					return nil, &R.RejectedError{Cause: action.Error(ctx)}
 				case *R.RuleActionPredefined:
+					dnsmonitor.PolicyResult(ctx, action.Type(), "")
 					responseAddrs = nil
 					if action.Rcode != mDNS.RcodeSuccess {
 						err = RcodeError(action.Rcode)

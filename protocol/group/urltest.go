@@ -12,6 +12,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/interrupt"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
@@ -183,9 +184,13 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 	if outbound == nil {
 		return nil, E.New("missing supported outbound")
 	}
+	ctx = dnsmonitor.WithOutbound(dnsmonitor.WithOutbound(ctx, s.Tag()), outbound.Tag())
 	conn, err := outbound.DialContext(ctx, network, destination)
 	if err == nil {
-		return s.group.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
+		dnsmonitor.Remember(ctx, conn)
+		wrapped := s.group.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+		dnsmonitor.Alias(ctx, conn, wrapped)
+		return wrapped, nil
 	}
 	s.logger.ErrorContext(ctx, err)
 	s.group.history.DeleteURLTestHistory(outbound.Tag())
@@ -201,9 +206,13 @@ func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (ne
 	if outbound == nil {
 		return nil, E.New("missing supported outbound")
 	}
+	ctx = dnsmonitor.WithOutbound(dnsmonitor.WithOutbound(ctx, s.Tag()), outbound.Tag())
 	conn, err := outbound.ListenPacket(ctx, destination)
 	if err == nil {
-		return s.group.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
+		dnsmonitor.Remember(ctx, conn)
+		wrapped := s.group.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+		dnsmonitor.Alias(ctx, conn, wrapped)
+		return wrapped, nil
 	}
 	s.logger.ErrorContext(ctx, err)
 	s.group.history.DeleteURLTestHistory(outbound.Tag())

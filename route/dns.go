@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	dnsOutbound "github.com/sagernet/sing-box/protocol/dns"
@@ -57,15 +58,17 @@ func (r *Router) HijackDNSPacket(ctx context.Context, payload []byte, writer N.P
 	var message mDNS.Msg
 	err := message.Unpack(payload)
 	if err != nil {
+		dnsmonitor.ParseError(adapter.WithContext(ctx, &metadata), err)
 		r.logger.ErrorContext(ctx, E.Cause(err, "process DNS packet: unpack request"))
 		return
 	}
 	r.searchProcessInfo(ctx, &metadata)
 	destination := metadata.Destination
 	metadata.Destination = M.Socksaddr{}
-	r.dns.ExchangeAsync(adapter.WithContext(ctx, &metadata), &message, adapter.DNSQueryOptions{}, func(response *mDNS.Msg, exchangeErr error) {
+	queryCtx := dnsmonitor.Inbound(adapter.WithContext(ctx, &metadata), &message)
+	r.dns.ExchangeAsync(queryCtx, &message, adapter.DNSQueryOptions{}, func(response *mDNS.Msg, exchangeErr error) {
 		if exchangeErr == nil {
-			exchangeErr = r.writeDNSPacketResponse(&message, response, writer, destination)
+			exchangeErr = r.writeDNSPacketResponse(queryCtx, &message, response, writer, destination)
 		}
 		if exchangeErr != nil && !R.IsRejected(exchangeErr) && !E.IsClosedOrCanceled(exchangeErr) {
 			r.logger.ErrorContext(ctx, E.Cause(exchangeErr, "process DNS packet"))
@@ -73,10 +76,14 @@ func (r *Router) HijackDNSPacket(ctx context.Context, payload []byte, writer N.P
 	})
 }
 
-func (r *Router) writeDNSPacketResponse(message *mDNS.Msg, response *mDNS.Msg, writer N.PacketWriter, destination M.Socksaddr) error {
+func (r *Router) writeDNSPacketResponse(ctx context.Context, message *mDNS.Msg, response *mDNS.Msg, writer N.PacketWriter, destination M.Socksaddr) error {
 	responseBuffer, err := dns.TruncateDNSMessage(message, response, N.CalculateFrontHeadroom(writer), N.CalculateRearHeadroom(writer))
 	if err != nil {
+		dnsmonitor.Delivery(ctx, err, false)
 		return err
 	}
-	return writer.WritePacket(responseBuffer, destination)
+	truncated := len(responseBuffer.Bytes()) > 2 && responseBuffer.Bytes()[2]&2 != 0
+	err = writer.WritePacket(responseBuffer, destination)
+	dnsmonitor.Delivery(ctx, err, truncated)
+	return err
 }

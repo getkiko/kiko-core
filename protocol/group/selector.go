@@ -8,6 +8,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/interrupt"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
@@ -160,19 +161,29 @@ func (s *Selector) SelectOutbound(tag string) bool {
 }
 
 func (s *Selector) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	conn, err := s.selected.Load().DialContext(ctx, network, destination)
+	selected := s.selected.Load()
+	ctx = dnsmonitor.WithOutbound(dnsmonitor.WithOutbound(ctx, s.Tag()), selected.Tag())
+	conn, err := selected.DialContext(ctx, network, destination)
 	if err != nil {
 		return nil, err
 	}
-	return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
+	dnsmonitor.Remember(ctx, conn)
+	wrapped := s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+	dnsmonitor.Alias(ctx, conn, wrapped)
+	return wrapped, nil
 }
 
 func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	conn, err := s.selected.Load().ListenPacket(ctx, destination)
+	selected := s.selected.Load()
+	ctx = dnsmonitor.WithOutbound(dnsmonitor.WithOutbound(ctx, s.Tag()), selected.Tag())
+	conn, err := selected.ListenPacket(ctx, destination)
 	if err != nil {
 		return nil, err
 	}
-	return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
+	dnsmonitor.Remember(ctx, conn)
+	wrapped := s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+	dnsmonitor.Alias(ctx, conn, wrapped)
+	return wrapped, nil
 }
 
 func RealTag(detour adapter.Outbound, network string) string {

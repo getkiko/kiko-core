@@ -5,10 +5,12 @@ import (
 )
 
 type TransportAdapter struct {
-	transportType string
-	transportTag  string
-	dependencies  []string
-	references    []string
+	transportType     string
+	transportTag      string
+	dependencies      []string
+	references        []string
+	monitorDetour     string
+	monitorConfigured bool
 }
 
 func NewTransportAdapter(transportType string, transportTag string, dependencies []string) TransportAdapter {
@@ -29,10 +31,12 @@ func NewTransportAdapterWithLocalOptions(transportType string, transportTag stri
 		references = []string{localOptions.Detour}
 	}
 	return TransportAdapter{
-		transportType: transportType,
-		transportTag:  transportTag,
-		dependencies:  dependencies,
-		references:    references,
+		transportType:     transportType,
+		transportTag:      transportTag,
+		dependencies:      dependencies,
+		references:        references,
+		monitorDetour:     localOptions.Detour,
+		monitorConfigured: true,
 	}
 }
 
@@ -46,10 +50,12 @@ func NewTransportAdapterWithRemoteOptions(transportType string, transportTag str
 		references = []string{remoteOptions.Detour}
 	}
 	return TransportAdapter{
-		transportType: transportType,
-		transportTag:  transportTag,
-		dependencies:  dependencies,
-		references:    references,
+		transportType:     transportType,
+		transportTag:      transportTag,
+		dependencies:      dependencies,
+		references:        references,
+		monitorDetour:     remoteOptions.Detour,
+		monitorConfigured: true,
 	}
 }
 
@@ -67,4 +73,8 @@ func (a *TransportAdapter) Dependencies() []string {
 
 func (a *TransportAdapter) References() []string {
 	return a.references
+}
+
+func (a *TransportAdapter) DNSMonitorDetour() (string, bool) {
+	return a.monitorDetour, a.monitorConfigured
 }

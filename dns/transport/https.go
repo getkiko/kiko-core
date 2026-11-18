@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -209,7 +211,16 @@ func (t *HTTPSTransport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, c
 	}()
 }
 
-func (t *HTTPSTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+func (t *HTTPSTransport) exchange(ctx context.Context, message *mDNS.Msg) (result *mDNS.Msg, resultErr error) {
+	ctx, attempt := dnsmonitor.StartAttempt(ctx, "https")
+	defer func() { attempt.End(result, resultErr) }()
+	attempt.Update(func(v *dnsmonitor.Attempt) { v.Endpoint = t.destination.String() })
+	ctx = dnsmonitor.HTTPTrace(ctx, func(conn net.Conn) *dnsmonitor.Connection {
+		if tracked, ok := conn.(interface{ DNSMonitorConnection() *dnsmonitor.Connection }); ok {
+			return tracked.DNSMonitorConnection()
+		}
+		return nil
+	})
 	exMessage := *message
 	exMessage.Id = 0
 	exMessage.Compress = true
@@ -236,6 +247,7 @@ func (t *HTTPSTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 		return nil, err
 	}
 	defer response.Body.Close()
+	attempt.Update(func(v *dnsmonitor.Attempt) { v.HTTPVersion = response.Proto; v.HTTPStatus = response.StatusCode })
 	if response.StatusCode != http.StatusOK {
 		return nil, E.New("unexpected status: ", response.Status)
 	}

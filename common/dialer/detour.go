@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -82,7 +83,14 @@ func (d *DetourDialer) DialContext(ctx context.Context, network string, destinat
 	if err != nil {
 		return nil, err
 	}
-	return dialer.DialContext(ctx, network, destination)
+	if outbound, ok := dialer.(adapter.Outbound); ok {
+		ctx = dnsmonitor.WithOutbound(ctx, outbound.Tag())
+	}
+	conn, err := dialer.DialContext(ctx, network, destination)
+	if err == nil {
+		dnsmonitor.Remember(ctx, conn)
+	}
+	return conn, err
 }
 
 func (d *DetourDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -90,7 +98,14 @@ func (d *DetourDialer) ListenPacket(ctx context.Context, destination M.Socksaddr
 	if err != nil {
 		return nil, err
 	}
-	return dialer.ListenPacket(ctx, destination)
+	if outbound, ok := dialer.(adapter.Outbound); ok {
+		ctx = dnsmonitor.WithOutbound(ctx, outbound.Tag())
+	}
+	conn, err := dialer.ListenPacket(ctx, destination)
+	if err == nil {
+		dnsmonitor.Remember(ctx, conn)
+	}
+	return conn, err
 }
 
 func (d *DetourDialer) Upstream() any {

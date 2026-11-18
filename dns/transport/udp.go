@@ -7,6 +7,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
@@ -66,6 +67,8 @@ func NewUDPRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 	}
 	t.udpSize.Store(2048)
 	t.multiplexer = newQueryMultiplexer(queryMultiplexerOptions{
+		protocol: "udp",
+		endpoint: serverAddr.String(),
 		dial: func(ctx context.Context) (net.Conn, error) {
 			conn, err := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
 			if err != nil {
@@ -173,18 +176,25 @@ func (t *UDPTransport) readResponse(conn net.Conn) (*mDNS.Msg, error) {
 	return &message, nil
 }
 
-func (t *UDPTransport) exchangeTCP(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+func (t *UDPTransport) exchangeTCP(ctx context.Context, message *mDNS.Msg) (response *mDNS.Msg, resultErr error) {
+	ctx, attempt := dnsmonitor.StartAttempt(ctx, "tcp")
+	attempt.Diagnostic("udp_truncated_fallback")
+	defer func() { attempt.End(response, resultErr) }()
 	conn, err := t.dialer.DialContext(ctx, N.NetworkTCP, t.serverAddr)
 	if err != nil {
 		return nil, E.Cause(err, "dial TCP connection")
 	}
 	defer conn.Close()
+	monitored := dnsmonitor.Freeze(ctx, conn, "tcp", t.serverAddr.String())
+	defer monitored.Release()
+	attempt.Bind(monitored, false)
 	defer setConnDeadline(ctx, conn, deadline.NeedAdditionalReadDeadline(conn))()
 	err = WriteMessage(conn, message.Id, message)
+	attempt.Sent(message.Id, err)
 	if err != nil {
 		return nil, E.Cause(err, "write request")
 	}
-	response, err := ReadMessage(conn)
+	response, err = ReadMessage(conn)
 	if err != nil {
 		return nil, E.Cause(err, "read response")
 	}

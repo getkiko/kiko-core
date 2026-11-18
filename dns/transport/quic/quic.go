@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -20,6 +21,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"strconv"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -38,6 +40,7 @@ type Transport struct {
 	tlsConfig  tls.Config
 
 	connection *transport.ConnPool[*quic.Conn]
+	monitor    connectionMonitor
 }
 
 func NewQUIC(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteTLSDNSServerOptions) (adapter.DNSTransport, error) {
@@ -98,7 +101,9 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 		response *mDNS.Msg
 	)
 	for range 2 {
-		conn, _, err = t.connection.Acquire(ctx, func(ctx context.Context) (*quic.Conn, error) {
+		attemptCtx, attempt := dnsmonitor.StartAttempt(ctx, "quic")
+		var created bool
+		conn, created, err = t.connection.Acquire(attemptCtx, func(ctx context.Context) (*quic.Conn, error) {
 			rawConn, err := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
 			if err != nil {
 				return nil, E.Cause(err, "dial UDP connection")
@@ -119,12 +124,16 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 				<-earlyConnection.Context().Done()
 				rawConn.Close()
 			}()
+			t.monitor.add(ctx, earlyConnection, rawConn, "quic", t.serverAddr.String())
 			return earlyConnection, nil
 		})
 		if err != nil {
+			attempt.End(nil, err)
 			return nil, err
 		}
-		response, err = t.exchange(ctx, message, conn)
+		attempt.Bind(t.monitor.get(conn), !created)
+		response, err = t.exchange(attemptCtx, message, conn)
+		attempt.End(response, err)
 		if err == nil {
 			t.connection.Release(conn, true)
 			return response, nil
@@ -151,6 +160,7 @@ func (t *Transport) exchange(ctx context.Context, message *mDNS.Msg, conn *quic.
 	if err != nil {
 		return nil, E.Cause(err, "open stream")
 	}
+	dnsmonitor.ActiveAttempt(ctx).Update(func(v *dnsmonitor.Attempt) { v.StreamID = strconv.FormatInt(int64(stream.StreamID()), 10) })
 	defer stream.CancelRead(0)
 	stopWatch := context.AfterFunc(ctx, func() {
 		stream.CancelRead(0)
@@ -158,6 +168,7 @@ func (t *Transport) exchange(ctx context.Context, message *mDNS.Msg, conn *quic.
 	})
 	defer stopWatch()
 	err = transport.WriteMessage(stream, 0, message)
+	dnsmonitor.ActiveAttempt(ctx).Sent(0, err)
 	if err != nil {
 		stream.Close()
 		return nil, E.Cause(err, "write request")

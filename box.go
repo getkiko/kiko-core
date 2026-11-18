@@ -13,6 +13,7 @@ import (
 	boxService "github.com/sagernet/sing-box/adapter/service"
 	"github.com/sagernet/sing-box/common/certificate"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/dnsmonitor"
 	"github.com/sagernet/sing-box/common/httpclient"
 	"github.com/sagernet/sing-box/common/netns"
 	"github.com/sagernet/sing-box/common/taskmonitor"
@@ -52,6 +53,7 @@ type Box struct {
 	certificateProvider *boxCertificate.Manager
 	dnsTransport        *dns.TransportManager
 	dnsRouter           *dns.Router
+	dnsMonitor          *dnsmonitor.Manager
 	connection          *route.ConnectionManager
 	router              *route.Router
 	referenceManager    *route.ReferenceManager
@@ -143,6 +145,17 @@ func New(options Options) (*Box, error) {
 
 	ctx = pause.WithDefaultManager(ctx)
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
+	var dnsMonitor *dnsmonitor.Manager
+	monitorReady := false
+	if o := experimentalOptions.DNSMonitor; o != nil && o.Enabled {
+		dnsMonitor = dnsmonitor.New(dnsmonitor.Options{Entries: o.HistoryEntries, Bytes: o.HistoryBytes, Age: time.Duration(o.HistoryAge), CaptureWire: o.CaptureWire})
+		service.MustRegisterPtr(ctx, dnsMonitor)
+		defer func() {
+			if !monitorReady {
+				dnsMonitor.Close()
+			}
+		}()
+	}
 	debugOptions := common.PtrValueOrDefault(experimentalOptions.Debug)
 	err := checkDebugOptions(debugOptions)
 	if err != nil {
@@ -465,6 +478,7 @@ func New(options Options) (*Box, error) {
 		})
 		timeService.TimeService = ntpService
 	}
+	monitorReady = true
 	return &Box{
 		network:             networkManager,
 		endpoint:            endpointManager,
@@ -474,6 +488,7 @@ func New(options Options) (*Box, error) {
 		service:             serviceManager,
 		certificateProvider: certificateProviderManager,
 		dnsRouter:           dnsRouter,
+		dnsMonitor:          dnsMonitor,
 		connection:          connectionManager,
 		router:              router,
 		referenceManager:    referenceManager,
@@ -654,7 +669,11 @@ func (s *Box) start() error {
 }
 
 func (s *Box) Close() error {
-	return s.scope.Close()
+	err := s.scope.Close()
+	if s.dnsMonitor != nil {
+		s.dnsMonitor.Close()
+	}
+	return err
 }
 
 func (s *Box) Network() adapter.NetworkManager {

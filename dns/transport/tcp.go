@@ -60,6 +60,8 @@ func NewTCPRaw(adapter dns.TransportAdapter, dialer N.Dialer, serverAddr M.Socks
 		serverAddr:       serverAddr,
 	}
 	t.multiplexer = newQueryMultiplexer(queryMultiplexerOptions{
+		protocol: "tcp",
+		endpoint: serverAddr.String(),
 		dial: func(ctx context.Context) (net.Conn, error) {
 			conn, err := t.dialer.DialContext(ctx, N.NetworkTCP, t.serverAddr)
 			if err != nil {

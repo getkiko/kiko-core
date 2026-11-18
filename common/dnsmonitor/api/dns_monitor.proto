@@ -1,0 +1,31 @@
+syntax = "proto3";
+package sbui.dnsmonitor.v1;
+option go_package = "github.com/sagernet/sing-box/common/dnsmonitor/api;dnsmonitorapi";
+import "google/protobuf/empty.proto";
+
+// Payload.json contains the versioned JSON schema in common/dnsmonitor/model.go.
+// IDs, revisions and cursors are decimal strings, including for JavaScript users.
+// Query details include bounded DNS snapshots; wire is opt-in base64 DNS data.
+service DNSMonitor {
+  rpc GetCapabilities(google.protobuf.Empty) returns (Capabilities);
+  rpc SubscribeEvents(SubscribeRequest) returns (stream Payload);
+  rpc ListQueries(ListRequest) returns (Payload);
+  rpc GetQuery(GetRequest) returns (Payload);
+  rpc ClearHistory(google.protobuf.Empty) returns (Payload);
+}
+message Capabilities {
+  uint32 schema_version = 1;
+  bool enabled = 2;
+  repeated string features = 3;
+  repeated string limitations = 4;
+}
+message SubscribeRequest { string instance = 1; uint64 after = 2; }
+message ListRequest {
+  string search = 1;
+  string status = 2;
+  string resolver = 3;
+  uint32 limit = 4;
+  uint64 before = 5;
+}
+message GetRequest { string id = 1; string instance = 2; }
+message Payload { bytes json = 1; }
