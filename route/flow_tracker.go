@@ -77,10 +77,43 @@ type multiFlowTracker struct {
 }
 
 func (t *multiFlowTracker) AttachFlow(handle tun.FlowHandle) {
+	attaching := &attachingFlowHandle{handle: handle, attaching: true}
 	t.access.Lock()
-	defer t.access.Unlock()
 	for _, tracker := range t.trackers {
-		tracker.AttachFlow(handle)
+		tracker.AttachFlow(attaching)
+	}
+	t.access.Unlock()
+	attaching.attached()
+}
+
+// attachingFlowHandle holds back a close a tracker asks for while the flow
+// attaches, as an interrupted group does, until the trackers are attached:
+// the close calls back into CloseFlow, which waits for the attach.
+type attachingFlowHandle struct {
+	handle    tun.FlowHandle
+	access    sync.Mutex
+	attaching bool
+	closing   bool
+}
+
+func (h *attachingFlowHandle) CloseFlow() {
+	h.access.Lock()
+	if h.attaching {
+		h.closing = true
+		h.access.Unlock()
+		return
+	}
+	h.access.Unlock()
+	h.handle.CloseFlow()
+}
+
+func (h *attachingFlowHandle) attached() {
+	h.access.Lock()
+	h.attaching = false
+	closing := h.closing
+	h.access.Unlock()
+	if closing {
+		h.handle.CloseFlow()
 	}
 }
 

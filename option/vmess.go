@@ -23,6 +23,7 @@ type VMessOutboundOptions struct {
 	GlobalPadding       bool        `json:"global_padding,omitempty"`
 	AuthenticatedLength bool        `json:"authenticated_length,omitempty"`
 	Network             NetworkList `json:"network,omitempty"`
+	HandshakeRetries    int         `json:"handshake_retries,omitempty"`
 	OutboundTLSOptionsContainer
 	PacketEncoding string                    `json:"packet_encoding,omitempty" enum:"packetaddr,xudp"`
 	Multiplex      *OutboundMultiplexOptions `json:"multiplex,omitempty"`

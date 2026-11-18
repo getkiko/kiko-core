@@ -36,13 +36,11 @@ var (
 type Outbound struct {
 	outbound.Adapter
 	logger          logger.ContextLogger
-	dialer          N.Dialer
 	client          *vmess.Client
-	serverAddr      M.Socksaddr
 	multiplexDialer *mux.Client
 	tlsConfig       tls.Config
-	tlsDialer       tls.Dialer
 	transport       adapter.V2RayClientTransport
+	establisher     dialer.ConnectionEstablisher
 	packetAddr      bool
 	xudp            bool
 }
@@ -53,26 +51,27 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	outbound := &Outbound{
-		Adapter:    outbound.NewAdapterWithDialerOptions(C.TypeVMess, tag, options.Network.Build(), options.DialerOptions),
-		logger:     logger,
-		dialer:     outboundDialer,
-		serverAddr: options.ServerOptions.Build(),
+		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeVMess, tag, options.Network.Build(), options.DialerOptions),
+		logger:  logger,
 	}
 	if options.TLS != nil {
 		outbound.tlsConfig, err = tls.NewClient(ctx, logger, options.Server, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
 			return nil, err
 		}
-		if outbound.tlsConfig != nil {
-			outbound.tlsDialer = tls.NewDialer(outboundDialer, outbound.tlsConfig)
-		}
 	}
 	if options.Transport != nil {
-		outbound.transport, err = v2ray.NewClientTransport(ctx, outbound.dialer, outbound.serverAddr, common.PtrValueOrDefault(options.Transport), outbound.tlsConfig)
+		outbound.transport, err = v2ray.NewClientTransport(ctx, outboundDialer, options.ServerOptions.Build(), common.PtrValueOrDefault(options.Transport), outbound.tlsConfig)
 		if err != nil {
 			return nil, E.Cause(err, "create client transport: ", options.Transport.Type)
 		}
 	}
+	establisher := newServerEstablisher(outboundDialer, options.ServerOptions.Build(), outbound.transport, outbound.tlsConfig)
+	outbound.establisher = dialer.NewRetryEstablisher(establisher, dialer.RetryOptions{
+		Retries: options.HandshakeRetries,
+		Logger:  logger,
+		Name:    "vmess",
+	})
 	outbound.multiplexDialer, err = mux.NewClientWithOptions((*vmessDialer)(outbound), logger, common.PtrValueOrDefault(options.Multiplex))
 	if err != nil {
 		return nil, err
@@ -197,15 +196,7 @@ func (h *vmessDialer) DialContext(ctx context.Context, network string, destinati
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
-	var conn net.Conn
-	var err error
-	if h.transport != nil {
-		conn, err = h.transport.DialContext(ctx)
-	} else if h.tlsDialer != nil {
-		conn, err = h.tlsDialer.DialTLSContext(ctx, h.serverAddr)
-	} else {
-		conn, err = h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
-	}
+	conn, err := h.establisher.Establish(ctx)
 	if err != nil {
 		common.Close(conn)
 		return nil, err
@@ -224,15 +215,7 @@ func (h *vmessDialer) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
-	var conn net.Conn
-	var err error
-	if h.transport != nil {
-		conn, err = h.transport.DialContext(ctx)
-	} else if h.tlsDialer != nil {
-		conn, err = h.tlsDialer.DialTLSContext(ctx, h.serverAddr)
-	} else {
-		conn, err = h.dialer.DialContext(ctx, N.NetworkTCP, h.serverAddr)
-	}
+	conn, err := h.establisher.Establish(ctx)
 	if err != nil {
 		return nil, err
 	}

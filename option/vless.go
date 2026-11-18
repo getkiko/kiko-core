@@ -17,9 +17,10 @@ type VLESSUser struct {
 type VLESSOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	UUID    string      `json:"uuid"`
-	Flow    string      `json:"flow,omitempty"`
-	Network NetworkList `json:"network,omitempty"`
+	UUID             string      `json:"uuid"`
+	Flow             string      `json:"flow,omitempty"`
+	Network          NetworkList `json:"network,omitempty"`
+	HandshakeRetries int         `json:"handshake_retries,omitempty"`
 	OutboundTLSOptionsContainer
 	Multiplex      *OutboundMultiplexOptions `json:"multiplex,omitempty"`
 	Transport      *V2RayTransportOptions    `json:"transport,omitempty"`

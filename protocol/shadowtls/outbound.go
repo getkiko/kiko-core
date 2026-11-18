@@ -24,7 +24,7 @@ func RegisterOutbound(registry *outbound.Registry) {
 
 type Outbound struct {
 	outbound.Adapter
-	client *shadowtls.Client
+	establisher dialer.ConnectionEstablisher
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowTLSOutboundOptions) (adapter.Outbound, error) {
@@ -83,7 +83,12 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
-	outbound.client = client
+	establisher := newConnectionEstablisher(client, outboundDialer, options.ServerOptions.Build())
+	outbound.establisher = dialer.NewRetryEstablisher(establisher, dialer.RetryOptions{
+		Retries: options.HandshakeRetries,
+		Logger:  logger,
+		Name:    "shadowtls",
+	})
 	return outbound, nil
 }
 
@@ -92,7 +97,7 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 	metadata.Outbound = h.Tag()
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		return h.client.DialContext(ctx)
+		return h.establisher.Establish(ctx)
 	default:
 		return nil, os.ErrInvalid
 	}

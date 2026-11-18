@@ -82,5 +82,15 @@ type ShadowTLSOutboundOptions struct {
 	ServerOptions
 	Version  int    `json:"version,omitempty" enum:"1,2,3"`
 	Password string `json:"password,omitempty"`
+	// HandshakeRetries is the number of times to redial and retry the handshake
+	// after a failed TLS handshake. The default 0 disables retries.
+	//
+	// It is meant for detours to burrow port scanning hole punching: a scan may
+	// occasionally hit a half-dead connection on which the TLS handshake fails,
+	// and a retry punches a new connection. A TLS handshake is a round trip in
+	// both directions, so a successful one proves the connection works both
+	// ways, and the burrow layer does not need its own probe bytes. A normal
+	// detour succeeds on the first handshake and never retries.
+	HandshakeRetries int `json:"handshake_retries,omitempty"`
 	OutboundTLSOptionsContainer
 }
