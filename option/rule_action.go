@@ -197,9 +197,34 @@ func (r *RouteOptionsActionOptions) UnmarshalJSON(data []byte) error {
 }
 
 type DNSRouteActionOptions struct {
-	Server      string `json:"server,omitempty" reference:"dns_server"`
-	Speculative bool   `json:"speculative,omitempty"`
+	Server string `json:"server,omitempty" reference:"dns_server"`
+	// Servers queries every listed server concurrently and answers with the
+	// first successful response; it takes the place of Server.
+	Servers     badoption.Listable[string] `json:"servers,omitempty" reference:"dns_server"`
+	Speculative bool                       `json:"speculative,omitempty"`
 	AbstractDNSRouteActionOptions
+}
+
+// IsEmpty reports route options without any value.
+func (o DNSRouteActionOptions) IsEmpty() bool {
+	return o.Server == "" && len(o.Servers) == 0 && !o.Speculative && o.AbstractDNSRouteActionOptions.isEmpty()
+}
+
+func (o AbstractDNSRouteActionOptions) isEmpty() bool {
+	return o.Timeout == 0 && o.Strategy == DomainStrategy(0) && !o.DisableCache && !o.DisableOptimisticCache &&
+		o.RewriteTTL == nil && o.ClientSubnet == nil && !o.RemoveClientSubnet
+}
+
+// RouteServers returns the servers a route action queries: Servers, or
+// Server alone.
+func (o DNSRouteActionOptions) RouteServers() []string {
+	if len(o.Servers) > 0 {
+		return o.Servers
+	}
+	if o.Server != "" {
+		return []string{o.Server}
+	}
+	return nil
 }
 
 type DNSEvaluateActionOptions struct {

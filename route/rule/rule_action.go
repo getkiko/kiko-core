@@ -106,8 +106,16 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 	case "":
 		return nil
 	case C.RuleActionTypeRoute:
+		servers := common.Uniq(action.RouteOptions.RouteServers())
+		var server string
+		if len(servers) == 1 {
+			server, servers = servers[0], nil
+		} else if len(servers) > 1 {
+			server = ParallelDNSServerTag(servers)
+		}
 		return &RuleActionDNSRoute{
-			Server:      action.RouteOptions.Server,
+			Server:      server,
+			Servers:     servers,
 			Speculative: action.RouteOptions.Speculative,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
@@ -270,9 +278,18 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 }
 
 type RuleActionDNSRoute struct {
-	Server      string
+	// Server is the server's tag, or ParallelDNSServerTag of Servers.
+	Server string
+	// Servers, when set, are queried concurrently (two or more, unique).
+	Servers     []string
 	Speculative bool
 	RuleActionDNSRouteOptions
+}
+
+// ParallelDNSServerTag names the concurrent query of servers, as the DNS
+// cache, logs and monitor see it.
+func ParallelDNSServerTag(servers []string) string {
+	return "[" + strings.Join(servers, ", ") + "]"
 }
 
 func (r *RuleActionDNSRoute) Type() string {

@@ -203,6 +203,10 @@ func (r *Router) buildRulesWith(ctx context.Context, transportManager adapter.DN
 	if err != nil {
 		return nil, false, dnsRuleModeFlags{}, err
 	}
+	err = validateParallelDNSRules(rawRules, transportManager)
+	if err != nil {
+		return nil, false, dnsRuleModeFlags{}, err
+	}
 	newRules := make([]adapter.DNSRule, 0, len(rawRules))
 	for i, ruleOptions := range rawRules {
 		var dnsRule adapter.DNSRule
@@ -369,7 +373,7 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 			}
 			switch action := currentRule.Action().(type) {
 			case *R.RuleActionDNSRoute:
-				transport, loaded := r.transport.Transport(action.Server)
+				transport, loaded := r.routeTransport(action)
 				if !loaded {
 					r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
 					continue
@@ -467,8 +471,9 @@ const (
 	dnsRouteStatusResolved
 )
 
-func (r *Router) resolveDNSRoute(server string, routeOptions R.RuleActionDNSRouteOptions, allowFakeIP bool, options *adapter.DNSQueryOptions) (adapter.DNSTransport, dnsRouteStatus) {
-	transport, loaded := r.transport.Transport(server)
+func (r *Router) resolveDNSRoute(action *R.RuleActionDNSRoute, allowFakeIP bool, options *adapter.DNSQueryOptions) (adapter.DNSTransport, dnsRouteStatus) {
+	routeOptions := action.RuleActionDNSRouteOptions
+	transport, loaded := r.routeTransport(action)
 	if !loaded {
 		return nil, dnsRouteStatusMissing
 	}
@@ -784,7 +789,7 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 			}, nil
 		case *R.RuleActionDNSRoute:
 			queryOptions := state.effectiveOptions
-			transport, status := r.resolveDNSRoute(action.Server, action.RuleActionDNSRouteOptions, allowFakeIP, &queryOptions)
+			transport, status := r.resolveDNSRoute(action, allowFakeIP, &queryOptions)
 			switch status {
 			case dnsRouteStatusMissing:
 				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
@@ -939,7 +944,7 @@ func (r *Router) sweepArmedDNSRules(ctx context.Context, message *mDNS.Msg, stat
 			}, nil, true
 		case *R.RuleActionDNSRoute:
 			queryOptions := armed.options
-			transport, status := r.resolveDNSRoute(action.Server, action.RuleActionDNSRouteOptions, allowFakeIP, &queryOptions)
+			transport, status := r.resolveDNSRoute(action, allowFakeIP, &queryOptions)
 			switch status {
 			case dnsRouteStatusMissing:
 				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
@@ -1298,7 +1303,7 @@ func (r *Router) exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	if err != nil {
 		return nil, err
 	}
-	if transport != nil {
+	if transport != nil && transport.Type() != C.DNSTypeParallel {
 		dnsmonitor.Resolver(ctx, transport.Tag(), transport.Type())
 		if trace := policyTraceFrom(ctx); trace != nil {
 			var detour string
@@ -1306,6 +1311,12 @@ func (r *Router) exchange(ctx context.Context, message *mDNS.Msg, options adapte
 				detour, _ = configured.DNSMonitorDetour()
 			}
 			trace.setServer(transport.Tag(), detour)
+		}
+	} else if trace := policyTraceFrom(ctx); transport != nil && trace != nil {
+		// A concurrent query traced the server that answered; a cached
+		// answer names the servers.
+		if _, _, server, _ := trace.Snapshot(); server == "" {
+			trace.setServer(transport.Tag(), "")
 		}
 	}
 	r.recordReverseMapping(message, response, transport)
@@ -1338,7 +1349,9 @@ func (r *Router) exchangeAsync(ctx context.Context, message *mDNS.Msg, options a
 
 func (r *Router) finishExchangeAsync(ctx context.Context, message *mDNS.Msg, transport adapter.DNSTransport, response *mDNS.Msg, err error, callback func(response *mDNS.Msg, err error)) {
 	if transport != nil {
-		dnsmonitor.Resolver(ctx, transport.Tag(), transport.Type())
+		if transport.Type() != C.DNSTypeParallel {
+			dnsmonitor.Resolver(ctx, transport.Tag(), transport.Type())
+		}
 	}
 	if err != nil {
 		callback(nil, err)

@@ -153,7 +153,7 @@ func collectDNSRuleReferences(rules []option.DNSRule, mode string, transports *[
 		var final bool
 		switch action.Action {
 		case C.RuleActionTypeRoute:
-			*transports = append(*transports, action.RouteOptions.Server)
+			*transports = append(*transports, action.RouteOptions.RouteServers()...)
 			final = true
 		case C.RuleActionTypeEvaluate:
 			*transports = append(*transports, action.EvaluateOptions.Server)

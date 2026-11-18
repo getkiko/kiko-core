@@ -30,6 +30,8 @@ const (
 	DNSTypeTailscale   = "tailscale"
 	DNSTypeOpenConnect = "openconnect"
 	DNSTypeOpenVPN     = "openvpn"
+	// DNSTypeParallel is a DNS rule querying several servers concurrently.
+	DNSTypeParallel = "parallel"
 )
 
 const (

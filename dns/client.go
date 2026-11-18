@@ -142,6 +142,9 @@ func (c *Client) finishCacheKey(transport adapter.DNSTransport, key dnsCacheKey)
 }
 
 func (c *Client) environmentHash(transport adapter.DNSTransport) uint64 {
+	if parallel, isParallel := transport.(*parallelTransport); isParallel {
+		return c.parallelEnvironmentHash(parallel)
+	}
 	environmentTransport, withEnvironment := transport.(adapter.DNSTransportWithEnvironment)
 	if !withEnvironment {
 		return 0
@@ -564,7 +567,7 @@ func (c *Client) lookupToExchange(ctx context.Context, transport adapter.DNSTran
 	}
 	ctx, trace := dnsmonitor.Begin(ctx, &message, "lookup")
 	defer func() { trace.End(nil, resultErr) }()
-	ctx = dnsmonitor.WithResolver(ctx, transport.Tag(), transport.Type())
+	ctx = monitorResolver(ctx, transport)
 	disableCache := c.disableCache || options.DisableCache
 	if !disableCache {
 		cachedAddresses, err := c.questionCache(ctx, transport, &message, options, responseChecker)
@@ -715,7 +718,7 @@ func (c *Client) backgroundRefreshDNS(parent context.Context, transport adapter.
 			ctx = dnsmonitor.WithParent(ctx, parentTrace)
 		}
 		ctx, trace := dnsmonitor.Begin(ctx, message, "background_refresh")
-		ctx = dnsmonitor.WithResolver(ctx, transport.Tag(), transport.Type())
+		ctx = monitorResolver(ctx, transport)
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		var response *dns.Msg

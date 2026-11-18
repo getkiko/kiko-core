@@ -173,6 +173,7 @@ func (t *Trace) copy(brief bool) Query {
 	q := t.q
 	q.Questions = append(make([]Question, 0, len(q.Questions)), q.Questions...)
 	q.Policy = append([]string(nil), q.Policy...)
+	q.Candidates = append([]string(nil), q.Candidates...)
 	q.ResolvedAddresses = append([]string(nil), q.ResolvedAddresses...)
 	q.Attempts = append([]Attempt(nil), q.Attempts...)
 	for i := range q.Attempts {
@@ -314,6 +315,23 @@ func WithResolver(ctx context.Context, tag, transport string) context.Context {
 	}
 	return context.WithValue(ctx, resolverKey{}, [2]string{tag, transport})
 }
+
+// WithAttemptResolver names the resolver of the attempts started under ctx
+// without changing the query's resolver: one member of a concurrent query.
+func WithAttemptResolver(ctx context.Context, tag, transport string) context.Context {
+	if Current(ctx) == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, resolverKey{}, [2]string{tag, transport})
+}
+
+// Candidates records the servers a concurrent query asks.
+func Candidates(ctx context.Context, tags []string) {
+	Current(ctx).update(func(q *Query) {
+		q.Candidates = append([]string(nil), tags[:min(len(tags), 16)]...)
+	})
+}
+
 func PolicyResult(ctx context.Context, action, method string) {
 	Current(ctx).update(func(q *Query) {
 		q.PolicyResult = action

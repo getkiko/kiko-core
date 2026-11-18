@@ -33,7 +33,7 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 		}
 		switch options.DefaultOptions.Action {
 		case "", C.RuleActionTypeRoute:
-			if options.DefaultOptions.RouteOptions.Server == "" && checkServer {
+			if len(options.DefaultOptions.RouteOptions.RouteServers()) == 0 && checkServer {
 				return nil, E.New("missing server field")
 			}
 		case C.RuleActionTypeEvaluate:
@@ -55,7 +55,7 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 		}
 		switch options.LogicalOptions.Action {
 		case "", C.RuleActionTypeRoute:
-			if options.LogicalOptions.RouteOptions.Server == "" && checkServer {
+			if len(options.LogicalOptions.RouteOptions.RouteServers()) == 0 && checkServer {
 				return nil, E.New("missing server field")
 			}
 		case C.RuleActionTypeEvaluate:
@@ -81,6 +81,12 @@ func validateDNSRuleAction(action option.DNSRuleAction) error {
 		routeOptions = action.EvaluateOptions.AbstractDNSRouteActionOptions
 	case C.RuleActionTypeRouteOptions:
 		routeOptions = option.AbstractDNSRouteActionOptions(action.RouteOptionsOptions)
+	}
+	if action.RouteOptions.Server != "" && len(action.RouteOptions.Servers) > 0 {
+		return E.New("`server` and `servers` are mutually exclusive")
+	}
+	if len(action.RouteOptions.Servers) > 0 && common.Contains(action.RouteOptions.Servers, "") {
+		return E.New("`servers` contains an empty server")
 	}
 	if routeOptions.RemoveClientSubnet && routeOptions.ClientSubnet != nil {
 		return E.New("`client_subnet` and `remove_client_subnet` are mutually exclusive")

@@ -222,7 +222,7 @@ func (r *DefaultDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) 
 	if err != nil {
 		return err
 	}
-	if depth > 0 && rawAction == "" && routeOptions == (DNSRouteActionOptions{}) {
+	if depth > 0 && rawAction == "" && routeOptions.IsEmpty() {
 		r.DNSRuleAction = DNSRuleAction{}
 	}
 	return nil
@@ -267,7 +267,7 @@ func (r *LogicalDNSRule) UnmarshalJSONContext(ctx context.Context, data []byte) 
 	if err != nil {
 		return err
 	}
-	if depth > 0 && rawAction == "" && routeOptions == (DNSRouteActionOptions{}) {
+	if depth > 0 && rawAction == "" && routeOptions.IsEmpty() {
 		r.DNSRuleAction = DNSRuleAction{}
 	}
 	return nil

@@ -119,15 +119,18 @@ type Query struct {
 	Response          *Message   `json:"response,omitempty"`
 	Resolver          string     `json:"resolver,omitempty"`
 	Transport         string     `json:"transport,omitempty"`
-	Cache             string     `json:"cache,omitempty"`
-	SharedWith        string     `json:"shared_with,omitempty"`
-	PolicyResult      string     `json:"policy_result,omitempty"`
-	Policy            []string   `json:"policy,omitempty"`
-	Attempts          []Attempt  `json:"attempts,omitempty"`
-	Error             *Failure   `json:"error,omitempty"`
-	Delivery          string     `json:"delivery,omitempty"`
-	DeliveryError     *Failure   `json:"delivery_error,omitempty"`
-	Incomplete        bool       `json:"incomplete,omitempty"`
+	// Candidates are the servers of a concurrent query; Resolver is the one
+	// that answered.
+	Candidates    []string  `json:"candidates,omitempty"`
+	Cache         string    `json:"cache,omitempty"`
+	SharedWith    string    `json:"shared_with,omitempty"`
+	PolicyResult  string    `json:"policy_result,omitempty"`
+	Policy        []string  `json:"policy,omitempty"`
+	Attempts      []Attempt `json:"attempts,omitempty"`
+	Error         *Failure  `json:"error,omitempty"`
+	Delivery      string    `json:"delivery,omitempty"`
+	DeliveryError *Failure  `json:"delivery_error,omitempty"`
+	Incomplete    bool      `json:"incomplete,omitempty"`
 }
 
 func failure(err error, stage string) *Failure {
@@ -289,7 +292,7 @@ func matches(q Query, f Filter) bool {
 			return true
 		}
 	}
-	return strings.Contains(strings.ToLower(q.Source.Process+" "+q.Source.ProcessPath+" "+q.Resolver), term)
+	return strings.Contains(strings.ToLower(q.Source.Process+" "+q.Source.ProcessPath+" "+q.Resolver+" "+strings.Join(q.Candidates, " ")), term)
 }
 
 func (c *Connection) Release() {

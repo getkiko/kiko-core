@@ -7,6 +7,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dnsmonitor"
+	C "github.com/sagernet/sing-box/constant"
 )
 
 func (r *Router) Exchange(ctx context.Context, message *dns.Msg, options adapter.DNSQueryOptions) (*dns.Msg, error) {
@@ -33,7 +34,7 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 
 func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, checker func(*dns.Msg) bool) (*dns.Msg, error) {
 	ctx, t, owner := dnsmonitor.Ensure(ctx, message)
-	ctx = dnsmonitor.WithResolver(ctx, transport.Tag(), transport.Type())
+	ctx = monitorResolver(ctx, transport)
 	response, err := c.exchange(ctx, transport, message, options, checker)
 	if owner {
 		t.End(response, err)
@@ -45,7 +46,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 
 func (c *Client) ExchangeAsync(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, checker func(*dns.Msg) bool, callback func(*dns.Msg, error)) {
 	ctx, t, owner := dnsmonitor.Ensure(ctx, message)
-	ctx = dnsmonitor.WithResolver(ctx, transport.Tag(), transport.Type())
+	ctx = monitorResolver(ctx, transport)
 	c.exchangeAsync(ctx, transport, message, options, checker, func(response *dns.Msg, err error) {
 		if owner {
 			t.End(response, err)
@@ -67,7 +68,7 @@ func monitorTransport(ctx context.Context, transport adapter.DNSTransport) (cont
 		ctx = dnsmonitor.WithDialConfig(ctx, detour)
 	}
 	switch transport.Type() {
-	case "udp", "tcp", "tls", "https", "quic", "h3":
+	case "udp", "tcp", "tls", "https", "quic", "h3", C.DNSTypeParallel:
 		return ctx, nil
 	}
 	ctx, a := dnsmonitor.StartAttempt(ctx, transport.Type())

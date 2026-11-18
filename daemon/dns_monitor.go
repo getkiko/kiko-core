@@ -42,7 +42,7 @@ func (s *dnsMonitorServer) require() (*dnsmonitor.Manager, error) {
 
 func (s *dnsMonitorServer) GetCapabilities(context.Context, *emptypb.Empty) (*dnsmonitorapi.Capabilities, error) {
 	return &dnsmonitorapi.Capabilities{SchemaVersion: dnsmonitor.SchemaVersion, Enabled: s.manager() != nil,
-		Features:    []string{"history", "stream", "questions", "resource_records", "cache", "policy", "process", "attempts", "actual_outbound", "connection_reuse", "udp_tcp_fallback", "http_trace", "quic_stream", "delivery"},
+		Features:    []string{"history", "stream", "questions", "resource_records", "cache", "policy", "process", "attempts", "actual_outbound", "connection_reuse", "udp_tcp_fallback", "http_trace", "quic_stream", "delivery", "parallel_resolvers"},
 		Limitations: []string{"platform resolver delegates socket visibility to the operating system", "HTTP/3 connection binding requires a unique active address pair", "DNS resolved by remote proxies or applications stays outside this engine", "wire capture contains reconstructed DNS messages; transport framing is separate"}}, nil
 }
 
