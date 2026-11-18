@@ -1,14 +1,22 @@
 package burrow
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"net/netip"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/control"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/getkiko/burrow"
 )
@@ -199,5 +207,70 @@ func TestInterfaceAddrFuncIPv6FiltersLocalAddresses(t *testing.T) {
 func TestInterfaceAddrFuncNilManager(t *testing.T) {
 	if interfaceAddrFunc(nil, burrow.AddressFamilyIPv6, nil) != nil {
 		t.Fatal("expected nil")
+	}
+}
+
+// countingLogger counts the errors logged.
+type countingLogger struct {
+	log.ContextLogger
+	errors []string
+}
+
+func (l *countingLogger) Error(args ...any) { l.errors = append(l.errors, fmt.Sprint(args...)) }
+
+// While auto_detect_interface finds no default interface, every attempt asks
+// for the interface name; the missing interface is logged once per interval,
+// saying that no default interface is available.
+func TestSocketBindingAutoDetectLogsMissingInterfaceOncePerInterval(t *testing.T) {
+	nm := &stubNetworkManager{autoDetect: true}
+	logger := &countingLogger{ContextLogger: log.NewNOPFactory().NewLogger("")}
+	name, _, err := socketBindingForNetworkManager(nm, "", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 50 {
+		if got := name(); got != noDefaultInterface {
+			t.Fatalf("name %q", got)
+		}
+	}
+	if len(logger.errors) != 1 || !strings.Contains(logger.errors[0], "no default network interface") || strings.Contains(logger.errors[0], "bind_interface") {
+		t.Fatalf("errors %q", logger.errors)
+	}
+}
+
+func TestLogLimiter(t *testing.T) {
+	now := time.Unix(1000, 0)
+	l := newLogLimiter(time.Minute)
+	l.now = func() time.Time { return now }
+	if !l.allow() || l.allow() {
+		t.Fatal("first message")
+	}
+	now = now.Add(59 * time.Second)
+	if l.allow() {
+		t.Fatal("within the interval")
+	}
+	now = now.Add(time.Second)
+	if !l.allow() {
+		t.Fatal("after the interval")
+	}
+}
+
+// An outbound following auto_detect_interface fails at once without a
+// default interface, with an error that says so, and is not retried.
+func TestOutboundWithoutDefaultInterface(t *testing.T) {
+	nm := &stubNetworkManager{autoDetect: true}
+	out := &Outbound{logger: log.NewNOPFactory().NewLogger(""), defaultMissing: defaultInterfaceMissing(nm, "")}
+	_, err := out.DialContext(context.Background(), N.NetworkTCP, M.Socksaddr{})
+	var nonRetryable *dialer.NonRetryableError
+	if !errors.Is(err, errNoDefaultInterface) || !errors.As(err, &nonRetryable) {
+		t.Fatalf("dial: %v", err)
+	}
+	if defaultInterfaceMissing(nm, "en0") != nil || defaultInterfaceMissing(&stubNetworkManager{autoDetect: true, defaultInterface: "eth0"}, "") != nil ||
+		defaultInterfaceMissing(&stubNetworkManager{}, "") != nil || defaultInterfaceMissing(nil, "") != nil {
+		t.Fatal("defaultMissing for a binding that does not follow auto_detect_interface")
+	}
+	nm.currentInterface = &adapter.NetworkInterface{Interface: control.Interface{Name: "wlan0"}}
+	if out.defaultMissing() {
+		t.Fatal("interface present")
 	}
 }

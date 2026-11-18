@@ -9,8 +9,10 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -90,6 +92,49 @@ var errNoBindInterface = E.New("burrow: cannot determine the bind interface, " +
 // instead of leaving through whatever route the kernel picks.
 const noDefaultInterface = "burrow-no-default-interface"
 
+// errNoDefaultInterface is the error of an attempt made while
+// auto_detect_interface finds no default interface.
+var errNoDefaultInterface = E.New("burrow: no default network interface is available")
+
+// noDefaultInterfaceLogInterval bounds how often a missing default interface
+// is logged: every attempt finds it missing while the network is down.
+const noDefaultInterfaceLogInterval = time.Minute
+
+// logLimiter lets one message through per interval.
+type logLimiter struct {
+	interval time.Duration
+	now      func() time.Time
+	mu       sync.Mutex
+	last     time.Time
+}
+
+func newLogLimiter(interval time.Duration) *logLimiter {
+	return &logLimiter{interval: interval, now: time.Now}
+}
+
+// allow reports whether a message may be logged now.
+func (l *logLimiter) allow() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	if !l.last.IsZero() && now.Sub(l.last) < l.interval {
+		return false
+	}
+	l.last = now
+	return true
+}
+
+// defaultInterfaceMissing returns, for a binding that follows
+// auto_detect_interface (no bind_interface or route.default_interface), a
+// function reporting whether no default interface is available now. It is
+// nil for other bindings.
+func defaultInterfaceMissing(networkManager interfaceBindingManager, bindInterface string) func() bool {
+	if bindInterface != "" || networkManager == nil || networkManager.DefaultOptions().BindInterface != "" || !networkManager.AutoDetectInterface() {
+		return nil
+	}
+	return func() bool { return networkManager.DefaultNetworkInterface() == nil }
+}
+
 // socketBinding connects the sockets burrow creates itself to the sing-box
 // outbound interface selection. An explicit bind_interface wins, then
 // route.default_interface, then the default interface detected by
@@ -130,14 +175,15 @@ func socketBindingForNetworkManager(networkManager interfaceBindingManager, bind
 	if !networkManager.AutoDetectInterface() {
 		return nil, nil, errNoBindInterface
 	}
+	limiter := newLogLimiter(noDefaultInterfaceLogInterval)
 	return func() string {
 		currentInterface := networkManager.DefaultNetworkInterface()
 		if currentInterface == nil {
 			// auto_detect_interface is enabled but finds no default interface
 			// (for example with the network down). An empty name would mean
 			// no binding at all, so the attempt fails on a name no interface has.
-			if logger != nil {
-				logger.Error("burrow: auto_detect_interface found no default interface")
+			if logger != nil && limiter.allow() {
+				logger.Error(errNoDefaultInterface)
 			}
 			return noDefaultInterface
 		}
@@ -159,6 +205,10 @@ func interfaceAddrFunc(networkManager interfaceBindingManager, addressFamily str
 	wantIPv6 := addressFamily == burrow.AddressFamilyIPv6
 	finder := networkManager.InterfaceFinder()
 	return func(name string) string {
+		if name == noDefaultInterface {
+			// Already reported by the binding; the lookups would only fail.
+			return ""
+		}
 		if finder != nil {
 			iif, err := finder.ByName(name)
 			if err == nil {
@@ -267,9 +317,12 @@ func bindInterfaceControl(networkManager interfaceBindingManager, interfaceName 
 
 type Outbound struct {
 	outbound.Adapter
-	logger       log.ContextLogger
-	dialer       *burrow.Dialer       // TCP hole punching; non-nil when network contains "tcp"
-	packetDialer *burrow.PacketDialer // UDP hole punching; non-nil when network contains "udp"
+	logger log.ContextLogger
+	// defaultMissing reports whether auto_detect_interface finds no default
+	// interface now; nil when the binding does not follow it.
+	defaultMissing func() bool
+	dialer         *burrow.Dialer       // TCP hole punching; non-nil when network contains "tcp"
+	packetDialer   *burrow.PacketDialer // UDP hole punching; non-nil when network contains "udp"
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.BurrowOutboundOptions) (adapter.Outbound, error) {
@@ -289,7 +342,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	signalAddr := buildSignalAddr(options.Server, options.ServerPort, options.SignalPath)
 
 	networks := networkList(options.Network)
-	out := &Outbound{logger: logger}
+	out := &Outbound{logger: logger, defaultMissing: defaultInterfaceMissing(service.FromContext[adapter.NetworkManager](ctx), options.BindInterface)}
 	var adapterNetworks []string
 
 	if common.Contains(networks, N.NetworkTCP) {
@@ -338,6 +391,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 // punch. burrow finds the peer through SignalAddr and Room; the protocol
 // carried over the detour handles the real destination.
 func (h *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	// Without a default interface every attempt fails on binding; say so
+	// instead of with the SDK's bind_interface hint, and do not retry.
+	if h.defaultMissing != nil && h.defaultMissing() {
+		return nil, &dialer.NonRetryableError{Err: errNoDefaultInterface}
+	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		if h.dialer == nil {
