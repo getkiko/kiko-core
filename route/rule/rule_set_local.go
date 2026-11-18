@@ -153,6 +153,15 @@ func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 	return nil
 }
 
+// ReloadInline replaces the rules of an inline rule set, as a live apply
+// changes them.
+func (s *LocalRuleSet) ReloadInline(rules []option.HeadlessRule) error {
+	if len(rules) == 0 {
+		return E.New("empty inline rule-set")
+	}
+	return s.reloadRules(rules)
+}
+
 func (s *LocalRuleSet) Metadata() adapter.RuleSetMetadata {
 	s.access.RLock()
 	defer s.access.RUnlock()

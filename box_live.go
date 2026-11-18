@@ -123,7 +123,7 @@ func (s *Box) liveRestartReason(oldOptions, newOptions option.Options) (string, 
 		{"certificate options changed, restart required", oldOptions.Certificate, newOptions.Certificate},
 		{"certificate providers changed, restart required", oldOptions.CertificateProviders, newOptions.CertificateProviders},
 		{"network namespaces changed, restart required", oldOptions.NetworkNamespaces, newOptions.NetworkNamespaces},
-		{"rule sets changed, restart required", oldRoute.RuleSet, newRoute.RuleSet},
+		{"rule sets changed, restart required", liveRuleSets(oldRoute.RuleSet), liveRuleSets(newRoute.RuleSet)},
 		{"DHCP lease files changed, restart required", oldRoute.DHCPLeaseFiles, newRoute.DHCPLeaseFiles},
 		{"global route options changed, restart required", liveRouteRest(oldRoute), liveRouteRest(newRoute)},
 		{"global DNS options changed, restart required", liveDNSRest(oldDNS), liveDNSRest(newDNS)},
@@ -184,6 +184,51 @@ func liveServices(services []option.Service) []option.Service {
 		}
 	}
 	return services
+}
+
+// liveRuleSets are rule sets without the rules of the inline ones, which a
+// live apply reloads in place (reloadInlineRuleSets).
+func liveRuleSets(ruleSets []option.RuleSet) []option.RuleSet {
+	ruleSets = append([]option.RuleSet(nil), ruleSets...)
+	for i := range ruleSets {
+		if ruleSets[i].Type == C.RuleSetTypeInline {
+			ruleSets[i].InlineOptions = option.PlainRuleSet{}
+		}
+	}
+	return ruleSets
+}
+
+// reloadInlineRuleSets gives the running inline rule sets the rules of
+// newSets that changed. liveRestartReason has made sure both lists hold
+// the same rule sets in the same order.
+func (s *Box) reloadInlineRuleSets(oldSets, newSets []option.RuleSet) error {
+	for i, ruleSet := range newSets {
+		if ruleSet.Type != C.RuleSetTypeInline || i >= len(oldSets) {
+			continue
+		}
+		equal, err := s.optionsEqual(oldSets[i].InlineOptions.Rules, ruleSet.InlineOptions.Rules)
+		if err != nil {
+			return err
+		}
+		if equal {
+			continue
+		}
+		for _, tag := range ruleSet.Tag {
+			current, loaded := s.router.RuleSet(tag)
+			reloader, canReload := current.(interface {
+				ReloadInline(rules []option.HeadlessRule) error
+			})
+			if !loaded || !canReload {
+				return E.New("rule-set ", tag, " cannot be reloaded")
+			}
+			err = reloader.ReloadInline(ruleSet.InlineOptions.Rules)
+			if err != nil {
+				return E.Cause(err, "reload rule-set ", tag)
+			}
+			s.logger.Info("live apply: reloaded rule-set ", tag)
+		}
+	}
+	return nil
 }
 
 func liveRouteRest(options option.RouteOptions) *option.RouteOptions {
@@ -442,6 +487,10 @@ func (s *Box) applyLive(oldOptions, newOptions option.Options) error {
 		return err
 	}
 	dnsRules, err = s.dnsRouter.BuildRules(stagingCtx, transportStaging.View(), newDNS.Rules)
+	if err != nil {
+		return err
+	}
+	err = s.reloadInlineRuleSets(common.PtrValueOrDefault(oldOptions.Route).RuleSet, newRoute.RuleSet)
 	if err != nil {
 		return err
 	}

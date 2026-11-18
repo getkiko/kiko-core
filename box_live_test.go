@@ -319,3 +319,48 @@ func TestLiveApplyUnpinnedRetiresAfterGrace(t *testing.T) {
 	require.EqualValues(t, 1, instance.LiveRetiring())
 	waitRetiring(t, instance, 0)
 }
+
+const liveRuleSetConfig = `{
+  "log": {"disabled": true},
+  "outbounds": [
+    {"type": "direct", "tag": "d1"},
+    {"type": "direct", "tag": "d2"}
+  ],
+  "route": {
+    "rule_set": [
+      {"type": "inline", "tag": "local", "rules": [{"source_ip_cidr": ["10.0.0.1/32"]}]}
+    ],
+    "rules": [
+      {"rule_set": ["local"], "outbound": "d2"}
+    ],
+    "final": "d1"
+  }
+}`
+
+func TestLiveApplyInlineRuleSetReloads(t *testing.T) {
+	ctx, _ := startLiveBox(t, liveRuleSetConfig)
+	router := service.FromContext[adapter.Router](ctx)
+	before, loaded := router.RuleSet("local")
+	require.True(t, loaded)
+	from := func(ip string) *adapter.InboundContext {
+		return &adapter.InboundContext{Source: M.ParseSocksaddrHostPort(ip, 1)}
+	}
+	require.True(t, before.Match(from("10.0.0.1")))
+	require.False(t, before.Match(from("10.0.0.2")))
+
+	// The host's addresses change: the rule set reloads in place.
+	result, err := applyLive(t, ctx, strings.Replace(liveRuleSetConfig, `"10.0.0.1/32"`, `"10.0.0.1/32", "10.0.0.2/32"`, 1))
+	require.NoError(t, err)
+	require.True(t, result.Applied, result.Reason)
+	after, _ := router.RuleSet("local")
+	require.Same(t, before, after)
+	require.True(t, after.Match(from("10.0.0.2")))
+
+	// A rule set added still restarts the core.
+	added := strings.Replace(liveRuleSetConfig, `"rule_set": [`, `"rule_set": [
+      {"type": "inline", "tag": "more", "rules": [{"domain": ["more.test"]}]},`, 1)
+	result, err = applyLive(t, ctx, added)
+	require.NoError(t, err)
+	require.True(t, result.RestartRequired)
+	require.Contains(t, result.Reason, "rule set")
+}
