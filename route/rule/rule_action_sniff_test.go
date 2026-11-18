@@ -1,7 +1,6 @@
 package rule
 
 import (
-	"context"
 	"testing"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -27,7 +26,7 @@ func TestRuleActionSniffOverrideDestination(t *testing.T) {
 		t.Fatal("override_destination was not decoded")
 	}
 
-	action, err := NewRuleAction(context.Background(), logger.NOP(), actionOptions)
+	action, err := NewRuleAction(logger.NOP(), actionOptions)
 	if err != nil {
 		t.Fatal(err)
 	}

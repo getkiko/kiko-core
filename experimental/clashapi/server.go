@@ -117,7 +117,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		r.Get("/logs", getLogs(s.ctx, logFactory))
 		r.Get("/traffic", traffic(s.ctx, trafficManager))
 		r.Get("/version", version)
-		r.Get("/rulesets", getRuleSetStatuses(s.router))
+		r.Mount("/rulesets", ruleSetRouter(s.router))
 		r.Mount("/configs", configRouter(s, logFactory))
 		r.Mount("/proxies", proxyRouter(s, s.router))
 		r.Mount("/rules", ruleRouter(s.router))

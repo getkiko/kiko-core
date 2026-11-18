@@ -23,6 +23,7 @@ type _RuleSet struct {
 	Type          string                     `json:"type,omitempty" enum:"inline,local,remote"`
 	Tag           badoption.Listable[string] `json:"tag"`
 	Format        string                     `json:"format,omitempty" enum:"source,binary"`
+	Overrides     *RuleSetOverrides          `json:"overrides,omitempty"`
 	InlineOptions PlainRuleSet               `json:"-"`
 	LocalOptions  LocalRuleSet               `json:"-"`
 	RemoteOptions RemoteRuleSet              `json:"-"`
@@ -101,6 +102,12 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	} else {
 		r.Format = ""
 	}
+	if r.Overrides != nil {
+		err = r.Overrides.Validate()
+		if err != nil {
+			return E.Cause(err, "overrides")
+		}
+	}
 	if len(r.Tag) > 1 {
 		switch r.Type {
 		case C.RuleSetTypeInline:
@@ -142,17 +149,23 @@ func (r RuleSet) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
 			return nil, err
 		}
 		tagNode := schema.ListableOf(schema.StringNode())
+		overridesNode, err := builder.Describe(reflect.TypeFor[RuleSetOverrides]())
+		if err != nil {
+			return nil, err
+		}
 		formatNode := schema.StringEnum(C.RuleSetFormatSource, C.RuleSetFormatBinary)
 
 		inlineVariant := schema.StrictObject()
 		inlineVariant.Properties.Put("type", schema.StringEnum(C.RuleSetTypeInline, ""))
 		inlineVariant.Properties.Put("tag", tagNode)
+		inlineVariant.Properties.Put("overrides", overridesNode)
 		inlineVariant.Properties.Put("rules", &schema.Node{Type: "array", Items: headlessRef})
 		inlineVariant.Required = []string{"tag"}
 
 		localVariant := schema.StrictObject()
 		localVariant.Properties.Put("type", schema.StringConst(C.RuleSetTypeLocal))
 		localVariant.Properties.Put("tag", tagNode)
+		localVariant.Properties.Put("overrides", overridesNode)
 		localVariant.Properties.Put("format", formatNode)
 		err = builder.FlattenStruct(localVariant, reflect.TypeFor[LocalRuleSet]())
 		if err != nil {
@@ -163,6 +176,7 @@ func (r RuleSet) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
 		remoteVariant := schema.StrictObject()
 		remoteVariant.Properties.Put("type", schema.StringConst(C.RuleSetTypeRemote))
 		remoteVariant.Properties.Put("tag", tagNode)
+		remoteVariant.Properties.Put("overrides", overridesNode)
 		remoteVariant.Properties.Put("format", formatNode)
 		err = builder.FlattenStruct(remoteVariant, reflect.TypeFor[RemoteRuleSet]())
 		if err != nil {

@@ -33,9 +33,16 @@ type LocalRuleSet struct {
 	rules      []adapter.HeadlessRule
 	metadata   adapter.RuleSetMetadata
 	fileFormat string
+	filePath   string
 	watcher    *fswatch.Watcher
-	callbacks  list.List[adapter.RuleSetUpdateCallback]
-	refs       atomic.Int32
+	// sourceAccess serializes loads of the source content and guards
+	// inlineRules and overrides.
+	sourceAccess sync.Mutex
+	inlineRules  []option.HeadlessRule
+	overrides    *option.RuleSetOverrides
+	lastError    atomic.Pointer[string]
+	callbacks    list.List[adapter.RuleSetUpdateCallback]
+	refs         atomic.Int32
 }
 
 func NewLocalRuleSet(ctx context.Context, logger logger.Logger, tag string, options option.RuleSet) (*LocalRuleSet, error) {
@@ -44,11 +51,13 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, tag string, opti
 		logger:     logger,
 		tag:        tag,
 		fileFormat: options.Format,
+		overrides:  options.Overrides,
 	}
 	if options.Type == C.RuleSetTypeInline {
 		if len(options.InlineOptions.Rules) == 0 {
 			return nil, E.New("empty inline rule-set")
 		}
+		ruleSet.inlineRules = options.InlineOptions.Rules
 		err := ruleSet.reloadRules(options.InlineOptions.Rules)
 		if err != nil {
 			return nil, err
@@ -56,6 +65,7 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, tag string, opti
 	} else {
 		filePath := filemanager.BasePath(ctx, strings.ReplaceAll(options.LocalOptions.Path, C.RuleSetTagPlaceholder, tag))
 		filePath, _ = filepath.Abs(filePath)
+		ruleSet.filePath = filePath
 		err := ruleSet.reloadFile(filePath)
 		if err != nil {
 			return nil, err
@@ -63,7 +73,10 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, tag string, opti
 		watcher, err := fswatch.NewWatcher(fswatch.Options{
 			Path: []string{filePath},
 			Callback: func(path string) {
+				ruleSet.sourceAccess.Lock()
+				defer ruleSet.sourceAccess.Unlock()
 				uErr := ruleSet.reloadFile(path)
+				ruleSet.setLastError(uErr)
 				if uErr != nil {
 					logger.Error(E.Cause(uErr, "reload rule-set ", tag))
 				}
@@ -95,50 +108,54 @@ func (s *LocalRuleSet) StartContext(ctx context.Context, startContext *adapter.H
 	return nil
 }
 
+// IsInline reports whether the rule set holds inline rules.
+func (s *LocalRuleSet) IsInline() bool {
+	return s.filePath == ""
+}
+
 func (s *LocalRuleSet) reloadFile(path string) error {
+	ruleSet, err := s.readFile(path, false)
+	if err != nil {
+		return err
+	}
+	return s.reloadRules(ruleSet.Options.Rules)
+}
+
+// readFile decodes the rule set file; recover keeps the domain and address
+// lists of binary files, as the source content view needs them.
+func (s *LocalRuleSet) readFile(path string, recover bool) (option.PlainRuleSetCompat, error) {
 	var ruleSet option.PlainRuleSetCompat
 	switch s.fileFormat {
 	case C.RuleSetFormatSource, "":
 		content, err := filemanager.ReadFile(s.ctx, path)
 		if err != nil {
-			return err
+			return ruleSet, err
 		}
 		ruleSet, err = json.UnmarshalExtended[option.PlainRuleSetCompat](content)
 		if err != nil {
-			return err
+			return ruleSet, err
 		}
-
 	case C.RuleSetFormatBinary:
 		setFile, err := filemanager.Open(s.ctx, path)
 		if err != nil {
-			return err
+			return ruleSet, err
 		}
 		defer setFile.Close()
-		ruleSet, err = srs.Read(setFile, false)
+		ruleSet, err = srs.Read(setFile, recover)
 		if err != nil {
-			return err
+			return ruleSet, err
 		}
 	default:
-		return E.New("unknown rule-set format: ", s.fileFormat)
+		return ruleSet, E.New("unknown rule-set format: ", s.fileFormat)
 	}
-	plainRuleSet, err := ruleSet.Upgrade()
-	if err != nil {
-		return err
-	}
-	return s.reloadRules(plainRuleSet.Rules)
+	_, err := ruleSet.Upgrade()
+	return ruleSet, err
 }
 
+// reloadRules loads source rules with the current overrides; callers hold
+// sourceAccess or own the rule set exclusively.
 func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
-	rules := make([]adapter.HeadlessRule, len(headlessRules))
-	var err error
-	for i, ruleOptions := range headlessRules {
-		rules[i], err = NewHeadlessRule(s.ctx, ruleOptions)
-		if err != nil {
-			return E.Cause(err, "parse rule_set.rules.[", i, "]")
-		}
-	}
-	metadata := buildRuleSetMetadata(headlessRules)
-	err = validateRuleSetMetadataUpdate(s.ctx, s.tag, metadata)
+	rules, metadata, err := buildRuleSetRules(s.ctx, s.tag, headlessRules, s.overrides)
 	if err != nil {
 		return err
 	}
@@ -153,13 +170,93 @@ func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 	return nil
 }
 
-// ReloadInline replaces the rules of an inline rule set, as a live apply
-// changes them.
-func (s *LocalRuleSet) ReloadInline(rules []option.HeadlessRule) error {
+// ReloadInline replaces the rules and overrides of an inline rule set, as a
+// live apply changes them.
+func (s *LocalRuleSet) ReloadInline(rules []option.HeadlessRule, overrides *option.RuleSetOverrides) error {
 	if len(rules) == 0 {
 		return E.New("empty inline rule-set")
 	}
-	return s.reloadRules(rules)
+	if !s.IsInline() {
+		return E.New("rule-set ", s.tag, " is not inline")
+	}
+	s.sourceAccess.Lock()
+	defer s.sourceAccess.Unlock()
+	return s.withOverrides(overrides, func() error {
+		err := s.reloadRules(rules)
+		if err == nil {
+			s.inlineRules = rules
+		}
+		return err
+	})
+}
+
+// ReloadOverrides applies new overrides to the current source content, as
+// a live apply changes them.
+func (s *LocalRuleSet) ReloadOverrides(overrides *option.RuleSetOverrides) error {
+	s.sourceAccess.Lock()
+	defer s.sourceAccess.Unlock()
+	return s.withOverrides(overrides, func() error {
+		if s.IsInline() {
+			return s.reloadRules(s.inlineRules)
+		}
+		return s.reloadFile(s.filePath)
+	})
+}
+
+// withOverrides runs load with overrides in effect, restoring the previous
+// ones when it fails.
+func (s *LocalRuleSet) withOverrides(overrides *option.RuleSetOverrides, load func() error) error {
+	previous := s.overrides
+	s.overrides = overrides
+	err := load()
+	if err != nil {
+		s.overrides = previous
+	}
+	return err
+}
+
+// Update reads the rule set file again.
+func (s *LocalRuleSet) Update(ctx context.Context) error {
+	if s.IsInline() {
+		return E.New("inline rule-set cannot be updated")
+	}
+	s.sourceAccess.Lock()
+	defer s.sourceAccess.Unlock()
+	err := s.reloadFile(s.filePath)
+	s.setLastError(err)
+	return err
+}
+
+// LastError is the error of the last failed read of the file, empty after
+// a successful one.
+func (s *LocalRuleSet) LastError() string {
+	if value := s.lastError.Load(); value != nil {
+		return *value
+	}
+	return ""
+}
+
+func (s *LocalRuleSet) setLastError(err error) {
+	if err == nil {
+		s.lastError.Store(nil)
+		return
+	}
+	message := err.Error()
+	s.lastError.Store(&message)
+}
+
+// SourceContent returns the rules before the overrides apply.
+func (s *LocalRuleSet) SourceContent(ctx context.Context) (option.PlainRuleSetCompat, error) {
+	if s.IsInline() {
+		s.sourceAccess.Lock()
+		rules := s.inlineRules
+		s.sourceAccess.Unlock()
+		return option.PlainRuleSetCompat{
+			Version: C.RuleSetVersionCurrent,
+			Options: option.PlainRuleSet{Rules: rules},
+		}, nil
+	}
+	return s.readFile(s.filePath, true)
 }
 
 func (s *LocalRuleSet) Metadata() adapter.RuleSetMetadata {

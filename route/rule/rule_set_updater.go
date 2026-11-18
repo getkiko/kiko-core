@@ -8,6 +8,10 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 )
 
+// ruleSetUpdateRetry is the wait before a scheduled update that found the
+// rule set busy runs again.
+var ruleSetUpdateRetry = time.Minute
+
 type RuleSetUpdater struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -45,7 +49,7 @@ func (u *RuleSetUpdater) Close() error {
 func (u *RuleSetUpdater) loopUpdate() {
 	nextUpdates := make([]time.Time, len(u.ruleSets))
 	for i, ruleSet := range u.ruleSets {
-		nextUpdates[i] = ruleSet.lastUpdated.Add(ruleSet.updateInterval)
+		nextUpdates[i] = ruleSet.lastUpdatedTime().Add(ruleSet.updateInterval)
 	}
 	timer := time.NewTimer(0)
 	defer timer.Stop()
@@ -61,7 +65,11 @@ func (u *RuleSetUpdater) loopUpdate() {
 			if now.Before(nextUpdates[i]) {
 				continue
 			}
-			ruleSet.updateOnce()
+			if !ruleSet.updateOnce() {
+				// A manual update or a source read holds the rule set.
+				nextUpdates[i] = now.Add(ruleSetUpdateRetry)
+				continue
+			}
 			nextUpdates[i] = now.Add(ruleSet.updateInterval)
 			updated = true
 		}

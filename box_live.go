@@ -139,6 +139,10 @@ func (s *Box) liveRestartReason(oldOptions, newOptions option.Options) (string, 
 			return it.reason, nil
 		}
 	}
+	reason, err := s.ruleSetOverridesRestartReason(oldRoute.RuleSet, newRoute.RuleSet)
+	if err != nil || reason != "" {
+		return reason, err
+	}
 	if route.NeedFindProcess(newRoute, newDNS) && !s.router.NeedFindProcess() {
 		return "new rules need process matching, restart required", nil
 	}
@@ -186,11 +190,12 @@ func liveServices(services []option.Service) []option.Service {
 	return services
 }
 
-// liveRuleSets are rule sets without the rules of the inline ones, which a
-// live apply reloads in place (reloadInlineRuleSets).
+// liveRuleSets are rule sets without their overrides and the rules of the
+// inline ones, which a live apply reloads in place (reloadRuleSets).
 func liveRuleSets(ruleSets []option.RuleSet) []option.RuleSet {
 	ruleSets = append([]option.RuleSet(nil), ruleSets...)
 	for i := range ruleSets {
+		ruleSets[i].Overrides = nil
 		if ruleSets[i].Type == C.RuleSetTypeInline {
 			ruleSets[i].InlineOptions = option.PlainRuleSet{}
 		}
@@ -198,37 +203,127 @@ func liveRuleSets(ruleSets []option.RuleSet) []option.RuleSet {
 	return ruleSets
 }
 
-// reloadInlineRuleSets gives the running inline rule sets the rules of
-// newSets that changed. liveRestartReason has made sure both lists hold
-// the same rule sets in the same order.
-func (s *Box) reloadInlineRuleSets(oldSets, newSets []option.RuleSet) error {
+type liveInlineRuleSet interface {
+	ReloadInline(rules []option.HeadlessRule, overrides *option.RuleSetOverrides) error
+}
+
+type liveOverridesRuleSet interface {
+	ReloadOverrides(overrides *option.RuleSetOverrides) error
+}
+
+// liveSavedContentRuleSet is a remote rule set, which reapplies overrides
+// to saved content only.
+type liveSavedContentRuleSet interface {
+	HasSavedContent() bool
+}
+
+// ruleSetChanges reports, per rule set of newSets, whether its overrides or
+// inline rules differ from oldSets.
+func (s *Box) ruleSetChanges(oldSets, newSets []option.RuleSet) ([]bool, error) {
+	changes := make([]bool, len(newSets))
 	for i, ruleSet := range newSets {
-		if ruleSet.Type != C.RuleSetTypeInline || i >= len(oldSets) {
+		if i >= len(oldSets) {
 			continue
 		}
-		equal, err := s.optionsEqual(oldSets[i].InlineOptions.Rules, ruleSet.InlineOptions.Rules)
+		equal, err := s.optionsEqual(oldSets[i].Overrides, ruleSet.Overrides)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if equal {
+		if equal && ruleSet.Type == C.RuleSetTypeInline {
+			equal, err = s.optionsEqual(oldSets[i].InlineOptions.Rules, ruleSet.InlineOptions.Rules)
+			if err != nil {
+				return nil, err
+			}
+		}
+		changes[i] = !equal
+	}
+	return changes, nil
+}
+
+// ruleSetOverridesRestartReason asks for a restart when a remote rule set
+// without saved content gets new overrides: applying them would mean a
+// download within the live apply.
+func (s *Box) ruleSetOverridesRestartReason(oldSets, newSets []option.RuleSet) (string, error) {
+	changes, err := s.ruleSetChanges(oldSets, newSets)
+	if err != nil {
+		return "", err
+	}
+	for i, ruleSet := range newSets {
+		if !changes[i] || ruleSet.Type != C.RuleSetTypeRemote {
 			continue
 		}
 		for _, tag := range ruleSet.Tag {
 			current, loaded := s.router.RuleSet(tag)
-			reloader, canReload := current.(interface {
-				ReloadInline(rules []option.HeadlessRule) error
-			})
-			if !loaded || !canReload {
-				return E.New("rule-set ", tag, " cannot be reloaded")
+			if !loaded {
+				continue
 			}
-			err = reloader.ReloadInline(ruleSet.InlineOptions.Rules)
+			if saved, isRemote := current.(liveSavedContentRuleSet); isRemote && !saved.HasSavedContent() {
+				return "overrides of rule set " + tag + " changed, restart required", nil
+			}
+		}
+	}
+	return "", nil
+}
+
+// reloadRuleSet gives one running rule set new inline rules or overrides.
+func (s *Box) reloadRuleSet(tag string, ruleSet option.RuleSet) error {
+	current, loaded := s.router.RuleSet(tag)
+	if !loaded {
+		return E.New("rule-set ", tag, " cannot be reloaded")
+	}
+	if ruleSet.Type == C.RuleSetTypeInline {
+		reloader, canReload := current.(liveInlineRuleSet)
+		if !canReload {
+			return E.New("rule-set ", tag, " cannot be reloaded")
+		}
+		return reloader.ReloadInline(ruleSet.InlineOptions.Rules, ruleSet.Overrides)
+	}
+	reloader, canReload := current.(liveOverridesRuleSet)
+	if !canReload {
+		return E.New("rule-set ", tag, " cannot be reloaded")
+	}
+	return reloader.ReloadOverrides(ruleSet.Overrides)
+}
+
+// reloadRuleSets gives the running rule sets the inline rules and the
+// overrides of newSets that changed. liveRestartReason has made sure both
+// lists hold the same rule sets in the same order. On failure the rule
+// sets already reloaded get their old options back; otherwise the returned
+// rollback does that, for a live apply that fails later.
+func (s *Box) reloadRuleSets(oldSets, newSets []option.RuleSet) (rollback func(), err error) {
+	changes, err := s.ruleSetChanges(oldSets, newSets)
+	if err != nil {
+		return nil, err
+	}
+	type reloaded struct {
+		tag     string
+		options option.RuleSet
+	}
+	var done []reloaded
+	rollback = func() {
+		for i := len(done) - 1; i >= 0; i-- {
+			rErr := s.reloadRuleSet(done[i].tag, done[i].options)
+			if rErr != nil {
+				s.logger.Error(E.Cause(rErr, "live apply: restore rule-set ", done[i].tag))
+			}
+		}
+		done = nil
+	}
+	for i, ruleSet := range newSets {
+		if !changes[i] {
+			continue
+		}
+		for _, tag := range ruleSet.Tag {
+			err = s.reloadRuleSet(tag, ruleSet)
 			if err != nil {
-				return E.Cause(err, "reload rule-set ", tag)
+				rollback()
+				return nil, E.Cause(err, "reload rule-set ", tag)
 			}
+			done = append(done, reloaded{tag: tag, options: oldSets[i]})
 			s.logger.Info("live apply: reloaded rule-set ", tag)
 		}
 	}
-	return nil
+	return rollback, nil
 }
 
 func liveRouteRest(options option.RouteOptions) *option.RouteOptions {
@@ -513,12 +608,13 @@ func (s *Box) applyLive(oldOptions, newOptions option.Options) error {
 	if err != nil {
 		return E.Cause(err, "reload scripts")
 	}
-	err = s.reloadInlineRuleSets(common.PtrValueOrDefault(oldOptions.Route).RuleSet, newRoute.RuleSet)
+	rollbackRuleSets, err := s.reloadRuleSets(common.PtrValueOrDefault(oldOptions.Route).RuleSet, newRoute.RuleSet)
 	if err != nil {
 		return err
 	}
 	oldDNSRules, err := s.dnsRouter.SwapRules(dnsRules)
 	if err != nil {
+		rollbackRuleSets()
 		return err
 	}
 	committed = true

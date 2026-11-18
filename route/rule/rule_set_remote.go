@@ -54,7 +54,22 @@ type RemoteRuleSet struct {
 	pauseManager   pause.Manager
 	callbacks      list.List[adapter.RuleSetUpdateCallback]
 	refs           atomic.Int32
+	// updateAccess (a semaphore, so waits can end with a context)
+	// serializes downloads and loads of the source content, and guards
+	// overrides, lastEtag and lastUpdated.
+	updateAccess chan struct{}
+	overrides    *option.RuleSetOverrides
+	lastError    atomic.Pointer[string]
 }
+
+var (
+	// remoteRuleSetUpdateTimeout bounds an update, waiting for a running
+	// one included.
+	remoteRuleSetUpdateTimeout = 60 * time.Second
+	// remoteRuleSetReloadWait bounds the wait of a live apply for a running
+	// update, within the client's live apply deadline.
+	remoteRuleSetReloadWait = 10 * time.Second
+)
 
 func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag string, options option.RuleSet) (*RemoteRuleSet, error) {
 	ctx, cancel := context.WithCancel(ctx)
@@ -80,6 +95,8 @@ func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag stri
 		urlHash:        sha256.Sum256([]byte(url)),
 		initialPath:    initialPath,
 		options:        options,
+		overrides:      options.Overrides,
+		updateAccess:   make(chan struct{}, 1),
 		updateInterval: updateInterval,
 		pauseManager:   service.FromContext[pause.Manager](ctx),
 	}, nil
@@ -93,6 +110,33 @@ func (s *RemoteRuleSet) LastUpdatedAtMillis() int64 {
 	return s.lastUpdatedAt.Load()
 }
 
+// LastError is the error of the last failed update, empty after a
+// successful one.
+func (s *RemoteRuleSet) LastError() string {
+	if value := s.lastError.Load(); value != nil {
+		return *value
+	}
+	return ""
+}
+
+func (s *RemoteRuleSet) setLastError(err error) {
+	if err == nil {
+		s.lastError.Store(nil)
+		return
+	}
+	message := err.Error()
+	s.lastError.Store(&message)
+}
+
+// lastUpdatedTime is lastUpdated without updateAccess.
+func (s *RemoteRuleSet) lastUpdatedTime() time.Time {
+	millis := s.lastUpdatedAt.Load()
+	if millis == 0 {
+		return time.Time{}
+	}
+	return time.UnixMilli(millis)
+}
+
 func (s *RemoteRuleSet) setLastUpdated(value time.Time) {
 	s.lastUpdated = value
 	s.lastUpdatedAt.Store(value.UnixMilli())
@@ -103,6 +147,11 @@ func (s *RemoteRuleSet) String() string {
 }
 
 func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.HTTPStartContext) error {
+	err := s.lock(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.unlock()
 	s.cacheFile = service.FromContext[adapter.CacheFile](s.ctx)
 	transport, err := s.resolveTransport()
 	if err != nil {
@@ -142,6 +191,7 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 	if s.lastUpdated.IsZero() && !loadedFromInitialPath {
 		err = s.fetch(ctx, true)
 		if err != nil {
+			s.setLastError(err)
 			return E.Cause(err, "initial rule-set: ", s.tag)
 		}
 	}
@@ -188,7 +238,7 @@ func (s *RemoteRuleSet) UnregisterCallback(element *list.Element[adapter.RuleSet
 	s.callbacks.Remove(element)
 }
 
-func (s *RemoteRuleSet) loadBytes(content []byte) error {
+func (s *RemoteRuleSet) decodeContent(content []byte, recover bool) (option.PlainRuleSetCompat, error) {
 	var (
 		ruleSet option.PlainRuleSetCompat
 		err     error
@@ -196,30 +246,26 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 	switch s.options.Format {
 	case C.RuleSetFormatSource:
 		ruleSet, err = json.UnmarshalExtended[option.PlainRuleSetCompat](content)
-		if err != nil {
-			return err
-		}
 	case C.RuleSetFormatBinary:
-		ruleSet, err = srs.Read(bytes.NewReader(content), false)
-		if err != nil {
-			return err
-		}
+		ruleSet, err = srs.Read(bytes.NewReader(content), recover)
 	default:
-		return E.New("unknown rule-set format: ", s.options.Format)
+		err = E.New("unknown rule-set format: ", s.options.Format)
 	}
-	plainRuleSet, err := ruleSet.Upgrade()
+	if err != nil {
+		return ruleSet, err
+	}
+	_, err = ruleSet.Upgrade()
+	return ruleSet, err
+}
+
+// loadBytes loads downloaded or cached content with the current overrides;
+// callers hold updateAccess.
+func (s *RemoteRuleSet) loadBytes(content []byte) error {
+	ruleSet, err := s.decodeContent(content, false)
 	if err != nil {
 		return err
 	}
-	rules := make([]adapter.HeadlessRule, len(plainRuleSet.Rules))
-	for i, ruleOptions := range plainRuleSet.Rules {
-		rules[i], err = NewHeadlessRule(s.ctx, ruleOptions)
-		if err != nil {
-			return E.Cause(err, "parse rule_set.rules.[", i, "]")
-		}
-	}
-	metadata := buildRuleSetMetadata(plainRuleSet.Rules)
-	err = validateRuleSetMetadataUpdate(s.ctx, s.tag, metadata)
+	rules, metadata, err := buildRuleSetRules(s.ctx, s.tag, ruleSet.Options.Rules, s.overrides)
 	if err != nil {
 		return err
 	}
@@ -234,15 +280,139 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 	return nil
 }
 
-func (s *RemoteRuleSet) updateOnce() {
-	err := s.fetch(s.ctx, false)
+// savedContent is the content the rule set last loaded, from the cache
+// file or the initial path; nil when neither holds it.
+func (s *RemoteRuleSet) savedContent() []byte {
+	if s.cacheFile != nil {
+		savedSet := s.cacheFile.LoadRuleSet(s.tag)
+		if savedSet != nil && len(savedSet.Content) > 0 && (len(savedSet.URLHash) == 0 || bytes.Equal(savedSet.URLHash, s.urlHash[:])) {
+			return savedSet.Content
+		}
+	}
+	if s.initialPath != "" {
+		content, err := filemanager.ReadFile(s.ctx, s.initialPath)
+		if err == nil {
+			return content
+		}
+	}
+	return nil
+}
+
+// lock takes updateAccess, giving up when ctx ends.
+func (s *RemoteRuleSet) lock(ctx context.Context) error {
+	select {
+	case s.updateAccess <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return E.Cause(ctx.Err(), "rule-set ", s.tag, " is busy")
+	}
+}
+
+func (s *RemoteRuleSet) tryLock() bool {
+	select {
+	case s.updateAccess <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *RemoteRuleSet) unlock() {
+	<-s.updateAccess
+}
+
+// updateOnce runs a scheduled update; false when another operation holds
+// the rule set and the update did not run.
+func (s *RemoteRuleSet) updateOnce() bool {
+	if !s.tryLock() {
+		return false
+	}
+	defer s.unlock()
+	ctx, cancel := context.WithTimeout(s.ctx, remoteRuleSetUpdateTimeout)
+	defer cancel()
+	err := s.fetch(ctx, false)
+	s.setLastError(err)
 	if err != nil {
 		s.logger.Error("fetch rule-set ", s.tag, ": ", err)
 	} else if s.refs.Load() == 0 {
 		s.rules = nil
 	}
+	return true
 }
 
+// Update downloads the rule set now. Content the server reports unchanged
+// counts as a successful update. Waiting for a running update counts
+// towards the timeout.
+func (s *RemoteRuleSet) Update(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, remoteRuleSetUpdateTimeout)
+	defer cancel()
+	stop := context.AfterFunc(s.ctx, cancel)
+	defer stop()
+	err := s.lock(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.unlock()
+	if s.httpClient == nil {
+		return E.New("rule-set ", s.tag, " is not started")
+	}
+	err = s.fetch(ctx, false)
+	s.setLastError(err)
+	if err != nil {
+		s.logger.Error("fetch rule-set ", s.tag, ": ", err)
+		return err
+	}
+	if s.refs.Load() == 0 {
+		s.rules = nil
+	}
+	return nil
+}
+
+// HasSavedContent reports whether overrides can apply without a download.
+// It reads the cache file and the initial path only, so it needs no lock.
+func (s *RemoteRuleSet) HasSavedContent() bool {
+	return s.savedContent() != nil
+}
+
+// ReloadOverrides applies new overrides to the saved content, as a live
+// apply changes them. Without saved content it fails; the live apply asks
+// for a restart instead (HasSavedContent).
+func (s *RemoteRuleSet) ReloadOverrides(overrides *option.RuleSetOverrides) error {
+	ctx, cancel := context.WithTimeout(s.ctx, remoteRuleSetReloadWait)
+	defer cancel()
+	err := s.lock(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.unlock()
+	content := s.savedContent()
+	if content == nil {
+		return E.New("rule-set ", s.tag, " has no saved content")
+	}
+	previous := s.overrides
+	s.overrides = overrides
+	err = s.loadBytes(content)
+	if err != nil {
+		s.overrides = previous
+	}
+	return err
+}
+
+// SourceContent returns the saved content before the overrides apply.
+func (s *RemoteRuleSet) SourceContent(ctx context.Context) (option.PlainRuleSetCompat, error) {
+	err := s.lock(ctx)
+	if err != nil {
+		return option.PlainRuleSetCompat{}, err
+	}
+	content := s.savedContent()
+	s.unlock()
+	if content == nil {
+		return option.PlainRuleSetCompat{}, ErrRuleSetNoContent
+	}
+	return s.decodeContent(content, true)
+}
+
+// fetch downloads the rule set; callers hold updateAccess.
 func (s *RemoteRuleSet) fetch(ctx context.Context, isStart bool) error {
 	s.logger.Debug("updating rule-set ", s.tag, " from URL: ", s.url)
 	request, err := http.NewRequest("GET", s.url, nil)

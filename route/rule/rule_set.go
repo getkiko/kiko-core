@@ -2,6 +2,8 @@ package rule
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"reflect"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -14,6 +16,10 @@ import (
 
 	"go4.org/netipx"
 )
+
+// ErrRuleSetNoContent is returned for the source content of a remote rule
+// set without a saved copy; it matches os.ErrNotExist.
+var ErrRuleSetNoContent = fmt.Errorf("rule-set has no saved content: %w", os.ErrNotExist)
 
 func NewRuleSet(ctx context.Context, logger logger.ContextLogger, tag string, options option.RuleSet) (adapter.RuleSet, error) {
 	switch options.Type {
