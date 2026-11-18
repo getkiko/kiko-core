@@ -166,3 +166,20 @@ func collectDNSRuleReferences(rules []option.DNSRule, mode string, transports *[
 	}
 	return false
 }
+
+// dnsRulesUseScript reports whether any DNS rule has the script action.
+func dnsRulesUseScript(rules []option.DNSRule) bool {
+	for _, rule := range rules {
+		switch rule.Type {
+		case C.RuleTypeDefault, "":
+			if rule.DefaultOptions.Action == C.RuleActionTypeScript {
+				return true
+			}
+		case C.RuleTypeLogical:
+			if rule.LogicalOptions.Action == C.RuleActionTypeScript {
+				return true
+			}
+		}
+	}
+	return false
+}

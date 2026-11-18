@@ -223,6 +223,7 @@ func (e *Engine) serve(ctx context.Context, conn net.Conn, upstream net.Conn, re
 			Connection: connection,
 			Rewrite:    e.rewriteSet,
 			Internal:   e.internalDialer(metadata),
+			Scripts:    e.scriptsFor(metadata),
 		}
 		if redial != nil {
 			options.Redial = func(ctx context.Context) (net.Conn, error) {
@@ -241,6 +242,7 @@ func (e *Engine) serve(ctx context.Context, conn net.Conn, upstream net.Conn, re
 		Connection: connection,
 		Rewrite:    e.rewriteSet,
 		Internal:   e.internalDialer(metadata),
+		Scripts:    e.scriptsFor(metadata),
 	}
 	if redial != nil {
 		options.Redial = func(ctx context.Context) (net.Conn, error) {

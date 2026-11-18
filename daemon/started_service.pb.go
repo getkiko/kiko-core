@@ -466,7 +466,11 @@ type PolicyTestResult struct {
 	ConfigRevision    string                 `protobuf:"bytes,11,opt,name=config_revision,json=configRevision,proto3" json:"config_revision,omitempty"`
 	// mitm is the HTTPS decryption result of the tested connection: empty
 	// when not intercepted, "decrypt", "skip:<reason>" or "block_quic".
-	Mitm          string `protobuf:"bytes,12,opt,name=mitm,proto3" json:"mitm,omitempty"`
+	Mitm string `protobuf:"bytes,12,opt,name=mitm,proto3" json:"mitm,omitempty"`
+	// script_maybe lists the rule and dns scripts a test skipped: the result is
+	// exact only if each of them gives the answer the test assumed (a script
+	// condition false, a script action passing). Empty when no script was met.
+	ScriptMaybe   []string `protobuf:"bytes,13,rep,name=script_maybe,json=scriptMaybe,proto3" json:"script_maybe,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -583,6 +587,13 @@ func (x *PolicyTestResult) GetMitm() string {
 		return x.Mitm
 	}
 	return ""
+}
+
+func (x *PolicyTestResult) GetScriptMaybe() []string {
+	if x != nil {
+		return x.ScriptMaybe
+	}
+	return nil
 }
 
 type ServiceStatus struct {
@@ -8566,7 +8577,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\bprotocol\x18\a \x01(\tR\bprotocol\x12\x1f\n" +
 	"\vsource_port\x18\b \x01(\rR\n" +
 	"sourcePort\x12)\n" +
-	"\x10destination_port\x18\t \x01(\rR\x0fdestinationPort\"\x87\x03\n" +
+	"\x10destination_port\x18\t \x01(\rR\x0fdestinationPort\"\xaa\x03\n" +
 	"\x10PolicyTestResult\x12\x16\n" +
 	"\x06action\x18\x01 \x01(\tR\x06action\x12\x12\n" +
 	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x1d\n" +
@@ -8584,7 +8595,8 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\ttested_at\x18\n" +
 	" \x01(\x03R\btestedAt\x12'\n" +
 	"\x0fconfig_revision\x18\v \x01(\tR\x0econfigRevision\x12\x12\n" +
-	"\x04mitm\x18\f \x01(\tR\x04mitm\"\xad\x01\n" +
+	"\x04mitm\x18\f \x01(\tR\x04mitm\x12!\n" +
+	"\fscript_maybe\x18\r \x03(\tR\vscriptMaybe\"\xad\x01\n" +
 	"\rServiceStatus\x122\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1a.daemon.ServiceStatus.TypeR\x06status\x12\"\n" +
 	"\ferrorMessage\x18\x02 \x01(\tR\ferrorMessage\"D\n" +

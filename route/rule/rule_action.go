@@ -173,6 +173,11 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			Ns:     common.Map(action.PredefinedOptions.Ns, option.DNSRecordOptions.Build),
 			Extra:  common.Map(action.PredefinedOptions.Extra, option.DNSRecordOptions.Build),
 		}
+	case C.RuleActionTypeScript:
+		return &RuleActionDNSScript{
+			Script:  action.ScriptOptions.Script,
+			OnError: action.ScriptOptions.OnError,
+		}
 	default:
 		panic(F.ToString("unknown rule action: ", action.Action))
 	}
@@ -646,4 +651,30 @@ func rewriteRecords(records []dns.RR, question dns.Question) []dns.RR {
 		}
 		return it
 	})
+}
+
+// RuleActionDNSScript is the `script` DNS action: the dns script Script decides how the
+// query is answered (an address list, a response code, another DNS server, or nothing, which
+// passes to the next rule). The DNS router resolves it to one of the other actions when the
+// rule matches.
+type RuleActionDNSScript struct {
+	Script string
+	// OnError is "continue" (default) or "reject": what a failed script does.
+	OnError string
+}
+
+func (r *RuleActionDNSScript) Type() string {
+	return C.RuleActionTypeScript
+}
+
+func (r *RuleActionDNSScript) String() string {
+	if r.OnError == "reject" {
+		return F.ToString("script(", r.Script, ",on_error=reject)")
+	}
+	return F.ToString("script(", r.Script, ")")
+}
+
+// RejectOnError reports whether a failed script refuses the query.
+func (r *RuleActionDNSScript) RejectOnError() bool {
+	return r.OnError == "reject"
 }

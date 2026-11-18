@@ -89,6 +89,10 @@ message PolicyTestResult {
   // mitm is the HTTPS decryption result of the tested connection: empty
   // when not intercepted, "decrypt", "skip:<reason>" or "block_quic".
   string mitm = 12;
+  // script_maybe lists the rule and dns scripts a test skipped: the result is
+  // exact only if each of them gives the answer the test assumed (a script
+  // condition false, a script action passing). Empty when no script was met.
+  repeated string script_maybe = 13;
 }
 
 message ServiceStatus {

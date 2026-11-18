@@ -16,6 +16,9 @@ import (
 )
 
 func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DNSRule, checkServer bool, legacyDNSMode bool) (adapter.DNSRule, error) {
+	if err := validateInvertScriptDNS(options); err != nil {
+		return nil, err
+	}
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
@@ -27,6 +30,9 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 		err := validateDNSRuleAction(options.DefaultOptions.DNSRuleAction)
 		if err != nil {
 			return nil, err
+		}
+		if options.DefaultOptions.Action == C.RuleActionTypeScript && options.DefaultOptions.MatchResponse.IsEnabled() {
+			return nil, E.New("`script` action cannot be combined with `match_response`")
 		}
 		if options.DefaultOptions.Race && !options.DefaultOptions.MatchResponse.IsEnabled() {
 			return nil, E.New("`race` requires `match_response`")
@@ -72,6 +78,16 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 func validateDNSRuleAction(action option.DNSRuleAction) error {
 	if action.Action == C.RuleActionTypeReject && action.RejectOptions.Method == C.RuleActionRejectMethodReply {
 		return E.New("reject method `reply` is not supported for DNS rules")
+	}
+	if action.Action == C.RuleActionTypeScript {
+		if action.ScriptOptions.Script == "" {
+			return E.New("missing dns_script field")
+		}
+		switch action.ScriptOptions.OnError {
+		case "", "continue", "reject":
+		default:
+			return E.New("invalid on_error: ", action.ScriptOptions.OnError, " (continue or reject)")
+		}
 	}
 	var routeOptions option.AbstractDNSRouteActionOptions
 	switch action.Action {
@@ -401,6 +417,11 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, options.RuleSetIPCIDRAcceptEmpty) //nolint:staticcheck
 		rule.ruleSetItem = item
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.Script) > 0 {
+		item := NewScriptItem(ctx, logger, options.Script)
+		rule.scriptItem = item
 		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil

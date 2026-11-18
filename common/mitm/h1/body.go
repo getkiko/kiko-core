@@ -10,6 +10,8 @@ import (
 	"github.com/sagernet/sing-box/common/mitm/flow"
 	"github.com/sagernet/sing-box/common/mitm/httpx"
 	"github.com/sagernet/sing-box/common/mitm/rewrite"
+	"github.com/sagernet/sing-box/common/mitm/scripthook"
+	"github.com/sagernet/sing-box/script"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -57,7 +59,7 @@ func dropDigests(header *httpx.Header, hits []flow.RewriteHit, trailer httpx.Hea
 // collectRequest buffers the request body for body rules before the head is forwarded. It
 // returns nil when the rules do not select the request. An error means the request body could
 // not be read; the caller answers and ends the connection.
-func (s *session) collectRequest(plan *rewrite.Plan, set *rewrite.Set, framing *httpx.Framing, http10 bool) (*rewrite.Held, error) {
+func (s *session) collectRequest(plan *rewrite.Plan, set *rewrite.Set, framing *httpx.Framing, http10 bool, sx *scripthook.Exchange) (*rewrite.Held, error) {
 	req := &s.req
 	var src io.Reader
 	length := int64(-1)
@@ -70,8 +72,8 @@ func (s *session) collectRequest(plan *rewrite.Plan, set *rewrite.Set, framing *
 		src = &s.bodyChunkedR
 	}
 	contentType := req.Header.Get("Content-Type")
-	return plan.Hold(rewrite.ScopeRequest, contentType, joinValues(req.Header, "Content-Encoding"), src, length,
-		rewrite.StreamingMessage(rewrite.ScopeRequest, req.Method, 0, contentType, false), set.MaxBodySize(), &s.reserved,
+	return plan.HoldFor(rewrite.ScopeRequest, contentType, joinValues(req.Header, "Content-Encoding"), src, length,
+		rewrite.StreamingMessage(rewrite.ScopeRequest, req.Method, 0, contentType, false), max(set.MaxBodySize(), sx.MaxBody(script.PhaseRequest)), set.MaxBodySize(), &s.reserved,
 		func() {
 			if !http10 && req.Header.HasToken("Expect", "100-continue") {
 				// The client waits for permission to send the body. The expectation is answered
@@ -79,19 +81,20 @@ func (s *session) collectRequest(plan *rewrite.Plan, set *rewrite.Set, framing *
 				s.reply(continueReply)
 				req.Header.Del("Expect")
 			}
-		})
+		}, sx.WantsBody(script.PhaseRequest, true))
 }
 
 // collectResponse buffers the response body for body rules before the head is forwarded. spent
 // reports a body delimited by close.
-func (s *session) collectResponse(plan *rewrite.Plan, set *rewrite.Set, method string) (held *rewrite.Held, spent bool, err error) {
+func (s *session) collectResponse(plan *rewrite.Plan, set *rewrite.Set, method string, sx *scripthook.Exchange) (held *rewrite.Held, spent bool, err error) {
 	resp := &s.resp
 	contentType := resp.Header.Get("Content-Type")
-	if !plan.NeedsBody(rewrite.ScopeResponse, contentType) {
+	want := sx.WantsBody(script.PhaseResponse, true)
+	if !want && !plan.NeedsBody(rewrite.ScopeResponse, contentType) {
 		return nil, false, nil
 	}
 	if rewrite.StreamingMessage(rewrite.ScopeResponse, method, resp.StatusCode, contentType, s.req.Header.Has("Range")) {
-		held, err = plan.Hold(rewrite.ScopeResponse, contentType, "", nil, -1, true, 0, &s.reserved, nil)
+		held, err = plan.HoldFor(rewrite.ScopeResponse, contentType, "", nil, -1, true, 0, 0, &s.reserved, nil, want)
 		return held, false, err
 	}
 	framing, ferr := httpx.ResponseFraming(method, resp)
@@ -100,7 +103,7 @@ func (s *session) collectResponse(plan *rewrite.Plan, set *rewrite.Set, method s
 		return nil, false, nil
 	}
 	if framing.Codings != "" {
-		return &rewrite.Held{Hits: plan.SkipHits(rewrite.ScopeResponse, contentType, rewrite.SkipEncoding)}, false, nil
+		return &rewrite.Held{Hits: plan.SkipHits(rewrite.ScopeResponse, contentType, rewrite.SkipEncoding), Reason: rewrite.SkipEncoding}, false, nil
 	}
 	length := int64(-1)
 	var src io.Reader
@@ -118,7 +121,7 @@ func (s *session) collectResponse(plan *rewrite.Plan, set *rewrite.Set, method s
 	default:
 		src = s.upstreamR
 	}
-	held, err = plan.Hold(rewrite.ScopeResponse, contentType, joinValues(resp.Header, "Content-Encoding"), src, length, false, set.MaxBodySize(), &s.reserved, nil)
+	held, err = plan.HoldFor(rewrite.ScopeResponse, contentType, joinValues(resp.Header, "Content-Encoding"), src, length, false, max(set.MaxBodySize(), sx.MaxBody(script.PhaseResponse)), set.MaxBodySize(), &s.reserved, nil, want)
 	return held, framing.Kind == httpx.BodyClose, err
 }
 

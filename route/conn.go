@@ -150,6 +150,14 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		return
 	}
 	reportGroupDial(&metadata, N.NetworkTCP, dialStart, nil)
+	if metadata.ScriptClient {
+		if refused := m.scriptAddressRefused(this, remoteConn); refused != nil {
+			remoteConn.Close()
+			N.CloseOnHandshakeFailure(conn, onClose, refused)
+			m.logger.WarnContext(ctx, refused)
+			return
+		}
+	}
 	meter, onClose := newGroupMeter(&metadata, onClose)
 	remoteConn = meter.wrap(remoteConn)
 	err = N.ReportConnHandshakeSuccess(conn, remoteConn)

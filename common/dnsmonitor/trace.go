@@ -173,6 +173,7 @@ func (t *Trace) copy(brief bool) Query {
 	q := t.q
 	q.Questions = append(make([]Question, 0, len(q.Questions)), q.Questions...)
 	q.Policy = append([]string(nil), q.Policy...)
+	q.Scripts = append([]ScriptRun(nil), q.Scripts...)
 	q.Candidates = append([]string(nil), q.Candidates...)
 	q.ResolvedAddresses = append([]string(nil), q.ResolvedAddresses...)
 	q.Attempts = append([]Attempt(nil), q.Attempts...)

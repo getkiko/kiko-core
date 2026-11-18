@@ -13,6 +13,9 @@ import (
 )
 
 func NewRule(ctx context.Context, logger log.ContextLogger, options option.Rule, checkOutbound bool) (adapter.Rule, error) {
+	if err := validateInvertScript(options); err != nil {
+		return nil, err
+	}
 	switch options.Type {
 	case "", C.RuleTypeDefault:
 		if !options.DefaultOptions.IsValid() {
@@ -294,6 +297,11 @@ func NewDefaultRule(ctx context.Context, logger log.ContextLogger, options optio
 		}
 		item := NewRuleSetItem(router, options.RuleSet, matchSource, false)
 		rule.ruleSetItem = item
+		rule.allItems = append(rule.allItems, item)
+	}
+	if len(options.Script) > 0 {
+		item := NewScriptItem(ctx, logger, options.Script)
+		rule.scriptItem = item
 		rule.allItems = append(rule.allItems, item)
 	}
 	return rule, nil

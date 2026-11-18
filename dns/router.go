@@ -371,6 +371,7 @@ func (r *Router) matchDNS(ctx context.Context, rules []adapter.DNSRule, allowFak
 			} else {
 				r.logger.DebugContext(ctx, "match[", currentRuleIndex, "] => ", currentRule.Action())
 			}
+			currentRule = r.resolveScriptAction(ctx, currentRule, metadata)
 			switch action := currentRule.Action().(type) {
 			case *R.RuleActionDNSRoute:
 				transport, loaded := r.routeTransport(action)
@@ -730,6 +731,7 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 			state.lastLoggedIndex = state.ruleIndex
 			r.logRuleMatch(ctx, state.ruleIndex, currentRule)
 		}
+		currentRule = r.resolveScriptAction(ctx, currentRule, metadata)
 		switch action := currentRule.Action().(type) {
 		case *R.RuleActionDNSRouteOptions:
 			r.applyDNSRouteOptions(&state.effectiveOptions, *action)
@@ -1041,6 +1043,7 @@ func (r *Router) resolveLookupStrategy(options adapter.DNSQueryOptions) C.Domain
 func withLookupQueryMetadata(ctx context.Context, qType uint16) context.Context {
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.QueryType = qType
+	metadata.ScriptQueryType = 0
 	metadata.QueryClientSubnet = netip.Prefix{}
 	metadata.QueryDNSSEC = false
 	metadata.IPVersion = 0
@@ -1190,6 +1193,7 @@ func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsEx
 	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
 	metadata.QueryType = message.Question[0].Qtype
+	metadata.ScriptQueryType = 0
 	metadata.DNSResponse = nil
 	metadata.NamedDNSResponses = nil
 	metadata.DestinationAddressMatchFromResponse = false
@@ -1421,6 +1425,7 @@ func (r *Router) lookup(ctx context.Context, domain string, options adapter.DNSQ
 		for {
 			dnsCtx := adapter.OverrideContext(ctx)
 			dnsOptions := options
+			metadata.ScriptQueryType = legacyLookupQueryType(options.Strategy, r.defaultDomainStrategy)
 			transport, rule, ruleIndex = r.matchDNS(ctx, rules, false, ruleIndex, true, &dnsOptions)
 			if rule != nil {
 				switch action := rule.Action().(type) {
@@ -1463,6 +1468,21 @@ response:
 		r.logger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
 	}
 	return responseAddrs, err
+}
+
+// legacyLookupQueryType is the question type a legacy-mode lookup reports to rules: one family
+// when the strategy limits the lookup to it, 0 (both families) otherwise.
+func legacyLookupQueryType(strategy, fallback C.DomainStrategy) uint16 {
+	if strategy == C.DomainStrategyAsIS {
+		strategy = fallback
+	}
+	switch strategy {
+	case C.DomainStrategyIPv4Only:
+		return mDNS.TypeA
+	case C.DomainStrategyIPv6Only:
+		return mDNS.TypeAAAA
+	}
+	return 0
 }
 
 func isResolverDiscoveryQuery(question mDNS.Question) bool {

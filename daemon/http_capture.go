@@ -428,6 +428,18 @@ func rewriteHitsToProto(hits []flow.RewriteHit) []*mitmapi.HTTPRewriteHit {
 			Target: hit.Target,
 			Status: int32(hit.Status),
 		}
+		if run := hit.Run; run != nil {
+			out.Run = &mitmapi.HTTPScriptRun{
+				Tag:        hit.Target,
+				Phase:      run.Phase,
+				DurationUs: run.Duration.Microseconds(),
+				Error:      run.Error,
+				Reason:     run.Reason,
+			}
+			for _, line := range run.Logs {
+				out.Run.Logs = append(out.Run.Logs, &mitmapi.HTTPScriptLog{Level: line.Level, Message: line.Message})
+			}
+		}
 		for j := range hit.Changes {
 			change := &hit.Changes[j]
 			out.Changes = append(out.Changes, &mitmapi.HTTPRewriteChange{

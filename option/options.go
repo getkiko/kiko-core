@@ -29,6 +29,7 @@ type _Options struct {
 	Services             []Service             `json:"services,omitempty"`
 	Experimental         *ExperimentalOptions  `json:"experimental,omitempty"`
 	MITM                 *MITMOptions          `json:"mitm,omitempty"`
+	Scripts              []ScriptOptions       `json:"scripts,omitempty"`
 }
 
 type Options _Options

@@ -13,6 +13,7 @@ import (
 
 	"github.com/sagernet/sing-box/common/mitm/flow"
 	"github.com/sagernet/sing-box/common/mitm/rewrite"
+	"github.com/sagernet/sing-box/common/mitm/scripthook"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -110,7 +111,7 @@ func (s *session) internalTransport(in *rewrite.Internal) (*http.Transport, erro
 
 // relayInternal sends the request to the origin of an internal rewrite over its own HTTP/1.1
 // connection and relays the answer. A failure is a 502; the original host is never tried.
-func (s *session) relayInternal(w http.ResponseWriter, r *http.Request, g *hookGuard, in *rewrite.Internal, build func() *http.Request, ob *observed, plan *rewrite.Plan, set *rewrite.Set, reserved *int64, ranged bool) error {
+func (s *session) relayInternal(w http.ResponseWriter, r *http.Request, g *hookGuard, in *rewrite.Internal, build func() *http.Request, ob *observed, plan *rewrite.Plan, set *rewrite.Set, sx *scripthook.Exchange, reserved *int64, ranged bool) error {
 	transport, err := s.internalTransport(in)
 	if err != nil {
 		reply(w, http.StatusBadGateway)
@@ -129,7 +130,7 @@ func (s *session) relayInternal(w http.ResponseWriter, r *http.Request, g *hookG
 		return err
 	}
 	rewrite.ReleaseHold(reserved)
-	return s.respond(w, r, resp, ob, plan, set, ranged)
+	return s.respond(w, r, resp, ob, plan, set, sx, ranged)
 }
 
 // applyHeader runs the header rules of one side on header. The result is header itself when no
@@ -203,4 +204,32 @@ func (s *session) serveLocal(w http.ResponseWriter, r *http.Request, local *rewr
 	if ob != nil {
 		ob.resp.Done()
 	}
+}
+
+// rewriteSet returns the current rewrite rule set, nil without one.
+func (s *session) rewriteSet() *rewrite.Set {
+	if s.opts.Rewrite == nil {
+		return nil
+	}
+	return s.opts.Rewrite()
+}
+
+// scriptHeaders lists header for scripts: names in canonical form (the spelling scripts
+// know from HTTP/1), sorted.
+func scriptHeaders(header http.Header) []flow.Header {
+	out := flowHeaders(header)
+	for i := range out {
+		out[i].Name = textproto.CanonicalMIMEHeaderKey(out[i].Name)
+	}
+	return out
+}
+
+// headerFromFlow builds the header map back from a field list.
+func headerFromFlow(fields []flow.Header) http.Header {
+	out := make(http.Header, len(fields))
+	for _, f := range fields {
+		key := textproto.CanonicalMIMEHeaderKey(f.Name)
+		out[key] = append(out[key], f.Value)
+	}
+	return out
 }

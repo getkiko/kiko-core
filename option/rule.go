@@ -178,6 +178,7 @@ type RawDefaultRule struct {
 	SourceMACAddress         badoption.Listable[string]                                                  `json:"source_mac_address,omitempty"`
 	SourceHostname           badoption.Listable[string]                                                  `json:"source_hostname,omitempty"`
 	PreferredBy              badoption.Listable[string]                                                  `json:"preferred_by,omitempty"`
+	Script                   badoption.Listable[string]                                                  `json:"script,omitempty" reference:"script"`
 	RuleSet                  badoption.Listable[string]                                                  `json:"rule_set,omitempty" reference:"rule_set"`
 	RuleSetIPCIDRMatchSource bool                                                                        `json:"rule_set_ip_cidr_match_source,omitempty"`
 	Invert                   bool                                                                        `json:"invert,omitempty"`

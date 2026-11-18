@@ -153,6 +153,12 @@ func (m *ReferenceManager) update() {
 			transportQueue = append(transportQueue, defaultTransport.Tag())
 		}
 	}
+	if dnsRulesUseScript(m.dnsRules) {
+		// A dns script picks its server at run time, so any transport may be the one in use.
+		for _, transport := range transportManager.Transports() {
+			transportQueue = append(transportQueue, transport.Tag())
+		}
+	}
 	transportQueue = append(transportQueue, networkManager.DefaultOptions().DomainResolver)
 	if !collectRuleReferences(m.rules, mode, &outboundQueue, &transportQueue) {
 		defaultOutbound := outboundManager.Default()

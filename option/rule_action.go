@@ -88,13 +88,14 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 }
 
 type _DNSRuleAction struct {
-	Action              string                       `json:"action,omitempty" enum:"route,evaluate,respond,route-options,reject,predefined"`
+	Action              string                       `json:"action,omitempty" enum:"route,evaluate,respond,route-options,reject,predefined,script"`
 	Race                bool                         `json:"race,omitempty"`
 	RouteOptions        DNSRouteActionOptions        `json:"-"`
 	EvaluateOptions     DNSEvaluateActionOptions     `json:"-"`
 	RouteOptionsOptions DNSRouteOptionsActionOptions `json:"-"`
 	RejectOptions       RejectActionOptions          `json:"-"`
 	PredefinedOptions   DNSRouteActionPredefined     `json:"-"`
+	ScriptOptions       DNSScriptActionOptions       `json:"-"`
 }
 
 type DNSRuleAction _DNSRuleAction
@@ -118,6 +119,8 @@ func (r DNSRuleAction) MarshalJSON() ([]byte, error) {
 		v = r.RejectOptions
 	case C.RuleActionTypePredefined:
 		v = r.PredefinedOptions
+	case C.RuleActionTypeScript:
+		v = r.ScriptOptions
 	default:
 		return nil, E.New("unknown DNS rule action: " + r.Action)
 	}
@@ -144,6 +147,8 @@ func (r *DNSRuleAction) UnmarshalJSONContext(ctx context.Context, data []byte) e
 		v = &r.RejectOptions
 	case C.RuleActionTypePredefined:
 		v = &r.PredefinedOptions
+	case C.RuleActionTypeScript:
+		v = &r.ScriptOptions
 	default:
 		return E.New("unknown DNS rule action: " + r.Action)
 	}
@@ -315,6 +320,14 @@ type DNSRouteActionPredefined struct {
 	Extra  badoption.Listable[DNSRecordOptions] `json:"extra,omitempty"`
 }
 
+// DNSScriptActionOptions is the `script` DNS action: the dns script Script decides the
+// answer. A script that fails or times out passes to the next rule (OnError "continue", the
+// default) or refuses the query (OnError "reject").
+type DNSScriptActionOptions struct {
+	Script  string `json:"dns_script" reference:"script"`
+	OnError string `json:"on_error,omitempty" enum:"continue,reject"`
+}
+
 type actionVariant struct {
 	action         string
 	actionOptional bool
@@ -389,5 +402,6 @@ func dnsActionUnion(builder schema.Builder) (*schema.Node, error) {
 		{action: C.RuleActionTypeRouteOptions, structType: reflect.TypeFor[DNSRouteOptionsActionOptions](), build: raceProperty},
 		{action: C.RuleActionTypeReject, build: rejectWithRace},
 		{action: C.RuleActionTypePredefined, structType: reflect.TypeFor[DNSRouteActionPredefined](), build: raceProperty},
+		{action: C.RuleActionTypeScript, structType: reflect.TypeFor[DNSScriptActionOptions]()},
 	})
 }

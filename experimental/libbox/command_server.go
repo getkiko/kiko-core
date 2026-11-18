@@ -172,6 +172,7 @@ func (s *CommandServer) Start() error {
 	daemon.RegisterDNSMonitor(s.grpcServer, s.StartedService)
 	daemon.RegisterMITM(s.grpcServer, s.StartedService)
 	daemon.RegisterHTTPCapture(s.grpcServer, s.StartedService)
+	daemon.RegisterScript(s.grpcServer, s.StartedService)
 	daemon.RegisterManagedServiceServer(s.grpcServer, s.managedService)
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus(daemon.StartedService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)

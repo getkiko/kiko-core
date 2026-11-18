@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/common/mitm/rewrite"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/script"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -47,6 +48,7 @@ const (
 var (
 	_ adapter.MITMEngine          = (*Engine)(nil)
 	_ adapter.MITMCaptureProvider = (*Engine)(nil)
+	_ adapter.MITMScriptProvider  = (*Engine)(nil)
 	_ adapter.LifecycleService    = (*Engine)(nil)
 )
 
@@ -71,6 +73,10 @@ type Engine struct {
 	// capture records decrypted exchanges. It outlives reloads: Reload only
 	// changes its options, so the instance and the kept records stay.
 	capture *capture.Manager
+	// scripts runs the top-level "scripts"; it outlives reloads like capture.
+	scripts *script.Manager
+	// scriptHub keeps the recent console lines and notifications of scripts.
+	scriptHub *script.Hub
 	// controlPorts are the ports of the core's own control APIs on loopback; see
 	// SetControlEndpoints.
 	controlPorts atomic.Pointer[[]int]
@@ -116,6 +122,8 @@ func NewEngine(ctx context.Context, logger logger.ContextLogger, options *option
 		local:       newLocalAddresses(),
 		capture:     capture.New(capture.Options{}),
 	}
+	engine.scriptHub = script.NewHub(scriptLogger{logger})
+	engine.scripts = script.NewManager(script.ManagerOptions{Logger: engine.scriptHub, Notifier: engine.scriptHub})
 	commit, err := engine.Reload(options)
 	if err != nil {
 		closeCancel()
@@ -130,6 +138,11 @@ func (e *Engine) Name() string {
 }
 
 func (e *Engine) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	if stage == adapter.StartStateStarted {
+		// Cron scripts run only once the core is up: the store and $httpClient are attached.
+		e.scripts.StartSchedule()
+		return nil
+	}
 	if stage != adapter.StartStateInitialize {
 		return nil
 	}
@@ -144,6 +157,7 @@ func (e *Engine) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 // Close ends every decrypted session.
 func (e *Engine) Close() error {
 	e.closeCancel()
+	e.scripts.Close()
 	return nil
 }
 

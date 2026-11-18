@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -17,6 +18,8 @@ import (
 	"github.com/sagernet/sing-box/common/mitm/flow"
 	"github.com/sagernet/sing-box/common/mitm/httpx"
 	"github.com/sagernet/sing-box/common/mitm/rewrite"
+	"github.com/sagernet/sing-box/common/mitm/scripthook"
+	"github.com/sagernet/sing-box/script"
 	"github.com/sagernet/sing/common/buf"
 	sbufio "github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -60,6 +63,9 @@ type Options struct {
 	// connection; the regular upstream stays as it was. h1 owns the returned conn. nil makes such
 	// a request fail with 502.
 	Internal func(ctx context.Context, in *rewrite.Internal) (net.Conn, error)
+	// Scripts runs the http-request and http-response scripts that match a request, after the
+	// rewrite rules. nil disables scripts.
+	Scripts *script.Manager
 }
 
 const (
@@ -184,6 +190,8 @@ type session struct {
 	internalScheme string
 	// planSet is the rule set the current request was matched against.
 	planSet *rewrite.Set
+	// sx follows the scripts of the current request (nil without matching scripts).
+	sx *scripthook.Exchange
 	// respReplay, when set, replaces the response body source of copyResponseBody.
 	respReplay io.Reader
 
@@ -581,6 +589,8 @@ func (s *session) relay() error {
 		return E.Cause(err, "read request")
 	}
 	s.internalScheme = ""
+	originScheme := s.scheme()
+	originAuthority := req.Header.Get("Host")
 	plan := s.rewritePlan()
 	var requestHits []flow.RewriteHit
 	var external *rewrite.Internal
@@ -602,13 +612,21 @@ func (s *session) relay() error {
 		req.Header, hits = applyHeaders(plan, false, req.Header)
 		requestHits = append(requestHits, hits...)
 	}
+	var sx *scripthook.Exchange
+	if plan.Local() == nil && s.options.Scripts != nil && req.Method != "CONNECT" && len(req.Target) > 0 && req.Target[0] == '/' {
+		sx = scripthook.Begin(s.ctx, s.options.Scripts, s.rewriteSet(), s.scheme(), req.Header.Get("Host"), req.Target, req.Method)
+	}
+	s.sx = sx
 	var heldReq *rewrite.Held
 	var requestStart time.Time
-	if plan.HasBodyRules(rewrite.ScopeRequest) {
+	upgradeRequest := req.Header.HasToken("Connection", "upgrade")
+	hasBody := framing.Kind != httpx.BodyNone
+	wantBody := plan.HasBodyRules(rewrite.ScopeRequest) || sx.WantsBody(script.PhaseRequest, hasBody && !upgradeRequest)
+	if wantBody {
 		requestStart = time.Now()
 	}
-	if plan.HasBodyRules(rewrite.ScopeRequest) && framing.Kind != httpx.BodyNone && !req.Header.HasToken("Connection", "upgrade") {
-		heldReq, err = s.collectRequest(plan, s.planSet, &framing, !req.ProtoAtLeast(1, 1))
+	if wantBody && hasBody && !upgradeRequest {
+		heldReq, err = s.collectRequest(plan, s.planSet, &framing, !req.ProtoAtLeast(1, 1), sx)
 		if err != nil {
 			if err != io.ErrUnexpectedEOF && !E.IsClosedOrCanceled(err) {
 				s.rejectRequest(badRequest)
@@ -623,6 +641,40 @@ func (s *session) relay() error {
 			}
 			requestHits = append(requestHits, heldReq.Hits...)
 		}
+	}
+	var scriptLocal *rewrite.LocalResponse
+	if sx.HasResponse() {
+		sx.SetRequestHeaders(toFlowHeaders(req.Header))
+	}
+	if sx.HasRequest() {
+		out := sx.RunRequest(&scripthook.Message{
+			Headers:  toFlowHeaders(req.Header),
+			Held:     heldReq,
+			Encoding: joinValues(req.Header, "Content-Encoding"),
+			HasBody:  heldReq != nil,
+			Limit:    max(s.planSet.MaxBodySize(), sx.MaxBody(script.PhaseRequest)),
+		}, req.Target)
+		if out.HeadersChanged {
+			req.Header = fromFlowHeaders(out.Headers)
+		}
+		if out.Internal != nil {
+			in := out.Internal
+			req.Header.Set("Host", in.Authority)
+			req.Target = in.Target
+			s.internalScheme = in.Scheme
+			external = nil
+			if originHost, originPort := splitAuthority(originAuthority, originScheme); !in.SameOrigin(originScheme, originHost, originPort) {
+				external = in
+			}
+		}
+		if out.BodyChanged && heldReq != nil {
+			heldReq.Data, heldReq.Changed = out.Body, true
+			dropDigests(&req.Header, out.Hits, s.bodyChunkedR.Trailer())
+			editedLength(&req.Header, len(out.Body))
+			framing = httpx.Framing{Kind: httpx.BodyLength, Length: int64(len(out.Body))}
+		}
+		requestHits = append(requestHits, out.Hits...)
+		scriptLocal = out.Local
 	}
 	if s.options.Observer != nil {
 		s.observeRequest()
@@ -668,6 +720,9 @@ func (s *session) relay() error {
 
 	if local := plan.Local(); local != nil {
 		return s.serveLocal(local, framing.Kind != httpx.BodyNone, http10, closeAfter)
+	}
+	if scriptLocal != nil {
+		return s.serveLocal(scriptLocal, framing.Kind != httpx.BodyNone, http10, closeAfter)
 	}
 	if external != nil {
 		if err = s.enterInternal(external); err != nil {
@@ -828,28 +883,64 @@ func (s *session) relay() error {
 	var headAt time.Time
 	var heldSpent bool
 	var heldResp *rewrite.Held
-	buffering := plan.HasBodyRules(rewrite.ScopeResponse) && !(method == "CONNECT" && resp.StatusCode < 300)
+	tunnel := method == "CONNECT" && resp.StatusCode < 300
+	buffering := (plan.HasBodyRules(rewrite.ScopeResponse) || sx.WantsBody(script.PhaseResponse, true)) && !tunnel
 	if buffering {
 		headAt = time.Now()
 	}
-	if plan.HasResponseEdits() && !(method == "CONNECT" && resp.StatusCode < 300) {
+	if plan.HasResponseEdits() && !tunnel {
 		resp.Header, responseHits = applyHeaders(plan, true, resp.Header)
 	}
 	if buffering {
-		heldResp, heldSpent, err = s.collectResponse(plan, s.planSet, method)
+		heldResp, heldSpent, err = s.collectResponse(plan, s.planSet, method, sx)
 		if err != nil {
 			s.debug("read response body: ", err)
 			s.reply(badGateway)
 			return E.Cause(err, "read response body")
 		}
-		if heldResp != nil {
-			if heldResp.Changed {
-				dropDigests(&resp.Header, heldResp.Hits, s.chunkedR.Trailer())
-				editedLength(&resp.Header, len(heldResp.Data))
+	}
+	var scriptHits []flow.RewriteHit
+	if sx.HasResponse() && !tunnel {
+		out := sx.RunResponse(&scripthook.Message{
+			Headers:  toFlowHeaders(resp.Header),
+			Status:   resp.StatusCode,
+			Held:     heldResp,
+			Encoding: joinValues(resp.Header, "Content-Encoding"),
+			HasBody:  heldResp != nil,
+			Limit:    max(s.planSet.MaxBodySize(), sx.MaxBody(script.PhaseResponse)),
+			Head:     method == "HEAD",
+		})
+		scriptHits = out.Hits
+		if out.Local != nil {
+			// The script dropped the connection.
+			if heldResp != nil {
+				responseHits = append(responseHits, heldResp.Hits...)
 			}
-			responseHits = append(responseHits, heldResp.Hits...)
+			if s.obs != nil {
+				s.obs.Rewritten(append(append(responseHits, scriptHits...), out.Local.Hit))
+			}
+			s.abortErr = errRewriteAbort
+			return errClose
+		}
+		if out.HeadersChanged {
+			resp.Header = fromFlowHeaders(out.Headers)
+		}
+		if out.Status != 0 {
+			resp.StatusCode = out.Status
+			resp.Reason = http.StatusText(out.Status)
+		}
+		if out.BodyChanged && heldResp != nil {
+			heldResp.Data, heldResp.Changed = out.Body, true
 		}
 	}
+	if heldResp != nil {
+		if heldResp.Changed {
+			dropDigests(&resp.Header, firstNonEmpty(heldResp.Hits, scriptHits), s.chunkedR.Trailer())
+			editedLength(&resp.Header, len(heldResp.Data))
+		}
+		responseHits = append(responseHits, heldResp.Hits...)
+	}
+	responseHits = append(responseHits, scriptHits...)
 	if s.obs != nil {
 		now := time.Now()
 		if buffering {

@@ -875,14 +875,16 @@ func (x *HTTPRecord) GetRewrites() []*HTTPRewriteHit {
 // A rewrite rule that matched an exchange. kind is url, header, map_local or
 // connect; side is request or response for header rules.
 type HTTPRewriteHit struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	Rule          string                 `protobuf:"bytes,2,opt,name=rule,proto3" json:"rule,omitempty"`
-	Action        string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
-	Side          string                 `protobuf:"bytes,4,opt,name=side,proto3" json:"side,omitempty"`
-	Target        string                 `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
-	Status        int32                  `protobuf:"varint,6,opt,name=status,proto3" json:"status,omitempty"`
-	Changes       []*HTTPRewriteChange   `protobuf:"bytes,7,rep,name=changes,proto3" json:"changes,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Kind    string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Rule    string                 `protobuf:"bytes,2,opt,name=rule,proto3" json:"rule,omitempty"`
+	Action  string                 `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Side    string                 `protobuf:"bytes,4,opt,name=side,proto3" json:"side,omitempty"`
+	Target  string                 `protobuf:"bytes,5,opt,name=target,proto3" json:"target,omitempty"`
+	Status  int32                  `protobuf:"varint,6,opt,name=status,proto3" json:"status,omitempty"`
+	Changes []*HTTPRewriteChange   `protobuf:"bytes,7,rep,name=changes,proto3" json:"changes,omitempty"`
+	// Set for kind script: the details of the script run.
+	Run           *HTTPScriptRun `protobuf:"bytes,8,opt,name=run,proto3" json:"run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -966,6 +968,154 @@ func (x *HTTPRewriteHit) GetChanges() []*HTTPRewriteChange {
 	return nil
 }
 
+func (x *HTTPRewriteHit) GetRun() *HTTPScriptRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+// One run of a script in an exchange. The tag is also the rule and target of
+// the hit; the action of the hit is modify, respond, abort, none, error,
+// timeout, limit, paused or skipped. reason tells why a script was skipped.
+type HTTPScriptRun struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Tag   string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	// http-request or http-response.
+	Phase         string           `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	DurationUs    int64            `protobuf:"varint,3,opt,name=duration_us,json=durationUs,proto3" json:"duration_us,omitempty"`
+	Error         string           `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	Reason        string           `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	Logs          []*HTTPScriptLog `protobuf:"bytes,6,rep,name=logs,proto3" json:"logs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HTTPScriptRun) Reset() {
+	*x = HTTPScriptRun{}
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HTTPScriptRun) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPScriptRun) ProtoMessage() {}
+
+func (x *HTTPScriptRun) ProtoReflect() protoreflect.Message {
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPScriptRun.ProtoReflect.Descriptor instead.
+func (*HTTPScriptRun) Descriptor() ([]byte, []int) {
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *HTTPScriptRun) GetTag() string {
+	if x != nil {
+		return x.Tag
+	}
+	return ""
+}
+
+func (x *HTTPScriptRun) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *HTTPScriptRun) GetDurationUs() int64 {
+	if x != nil {
+		return x.DurationUs
+	}
+	return 0
+}
+
+func (x *HTTPScriptRun) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *HTTPScriptRun) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *HTTPScriptRun) GetLogs() []*HTTPScriptLog {
+	if x != nil {
+		return x.Logs
+	}
+	return nil
+}
+
+type HTTPScriptLog struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// log, info, warn or error.
+	Level         string `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	Message       string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HTTPScriptLog) Reset() {
+	*x = HTTPScriptLog{}
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HTTPScriptLog) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPScriptLog) ProtoMessage() {}
+
+func (x *HTTPScriptLog) ProtoReflect() protoreflect.Message {
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HTTPScriptLog.ProtoReflect.Descriptor instead.
+func (*HTTPScriptLog) Descriptor() ([]byte, []int) {
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *HTTPScriptLog) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *HTTPScriptLog) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type HTTPRewriteChange struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Op            string                 `protobuf:"bytes,1,opt,name=op,proto3" json:"op,omitempty"`
@@ -980,7 +1130,7 @@ type HTTPRewriteChange struct {
 
 func (x *HTTPRewriteChange) Reset() {
 	*x = HTTPRewriteChange{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[6]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -992,7 +1142,7 @@ func (x *HTTPRewriteChange) String() string {
 func (*HTTPRewriteChange) ProtoMessage() {}
 
 func (x *HTTPRewriteChange) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[6]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1005,7 +1155,7 @@ func (x *HTTPRewriteChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HTTPRewriteChange.ProtoReflect.Descriptor instead.
 func (*HTTPRewriteChange) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{6}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *HTTPRewriteChange) GetOp() string {
@@ -1060,7 +1210,7 @@ type CaptureEvent struct {
 
 func (x *CaptureEvent) Reset() {
 	*x = CaptureEvent{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[7]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1072,7 +1222,7 @@ func (x *CaptureEvent) String() string {
 func (*CaptureEvent) ProtoMessage() {}
 
 func (x *CaptureEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[7]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1085,7 +1235,7 @@ func (x *CaptureEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureEvent.ProtoReflect.Descriptor instead.
 func (*CaptureEvent) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{7}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CaptureEvent) GetKind() EventKind {
@@ -1120,7 +1270,7 @@ type CapturePayload struct {
 
 func (x *CapturePayload) Reset() {
 	*x = CapturePayload{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[8]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1132,7 +1282,7 @@ func (x *CapturePayload) String() string {
 func (*CapturePayload) ProtoMessage() {}
 
 func (x *CapturePayload) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[8]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1145,7 +1295,7 @@ func (x *CapturePayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapturePayload.ProtoReflect.Descriptor instead.
 func (*CapturePayload) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{8}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CapturePayload) GetInstance() string {
@@ -1211,7 +1361,7 @@ type ListRecordsRequest struct {
 
 func (x *ListRecordsRequest) Reset() {
 	*x = ListRecordsRequest{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[9]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1223,7 +1373,7 @@ func (x *ListRecordsRequest) String() string {
 func (*ListRecordsRequest) ProtoMessage() {}
 
 func (x *ListRecordsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[9]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1236,7 +1386,7 @@ func (x *ListRecordsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRecordsRequest.ProtoReflect.Descriptor instead.
 func (*ListRecordsRequest) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{9}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListRecordsRequest) GetSearch() string {
@@ -1286,7 +1436,7 @@ type RecordList struct {
 
 func (x *RecordList) Reset() {
 	*x = RecordList{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[10]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1298,7 +1448,7 @@ func (x *RecordList) String() string {
 func (*RecordList) ProtoMessage() {}
 
 func (x *RecordList) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[10]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1311,7 +1461,7 @@ func (x *RecordList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordList.ProtoReflect.Descriptor instead.
 func (*RecordList) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{10}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RecordList) GetInstance() string {
@@ -1352,7 +1502,7 @@ type GetRecordRequest struct {
 
 func (x *GetRecordRequest) Reset() {
 	*x = GetRecordRequest{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[11]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1364,7 +1514,7 @@ func (x *GetRecordRequest) String() string {
 func (*GetRecordRequest) ProtoMessage() {}
 
 func (x *GetRecordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[11]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1377,7 +1527,7 @@ func (x *GetRecordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRecordRequest.ProtoReflect.Descriptor instead.
 func (*GetRecordRequest) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{11}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetRecordRequest) GetId() string {
@@ -1410,7 +1560,7 @@ type GetBodyRequest struct {
 
 func (x *GetBodyRequest) Reset() {
 	*x = GetBodyRequest{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[12]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1422,7 +1572,7 @@ func (x *GetBodyRequest) String() string {
 func (*GetBodyRequest) ProtoMessage() {}
 
 func (x *GetBodyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[12]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1435,7 +1585,7 @@ func (x *GetBodyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBodyRequest.ProtoReflect.Descriptor instead.
 func (*GetBodyRequest) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{12}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetBodyRequest) GetId() string {
@@ -1504,7 +1654,7 @@ type BodyChunk struct {
 
 func (x *BodyChunk) Reset() {
 	*x = BodyChunk{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[13]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1516,7 +1666,7 @@ func (x *BodyChunk) String() string {
 func (*BodyChunk) ProtoMessage() {}
 
 func (x *BodyChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[13]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1529,7 +1679,7 @@ func (x *BodyChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BodyChunk.ProtoReflect.Descriptor instead.
 func (*BodyChunk) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{13}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *BodyChunk) GetData() []byte {
@@ -1614,7 +1764,7 @@ type CaptureStatus struct {
 
 func (x *CaptureStatus) Reset() {
 	*x = CaptureStatus{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[14]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1626,7 +1776,7 @@ func (x *CaptureStatus) String() string {
 func (*CaptureStatus) ProtoMessage() {}
 
 func (x *CaptureStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[14]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1639,7 +1789,7 @@ func (x *CaptureStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureStatus.ProtoReflect.Descriptor instead.
 func (*CaptureStatus) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{14}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CaptureStatus) GetInstance() string {
@@ -1741,7 +1891,7 @@ type ReplayRequest struct {
 
 func (x *ReplayRequest) Reset() {
 	*x = ReplayRequest{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[15]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1753,7 +1903,7 @@ func (x *ReplayRequest) String() string {
 func (*ReplayRequest) ProtoMessage() {}
 
 func (x *ReplayRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[15]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1766,7 +1916,7 @@ func (x *ReplayRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayRequest.ProtoReflect.Descriptor instead.
 func (*ReplayRequest) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{15}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ReplayRequest) GetSourceId() string {
@@ -1843,7 +1993,7 @@ type ReplayResponse struct {
 
 func (x *ReplayResponse) Reset() {
 	*x = ReplayResponse{}
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[16]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1855,7 +2005,7 @@ func (x *ReplayResponse) String() string {
 func (*ReplayResponse) ProtoMessage() {}
 
 func (x *ReplayResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_mitm_api_http_capture_proto_msgTypes[16]
+	mi := &file_common_mitm_api_http_capture_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1868,7 +2018,7 @@ func (x *ReplayResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplayResponse.ProtoReflect.Descriptor instead.
 func (*ReplayResponse) Descriptor() ([]byte, []int) {
-	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{16}
+	return file_common_mitm_api_http_capture_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ReplayResponse) GetRecord() *HTTPRecord {
@@ -1971,7 +2121,7 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"unverified\x18# \x01(\bR\n" +
 	"unverified\x12\x1c\n" +
 	"\trewritten\x18$ \x01(\bR\trewritten\x128\n" +
-	"\brewrites\x18% \x03(\v2\x1c.sbui.mitm.v1.HTTPRewriteHitR\brewrites\"\xcf\x01\n" +
+	"\brewrites\x18% \x03(\v2\x1c.sbui.mitm.v1.HTTPRewriteHitR\brewrites\"\xfe\x01\n" +
 	"\x0eHTTPRewriteHit\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x16\n" +
@@ -1979,7 +2129,19 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\x04side\x18\x04 \x01(\tR\x04side\x12\x16\n" +
 	"\x06target\x18\x05 \x01(\tR\x06target\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\x05R\x06status\x129\n" +
-	"\achanges\x18\a \x03(\v2\x1f.sbui.mitm.v1.HTTPRewriteChangeR\achanges\"\xa1\x01\n" +
+	"\achanges\x18\a \x03(\v2\x1f.sbui.mitm.v1.HTTPRewriteChangeR\achanges\x12-\n" +
+	"\x03run\x18\b \x01(\v2\x1b.sbui.mitm.v1.HTTPScriptRunR\x03run\"\xb7\x01\n" +
+	"\rHTTPScriptRun\x12\x10\n" +
+	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x14\n" +
+	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1f\n" +
+	"\vduration_us\x18\x03 \x01(\x03R\n" +
+	"durationUs\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12/\n" +
+	"\x04logs\x18\x06 \x03(\v2\x1b.sbui.mitm.v1.HTTPScriptLogR\x04logs\"?\n" +
+	"\rHTTPScriptLog\x12\x14\n" +
+	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xa1\x01\n" +
 	"\x11HTTPRewriteChange\x12\x0e\n" +
 	"\x02op\x18\x01 \x01(\tR\x02op\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -2098,7 +2260,7 @@ func file_common_mitm_api_http_capture_proto_rawDescGZIP() []byte {
 }
 
 var file_common_mitm_api_http_capture_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_common_mitm_api_http_capture_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_common_mitm_api_http_capture_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_common_mitm_api_http_capture_proto_goTypes = []any{
 	(RecordState)(0),               // 0: sbui.mitm.v1.RecordState
 	(EventKind)(0),                 // 1: sbui.mitm.v1.EventKind
@@ -2109,18 +2271,20 @@ var file_common_mitm_api_http_capture_proto_goTypes = []any{
 	(*HTTPConnection)(nil),         // 6: sbui.mitm.v1.HTTPConnection
 	(*HTTPRecord)(nil),             // 7: sbui.mitm.v1.HTTPRecord
 	(*HTTPRewriteHit)(nil),         // 8: sbui.mitm.v1.HTTPRewriteHit
-	(*HTTPRewriteChange)(nil),      // 9: sbui.mitm.v1.HTTPRewriteChange
-	(*CaptureEvent)(nil),           // 10: sbui.mitm.v1.CaptureEvent
-	(*CapturePayload)(nil),         // 11: sbui.mitm.v1.CapturePayload
-	(*ListRecordsRequest)(nil),     // 12: sbui.mitm.v1.ListRecordsRequest
-	(*RecordList)(nil),             // 13: sbui.mitm.v1.RecordList
-	(*GetRecordRequest)(nil),       // 14: sbui.mitm.v1.GetRecordRequest
-	(*GetBodyRequest)(nil),         // 15: sbui.mitm.v1.GetBodyRequest
-	(*BodyChunk)(nil),              // 16: sbui.mitm.v1.BodyChunk
-	(*CaptureStatus)(nil),          // 17: sbui.mitm.v1.CaptureStatus
-	(*ReplayRequest)(nil),          // 18: sbui.mitm.v1.ReplayRequest
-	(*ReplayResponse)(nil),         // 19: sbui.mitm.v1.ReplayResponse
-	(*emptypb.Empty)(nil),          // 20: google.protobuf.Empty
+	(*HTTPScriptRun)(nil),          // 9: sbui.mitm.v1.HTTPScriptRun
+	(*HTTPScriptLog)(nil),          // 10: sbui.mitm.v1.HTTPScriptLog
+	(*HTTPRewriteChange)(nil),      // 11: sbui.mitm.v1.HTTPRewriteChange
+	(*CaptureEvent)(nil),           // 12: sbui.mitm.v1.CaptureEvent
+	(*CapturePayload)(nil),         // 13: sbui.mitm.v1.CapturePayload
+	(*ListRecordsRequest)(nil),     // 14: sbui.mitm.v1.ListRecordsRequest
+	(*RecordList)(nil),             // 15: sbui.mitm.v1.RecordList
+	(*GetRecordRequest)(nil),       // 16: sbui.mitm.v1.GetRecordRequest
+	(*GetBodyRequest)(nil),         // 17: sbui.mitm.v1.GetBodyRequest
+	(*BodyChunk)(nil),              // 18: sbui.mitm.v1.BodyChunk
+	(*CaptureStatus)(nil),          // 19: sbui.mitm.v1.CaptureStatus
+	(*ReplayRequest)(nil),          // 20: sbui.mitm.v1.ReplayRequest
+	(*ReplayResponse)(nil),         // 21: sbui.mitm.v1.ReplayResponse
+	(*emptypb.Empty)(nil),          // 22: google.protobuf.Empty
 }
 var file_common_mitm_api_http_capture_proto_depIdxs = []int32{
 	6,  // 0: sbui.mitm.v1.HTTPRecord.connection:type_name -> sbui.mitm.v1.HTTPConnection
@@ -2131,35 +2295,37 @@ var file_common_mitm_api_http_capture_proto_depIdxs = []int32{
 	5,  // 5: sbui.mitm.v1.HTTPRecord.timing:type_name -> sbui.mitm.v1.HTTPTiming
 	0,  // 6: sbui.mitm.v1.HTTPRecord.state:type_name -> sbui.mitm.v1.RecordState
 	8,  // 7: sbui.mitm.v1.HTTPRecord.rewrites:type_name -> sbui.mitm.v1.HTTPRewriteHit
-	9,  // 8: sbui.mitm.v1.HTTPRewriteHit.changes:type_name -> sbui.mitm.v1.HTTPRewriteChange
-	1,  // 9: sbui.mitm.v1.CaptureEvent.kind:type_name -> sbui.mitm.v1.EventKind
-	7,  // 10: sbui.mitm.v1.CaptureEvent.record:type_name -> sbui.mitm.v1.HTTPRecord
-	10, // 11: sbui.mitm.v1.CapturePayload.events:type_name -> sbui.mitm.v1.CaptureEvent
-	17, // 12: sbui.mitm.v1.CapturePayload.status:type_name -> sbui.mitm.v1.CaptureStatus
-	7,  // 13: sbui.mitm.v1.RecordList.records:type_name -> sbui.mitm.v1.HTTPRecord
-	17, // 14: sbui.mitm.v1.RecordList.status:type_name -> sbui.mitm.v1.CaptureStatus
-	2,  // 15: sbui.mitm.v1.GetBodyRequest.side:type_name -> sbui.mitm.v1.BodySide
-	4,  // 16: sbui.mitm.v1.ReplayRequest.headers:type_name -> sbui.mitm.v1.HTTPHeader
-	7,  // 17: sbui.mitm.v1.ReplayResponse.record:type_name -> sbui.mitm.v1.HTTPRecord
-	3,  // 18: sbui.mitm.v1.HTTPCapture.SubscribeEvents:input_type -> sbui.mitm.v1.SubscribeEventsRequest
-	12, // 19: sbui.mitm.v1.HTTPCapture.ListRecords:input_type -> sbui.mitm.v1.ListRecordsRequest
-	14, // 20: sbui.mitm.v1.HTTPCapture.GetRecord:input_type -> sbui.mitm.v1.GetRecordRequest
-	15, // 21: sbui.mitm.v1.HTTPCapture.GetBody:input_type -> sbui.mitm.v1.GetBodyRequest
-	20, // 22: sbui.mitm.v1.HTTPCapture.Clear:input_type -> google.protobuf.Empty
-	20, // 23: sbui.mitm.v1.HTTPCapture.GetStatus:input_type -> google.protobuf.Empty
-	18, // 24: sbui.mitm.v1.HTTPCapture.Replay:input_type -> sbui.mitm.v1.ReplayRequest
-	11, // 25: sbui.mitm.v1.HTTPCapture.SubscribeEvents:output_type -> sbui.mitm.v1.CapturePayload
-	13, // 26: sbui.mitm.v1.HTTPCapture.ListRecords:output_type -> sbui.mitm.v1.RecordList
-	7,  // 27: sbui.mitm.v1.HTTPCapture.GetRecord:output_type -> sbui.mitm.v1.HTTPRecord
-	16, // 28: sbui.mitm.v1.HTTPCapture.GetBody:output_type -> sbui.mitm.v1.BodyChunk
-	17, // 29: sbui.mitm.v1.HTTPCapture.Clear:output_type -> sbui.mitm.v1.CaptureStatus
-	17, // 30: sbui.mitm.v1.HTTPCapture.GetStatus:output_type -> sbui.mitm.v1.CaptureStatus
-	19, // 31: sbui.mitm.v1.HTTPCapture.Replay:output_type -> sbui.mitm.v1.ReplayResponse
-	25, // [25:32] is the sub-list for method output_type
-	18, // [18:25] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	11, // 8: sbui.mitm.v1.HTTPRewriteHit.changes:type_name -> sbui.mitm.v1.HTTPRewriteChange
+	9,  // 9: sbui.mitm.v1.HTTPRewriteHit.run:type_name -> sbui.mitm.v1.HTTPScriptRun
+	10, // 10: sbui.mitm.v1.HTTPScriptRun.logs:type_name -> sbui.mitm.v1.HTTPScriptLog
+	1,  // 11: sbui.mitm.v1.CaptureEvent.kind:type_name -> sbui.mitm.v1.EventKind
+	7,  // 12: sbui.mitm.v1.CaptureEvent.record:type_name -> sbui.mitm.v1.HTTPRecord
+	12, // 13: sbui.mitm.v1.CapturePayload.events:type_name -> sbui.mitm.v1.CaptureEvent
+	19, // 14: sbui.mitm.v1.CapturePayload.status:type_name -> sbui.mitm.v1.CaptureStatus
+	7,  // 15: sbui.mitm.v1.RecordList.records:type_name -> sbui.mitm.v1.HTTPRecord
+	19, // 16: sbui.mitm.v1.RecordList.status:type_name -> sbui.mitm.v1.CaptureStatus
+	2,  // 17: sbui.mitm.v1.GetBodyRequest.side:type_name -> sbui.mitm.v1.BodySide
+	4,  // 18: sbui.mitm.v1.ReplayRequest.headers:type_name -> sbui.mitm.v1.HTTPHeader
+	7,  // 19: sbui.mitm.v1.ReplayResponse.record:type_name -> sbui.mitm.v1.HTTPRecord
+	3,  // 20: sbui.mitm.v1.HTTPCapture.SubscribeEvents:input_type -> sbui.mitm.v1.SubscribeEventsRequest
+	14, // 21: sbui.mitm.v1.HTTPCapture.ListRecords:input_type -> sbui.mitm.v1.ListRecordsRequest
+	16, // 22: sbui.mitm.v1.HTTPCapture.GetRecord:input_type -> sbui.mitm.v1.GetRecordRequest
+	17, // 23: sbui.mitm.v1.HTTPCapture.GetBody:input_type -> sbui.mitm.v1.GetBodyRequest
+	22, // 24: sbui.mitm.v1.HTTPCapture.Clear:input_type -> google.protobuf.Empty
+	22, // 25: sbui.mitm.v1.HTTPCapture.GetStatus:input_type -> google.protobuf.Empty
+	20, // 26: sbui.mitm.v1.HTTPCapture.Replay:input_type -> sbui.mitm.v1.ReplayRequest
+	13, // 27: sbui.mitm.v1.HTTPCapture.SubscribeEvents:output_type -> sbui.mitm.v1.CapturePayload
+	15, // 28: sbui.mitm.v1.HTTPCapture.ListRecords:output_type -> sbui.mitm.v1.RecordList
+	7,  // 29: sbui.mitm.v1.HTTPCapture.GetRecord:output_type -> sbui.mitm.v1.HTTPRecord
+	18, // 30: sbui.mitm.v1.HTTPCapture.GetBody:output_type -> sbui.mitm.v1.BodyChunk
+	19, // 31: sbui.mitm.v1.HTTPCapture.Clear:output_type -> sbui.mitm.v1.CaptureStatus
+	19, // 32: sbui.mitm.v1.HTTPCapture.GetStatus:output_type -> sbui.mitm.v1.CaptureStatus
+	21, // 33: sbui.mitm.v1.HTTPCapture.Replay:output_type -> sbui.mitm.v1.ReplayResponse
+	27, // [27:34] is the sub-list for method output_type
+	20, // [20:27] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_common_mitm_api_http_capture_proto_init() }
@@ -2173,7 +2339,7 @@ func file_common_mitm_api_http_capture_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_mitm_api_http_capture_proto_rawDesc), len(file_common_mitm_api_http_capture_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

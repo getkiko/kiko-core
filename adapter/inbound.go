@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/common/interrupt"
@@ -95,6 +96,10 @@ type InboundContext struct {
 	// ForcedOutbound is the tag of the outbound that takes the connection,
 	// bypassing rule matching.
 	ForcedOutbound string
+	// ScriptClient marks a connection of the script $httpClient: after a direct outbound
+	// connected, the connection manager refuses a remote address of the machine or its
+	// local network. Only code sets it.
+	ScriptClient bool
 
 	NetworkStrategy     *C.NetworkStrategy
 	NetworkType         []C.InterfaceType
@@ -111,10 +116,16 @@ type InboundContext struct {
 	SourceMACAddress                    net.HardwareAddr
 	SourceHostname                      string
 	QueryType                           uint16
+	ScriptQueryType                     uint16
 	QueryClientSubnet                   netip.Prefix
 	QueryDNSSEC                         bool
 	FakeIP                              bool
 	PreMatch                            bool
+
+	// ScriptDryRun is set by a policy test: rule and dns scripts do not run, a script
+	// condition is false and a script action passes, and the script tags land here, the
+	// scripts whose outcome could change the result. Copies of the context share it.
+	ScriptDryRun *ScriptDryRun
 
 	// rule cache
 
@@ -238,4 +249,29 @@ func OverrideContext(ctx context.Context) context.Context {
 		return WithContext(ctx, &newMetadata)
 	}
 	return ctx
+}
+
+// ScriptDryRun collects the tags of the scripts a policy test skipped.
+type ScriptDryRun struct {
+	mu   sync.Mutex
+	tags []string
+}
+
+// Add records a skipped script.
+func (d *ScriptDryRun) Add(tag string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	for _, existing := range d.tags {
+		if existing == tag {
+			return
+		}
+	}
+	d.tags = append(d.tags, tag)
+}
+
+// Tags returns the recorded tags in the order they were met.
+func (d *ScriptDryRun) Tags() []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]string(nil), d.tags...)
 }

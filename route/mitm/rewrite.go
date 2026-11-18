@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/common/mitm/h1"
 	"github.com/sagernet/sing-box/common/mitm/rewrite"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/script"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -27,7 +28,7 @@ func (e *Engine) rewriteSet() *rewrite.Set {
 // rewrite engine: some rule can match an http:// URL and the connection is in
 // scope and not left to an outbound handler or an override.
 func (e *Engine) decidePlain(config *compiledConfig, metadata *adapter.InboundContext) bool {
-	if !config.rewrite.AppliesToPlain() || metadata.MITMOverride == C.MITMOverrideSkip {
+	if !(config.rewrite.AppliesToPlain() || e.scripts.Current().AppliesToPlain()) || metadata.MITMOverride == C.MITMOverrideSkip {
 		return false
 	}
 	if chain := metadata.OutboundChain; len(chain) > 0 {
@@ -36,6 +37,15 @@ func (e *Engine) decidePlain(config *compiledConfig, metadata *adapter.InboundCo
 		}
 	}
 	return config.scope.contains(metadata.Source.Addr, e.local)
+}
+
+// scriptsFor returns the script manager for a connection. Replayed and internal requests
+// never run scripts.
+func (e *Engine) scriptsFor(metadata *adapter.InboundContext) *script.Manager {
+	if metadata.Internal {
+		return nil
+	}
+	return e.scripts
 }
 
 // RejectHost reports the reject rule that covers every HTTPS request to the
@@ -89,6 +99,7 @@ func (e *Engine) servePlain(ctx context.Context, conn net.Conn, upstream net.Con
 		Rewrite:    e.rewriteSet,
 		Scheme:     "http",
 		Internal:   e.internalDialer(metadata),
+		Scripts:    e.scriptsFor(metadata),
 	}
 	if redial != nil {
 		options.Redial = func(ctx context.Context) (net.Conn, error) {

@@ -20,6 +20,8 @@ import (
 	"github.com/sagernet/sing-box/common/mitm/flow"
 	"github.com/sagernet/sing-box/common/mitm/httpx"
 	"github.com/sagernet/sing-box/common/mitm/rewrite"
+	"github.com/sagernet/sing-box/common/mitm/scripthook"
+	"github.com/sagernet/sing-box/script"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -89,6 +91,7 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 	target.Scheme = "https"
 	target.Host = authority
 
+	clientAuthority := authority
 	plan, set := s.rewritePlan(r)
 	var requestHits []flow.RewriteHit
 	var external *rewrite.Internal
@@ -118,20 +121,28 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 		header, hits = applyHeader(plan, false, header)
 		requestHits = append(requestHits, hits...)
 	}
+	var sx *scripthook.Exchange
+	if plan.Local() == nil && s.opts.Scripts != nil {
+		sx = scripthook.Begin(r.Context(), s.opts.Scripts, s.rewriteSet(), "https", authority, r.RequestURI, r.Method)
+	}
 	// Buffering for body rules happens before the stream is observed: the recorded head
 	// carries the corrected length.
 	var reserved int64
 	defer rewrite.ReleaseHold(&reserved)
 	var requestStart time.Time
-	if plan.HasBodyRules(rewrite.ScopeRequest) {
+	hasBody := r.Body != nil && r.Body != http.NoBody
+	if plan.HasBodyRules(rewrite.ScopeRequest) || sx.WantsBody(script.PhaseRequest, hasBody) {
 		requestStart = time.Now()
 	}
 	var requestSource io.Reader = r.Body
 	contentLength := r.ContentLength
-	if r.Body != nil && r.Body != http.NoBody && plan.HasBodyRules(rewrite.ScopeRequest) {
+	var held *rewrite.Held
+	if hasBody && (plan.HasBodyRules(rewrite.ScopeRequest) || sx.WantsBody(script.PhaseRequest, true)) {
 		contentType := header.Get("Content-Type")
-		held, err := plan.Hold(rewrite.ScopeRequest, contentType, strings.Join(header.Values("Content-Encoding"), ", "), r.Body,
-			r.ContentLength, rewrite.StreamingMessage(rewrite.ScopeRequest, r.Method, 0, contentType, false), set.MaxBodySize(), &reserved, nil)
+		var err error
+		held, err = plan.HoldFor(rewrite.ScopeRequest, contentType, strings.Join(header.Values("Content-Encoding"), ", "), r.Body,
+			r.ContentLength, rewrite.StreamingMessage(rewrite.ScopeRequest, r.Method, 0, contentType, false),
+			max(set.MaxBodySize(), sx.MaxBody(script.PhaseRequest)), set.MaxBodySize(), &reserved, nil, sx.WantsBody(script.PhaseRequest, true))
 		if err != nil {
 			s.debug("h2 request body: ", err)
 			reply(w, http.StatusBadRequest)
@@ -152,6 +163,49 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 			requestHits = append(requestHits, held.Hits...)
 		}
 	}
+	var scriptLocal *rewrite.LocalResponse
+	if sx.HasResponse() {
+		sx.SetRequestHeaders(scriptHeaders(header))
+	}
+	if sx.HasRequest() {
+		out := sx.RunRequest(&scripthook.Message{
+			Headers:  scriptHeaders(header),
+			Held:     held,
+			Encoding: strings.Join(header.Values("Content-Encoding"), ", "),
+			HasBody:  held != nil,
+			Limit:    max(set.MaxBodySize(), sx.MaxBody(script.PhaseRequest)),
+		}, r.RequestURI)
+		if out.HeadersChanged {
+			header = headerFromFlow(out.Headers)
+		}
+		if out.Internal != nil {
+			in := out.Internal
+			newTarget, err := url.ParseRequestURI(in.Target)
+			if err != nil {
+				reply(w, http.StatusBadGateway)
+				return
+			}
+			authority = in.Authority
+			target = newTarget
+			target.Scheme = in.Scheme
+			target.Host = authority
+			r.Host = authority
+			r.RequestURI = in.Target
+			external = nil
+			if !in.SameOrigin("https", hostOnly(clientAuthority), authorityPort(clientAuthority, 443)) {
+				external = in
+			}
+		}
+		if out.BodyChanged && held != nil {
+			header = cloneHeader(header)
+			dropDigests(header, out.Hits)
+			header.Set("Content-Length", strconv.Itoa(len(out.Body)))
+			contentLength = int64(len(out.Body))
+			requestSource = bytes.NewReader(out.Body)
+		}
+		requestHits = append(requestHits, out.Hits...)
+		scriptLocal = out.Local
+	}
 	var ob *observed
 	var failure error
 	if s.opts.Observer != nil {
@@ -166,6 +220,10 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 	}
 	if local := plan.Local(); local != nil {
 		s.serveLocal(w, r, local, ob, &failure)
+		return
+	}
+	if scriptLocal != nil {
+		s.serveLocal(w, r, scriptLocal, ob, &failure)
 		return
 	}
 	body := newRequestBody(r, requestSource, ob)
@@ -194,7 +252,7 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 	}
 
 	if external != nil {
-		failure = s.relayInternal(w, r, g, external, build, ob, plan, set, &reserved, header.Get("Range") != "")
+		failure = s.relayInternal(w, r, g, external, build, ob, plan, set, sx, &reserved, header.Get("Range") != "")
 		return
 	}
 	var stale *upConn
@@ -236,7 +294,7 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 		func() {
 			defer s.release(u)
 			rewrite.ReleaseHold(&reserved)
-			failure = s.respond(w, r, resp, ob, plan, set, header.Get("Range") != "")
+			failure = s.respond(w, r, resp, ob, plan, set, sx, header.Get("Range") != "")
 		}()
 		if ob != nil && failure == nil {
 			if trailer, ok := body.finished(r); ok {
@@ -249,7 +307,7 @@ func (s *session) relay(w http.ResponseWriter, r *http.Request, g *hookGuard) {
 
 // respond relays the upstream response; it closes resp.Body. It returns why
 // the response did not reach the client completely, nil on success.
-func (s *session) respond(w http.ResponseWriter, r *http.Request, resp *http.Response, ob *observed, plan *rewrite.Plan, set *rewrite.Set, ranged bool) error {
+func (s *session) respond(w http.ResponseWriter, r *http.Request, resp *http.Response, ob *observed, plan *rewrite.Plan, set *rewrite.Set, sx *scripthook.Exchange, ranged bool) error {
 	defer resp.Body.Close()
 	h := w.Header()
 	header := resp.Header
@@ -263,10 +321,15 @@ func (s *session) respond(w http.ResponseWriter, r *http.Request, resp *http.Res
 	var bodySource io.Reader = resp.Body
 	var heldData []byte
 	holdComplete := false
-	if plan.HasBodyRules(rewrite.ScopeResponse) && resp.Body != http.NoBody && resp.ContentLength != 0 {
+	status := resp.StatusCode
+	hasBody := resp.Body != http.NoBody && resp.ContentLength != 0
+	var held *rewrite.Held
+	if hasBody && (plan.HasBodyRules(rewrite.ScopeResponse) || sx.WantsBody(script.PhaseResponse, true)) {
 		contentType := header.Get("Content-Type")
-		held, err := plan.Hold(rewrite.ScopeResponse, contentType, strings.Join(header.Values("Content-Encoding"), ", "), resp.Body,
-			resp.ContentLength, rewrite.StreamingMessage(rewrite.ScopeResponse, r.Method, resp.StatusCode, contentType, ranged), set.MaxBodySize(), &reserved, nil)
+		var err error
+		held, err = plan.HoldFor(rewrite.ScopeResponse, contentType, strings.Join(header.Values("Content-Encoding"), ", "), resp.Body,
+			resp.ContentLength, rewrite.StreamingMessage(rewrite.ScopeResponse, r.Method, resp.StatusCode, contentType, ranged),
+			max(set.MaxBodySize(), sx.MaxBody(script.PhaseResponse)), set.MaxBodySize(), &reserved, nil, sx.WantsBody(script.PhaseResponse, true))
 		if err != nil {
 			if r.Context().Err() != nil {
 				return r.Context().Err()
@@ -275,20 +338,56 @@ func (s *session) respond(w http.ResponseWriter, r *http.Request, resp *http.Res
 			ob.finish(err)
 			panic(http.ErrAbortHandler)
 		}
-		if held != nil {
-			if held.Changed {
-				header = cloneHeader(header)
-				dropDigests(header, held.Hits)
-				header.Set("Content-Length", strconv.Itoa(len(held.Data)))
+	}
+	var scriptHits []flow.RewriteHit
+	if sx.HasResponse() {
+		out := sx.RunResponse(&scripthook.Message{
+			Headers:  scriptHeaders(header),
+			Status:   status,
+			Held:     held,
+			Encoding: strings.Join(header.Values("Content-Encoding"), ", "),
+			HasBody:  held != nil,
+			Limit:    max(set.MaxBodySize(), sx.MaxBody(script.PhaseResponse)),
+			Head:     r.Method == http.MethodHead,
+		})
+		scriptHits = out.Hits
+		if out.Local != nil {
+			// The script reset the stream.
+			if held != nil {
+				responseHits = append(responseHits, held.Hits...)
 			}
-			if held.Complete {
-				heldData, holdComplete = held.Data, true
-			} else if held.Replay != nil {
-				bodySource = held.Replay
-			}
-			responseHits = append(responseHits, held.Hits...)
+			ob.rewritten(append(append(responseHits, scriptHits...), out.Local.Hit))
+			ob.finish(errRewriteAbort)
+			panic(http.ErrAbortHandler)
+		}
+		if out.HeadersChanged {
+			header = headerFromFlow(out.Headers)
+		}
+		if out.Status != 0 {
+			status = out.Status
+		}
+		if out.BodyChanged && held != nil {
+			held.Data, held.Changed = out.Body, true
 		}
 	}
+	if held != nil {
+		if held.Changed {
+			header = cloneHeader(header)
+			if len(held.Hits) > 0 {
+				dropDigests(header, held.Hits)
+			} else {
+				dropDigests(header, scriptHits)
+			}
+			header.Set("Content-Length", strconv.Itoa(len(held.Data)))
+		}
+		if held.Complete {
+			heldData, holdComplete = held.Data, true
+		} else if held.Replay != nil {
+			bodySource = held.Replay
+		}
+		responseHits = append(responseHits, held.Hits...)
+	}
+	responseHits = append(responseHits, scriptHits...)
 	copyResponseHeader(h, header)
 	// The server fills these in when absent; the relay must not invent them.
 	if _, ok := h["Date"]; !ok {
@@ -299,9 +398,9 @@ func (s *session) respond(w http.ResponseWriter, r *http.Request, resp *http.Res
 	}
 	ob.markAt(flow.PointFirstByte, headAt)
 	ob.markAt(flow.PointResponseHeaders, headAt)
-	ob.responseHead(resp.StatusCode, header)
+	ob.responseHead(status, header)
 	ob.rewritten(responseHits)
-	w.WriteHeader(resp.StatusCode)
+	w.WriteHeader(status)
 
 	rc := http.NewResponseController(w)
 	// A response known to be empty keeps its headers back so that they travel

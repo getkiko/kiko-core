@@ -125,6 +125,27 @@ message HTTPRewriteHit {
   string target = 5;
   int32 status = 6;
   repeated HTTPRewriteChange changes = 7;
+  // Set for kind script: the details of the script run.
+  HTTPScriptRun run = 8;
+}
+
+// One run of a script in an exchange. The tag is also the rule and target of
+// the hit; the action of the hit is modify, respond, abort, none, error,
+// timeout, limit, paused or skipped. reason tells why a script was skipped.
+message HTTPScriptRun {
+  string tag = 1;
+  // http-request or http-response.
+  string phase = 2;
+  int64 duration_us = 3;
+  string error = 4;
+  string reason = 5;
+  repeated HTTPScriptLog logs = 6;
+}
+
+message HTTPScriptLog {
+  // log, info, warn or error.
+  string level = 1;
+  string message = 2;
 }
 
 message HTTPRewriteChange {

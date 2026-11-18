@@ -18,6 +18,7 @@ import (
 
 	"github.com/sagernet/sing-box/common/mitm/flow"
 	"github.com/sagernet/sing-box/common/mitm/rewrite"
+	"github.com/sagernet/sing-box/script"
 
 	"golang.org/x/net/http2"
 )
@@ -56,6 +57,9 @@ type Options struct {
 	// (kept per origin for the session, closed when the session ends) and owns the conns. nil
 	// makes such a request fail with 502.
 	Internal func(ctx context.Context, in *rewrite.Internal) (net.Conn, error)
+	// Scripts runs the http-request and http-response scripts that match a stream, after the
+	// rewrite rules. nil disables scripts.
+	Scripts *script.Manager
 }
 
 // DefaultIdleTimeout is the default Options.IdleTimeout.

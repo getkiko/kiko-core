@@ -505,6 +505,14 @@ func (s *Box) applyLive(oldOptions, newOptions option.Options) error {
 	if err != nil {
 		return E.Cause(err, "reload mitm")
 	}
+	err = route.ValidateScriptReferences(newOptions.Scripts, newRoute, newDNS)
+	if err != nil {
+		return err
+	}
+	commitScripts, err := s.mitm.ReloadScripts(newOptions.Scripts, newOptions.MITM)
+	if err != nil {
+		return E.Cause(err, "reload scripts")
+	}
 	err = s.reloadInlineRuleSets(common.PtrValueOrDefault(oldOptions.Route).RuleSet, newRoute.RuleSet)
 	if err != nil {
 		return err
@@ -515,6 +523,7 @@ func (s *Box) applyLive(oldOptions, newOptions option.Options) error {
 	}
 	committed = true
 	commitMITM()
+	commitScripts()
 	retiredOutbounds := outboundStaging.Commit()
 	retiredTransports := transportStaging.Commit()
 	oldRouteRules := s.router.SwapRules(routeRules)

@@ -1,0 +1,272 @@
+syntax = "proto3";
+package sbui.mitm.v1;
+option go_package = "github.com/sagernet/sing-box/common/mitm/api;mitmapi";
+import "google/protobuf/empty.proto";
+
+// Script manages the scripts of the core: dry runs for the editor, manual runs
+// of generic scripts, run history, console logs, notifications and the
+// $persistentStore values. It is served on the loopback API service only. No
+// RPC returns secrets; script sources are never returned.
+service Script {
+  // Evaluate compiles and runs one script once on the given message. It never
+  // touches the active scripts, their history or the persistent store: the
+  // script sees only the entries of the request as $persistentStore, and
+  // notifications and logs come back in the response. Limits are those of live
+  // runs (timeout, memory, concurrency); the source is at most 1 MiB and the
+  // messages together at most 8 MiB.
+  rpc Evaluate(ScriptEvaluateRequest) returns (ScriptEvaluateResponse);
+  // Run runs a configured generic or cron script once. It is a live run: history,
+  // store and notifications are real.
+  rpc Run(ScriptRunRequest) returns (ScriptRunResponse);
+  rpc GetStatus(google.protobuf.Empty) returns (ScriptStatusList);
+  // SubscribeLogs streams console lines of live runs, starting with the
+  // recent ones after the cursor.
+  rpc SubscribeLogs(ScriptSubscribeRequest) returns (stream ScriptLogEntry);
+  // SubscribeNotifications streams notifications posted by live runs.
+  rpc SubscribeNotifications(ScriptSubscribeRequest) returns (stream ScriptNotification);
+  // StoreList lists the entries of a namespace (a script tag or @shared), or
+  // only the namespaces when none is given.
+  rpc StoreList(ScriptStoreListRequest) returns (ScriptStoreListResponse);
+  rpc StoreGet(ScriptStoreKey) returns (ScriptStoreValue);
+  rpc StoreSet(ScriptStoreSetRequest) returns (ScriptStoreInfo);
+  rpc StoreDelete(ScriptStoreKey) returns (ScriptStoreInfo);
+}
+
+message ScriptHeader {
+  string name = 1;
+  string value = 2;
+}
+
+// A request as a script sees it ($request).
+message ScriptRequestMessage {
+  string url = 1;
+  string method = 2;
+  repeated ScriptHeader headers = 3;
+  bytes body = 4;
+  bool has_body = 5;
+}
+
+// A response as a script sees it ($response), or as a script answers.
+message ScriptResponseMessage {
+  int32 status = 1;
+  repeated ScriptHeader headers = 2;
+  bytes body = 3;
+  bool has_body = 4;
+}
+
+message ScriptStoreEntry {
+  string key = 1;
+  string value = 2;
+}
+
+message ScriptEvaluateRequest {
+  string source = 1;
+  // http-request, http-response, generic, cron, rule or dns.
+  string type = 2;
+  // RE2 expression; defaults to match everything. Not used by generic or cron.
+  string pattern = 3;
+  string argument = 4;
+  bool binary_body = 5;
+  bool requires_body = 6;
+  // Milliseconds; 0 selects the default of the type, the maximum is 30000
+  // (60000 for generic and cron).
+  int64 timeout_ms = 7;
+  // Body cap in bytes; 0 selects the default (2 MiB), the maximum is 32 MiB.
+  int64 max_size = 8;
+  ScriptRequestMessage request = 9;
+  ScriptResponseMessage response = 10;
+  // Name shown as $script.name; defaults to "eval".
+  string tag = 11;
+  // Initial $persistentStore content of the dry run. A key starting with
+  // "@shared/" belongs to the shared namespace, as in a script.
+  repeated ScriptStoreEntry store = 12;
+  // The $request of a rule or dns script.
+  ScriptRuleInput rule = 13;
+}
+
+// ScriptRuleInput is the $request of a rule or dns script.
+message ScriptRuleInput {
+  string domain = 1;
+  string ip = 2;
+  uint32 port = 3;
+  string network = 4;
+  string protocol = 5;
+  string inbound = 6;
+  string inbound_type = 7;
+  string source_ip = 8;
+  string process_name = 9;
+  string process_path = 10;
+  string user = 11;
+  // DNS question type such as A, AAAA or HTTPS.
+  string query_type = 12;
+}
+
+message ScriptLogLine {
+  // log, info, warn or error.
+  string level = 1;
+  string message = 2;
+  // Unix milliseconds.
+  int64 time_ms = 3;
+}
+
+// One difference a script made. kind is url, status, header, body or store.
+// For a header, name is the header name and op is set, add or remove. For a
+// body, before and after hold the byte lengths. For store, op is set or remove
+// and name is the key.
+message ScriptChange {
+  string kind = 1;
+  string op = 2;
+  string name = 3;
+  string before = 4;
+  bool had_before = 5;
+  string after = 6;
+  bool has_after = 7;
+}
+
+message ScriptEvaluateResponse {
+  // none, modify, respond, abort, error, timeout, limit or skipped.
+  string action = 1;
+  // Why the run was skipped (size).
+  string reason = 2;
+  string error = 3;
+  // compile when the script or its settings were rejected before running.
+  string error_kind = 4;
+  int64 duration_us = 5;
+  repeated ScriptLogLine logs = 6;
+  repeated ScriptNotification notifications = 7;
+  repeated ScriptChange changes = 8;
+  // The new request URL (http-request), empty when unchanged.
+  string url = 9;
+  bool headers_changed = 10;
+  // The complete header list when headers_changed.
+  repeated ScriptHeader headers = 11;
+  bool body_changed = 12;
+  bytes body = 13;
+  // The new status of an http-response script, 0 when unchanged.
+  int32 status = 14;
+  // The answer of $done({response}) when action is respond.
+  ScriptResponseMessage response = 15;
+  // JSON text of the value a generic script passed to $done.
+  string output = 16;
+  // What the host makes of the output of a rule or dns script: "true" or
+  // "false" for a rule script; "pass", "server <tag>", "empty answer",
+  // "<rcode>" or the answer addresses for a dns script. Empty on error.
+  string decision = 17;
+}
+
+message ScriptRunRequest {
+  string tag = 1;
+  // Replaces the configured argument when not empty.
+  string argument = 2;
+}
+
+message ScriptRunResponse {
+  string action = 1;
+  string error = 2;
+  int64 duration_us = 3;
+  repeated ScriptLogLine logs = 4;
+  string output = 5;
+}
+
+message ScriptState {
+  string tag = 1;
+  string type = 2;
+  uint64 runs = 3;
+  uint64 errors = 4;
+  uint64 timeouts = 5;
+  uint64 limits = 6;
+  uint64 skipped = 7;
+  bool paused = 8;
+  // Unix seconds, 0 when not paused.
+  int64 paused_until = 9;
+  string last_error = 10;
+  // Unix milliseconds, 0 when never run.
+  int64 last_run_ms = 11;
+  int64 last_duration_us = 12;
+  // Unix milliseconds of the next scheduled run of a cron script, 0 otherwise.
+  int64 next_run_ms = 13;
+}
+
+message ScriptStatusList {
+  repeated ScriptState scripts = 1;
+  // False while $persistentStore values are kept in memory only (no cache
+  // file).
+  bool store_persistent = 2;
+  uint64 store_bytes = 3;
+  uint64 store_limit = 4;
+}
+
+message ScriptSubscribeRequest {
+  // Resume after this sequence number; 0 starts with the recent entries.
+  uint64 after = 1;
+  // Only entries of this script when not empty (logs only).
+  string tag = 2;
+}
+
+message ScriptLogEntry {
+  uint64 seq = 1;
+  string script = 2;
+  string phase = 3;
+  string level = 4;
+  string message = 5;
+  int64 time_ms = 6;
+}
+
+message ScriptNotification {
+  uint64 seq = 1;
+  string script = 2;
+  string title = 3;
+  string subtitle = 4;
+  string body = 5;
+  string url = 6;
+  int64 time_ms = 7;
+}
+
+message ScriptStoreKey {
+  // A script tag or @shared.
+  string namespace = 1;
+  string key = 2;
+}
+
+message ScriptStoreValue {
+  string value = 1;
+  bool found = 2;
+}
+
+message ScriptStoreSetRequest {
+  string namespace = 1;
+  string key = 2;
+  // At most 1 MiB; the store holds at most 16 MiB.
+  string value = 3;
+}
+
+message ScriptStoreListRequest {
+  // Empty lists only the namespaces.
+  string namespace = 1;
+}
+
+message ScriptStoreNamespace {
+  string name = 1;
+  uint32 entries = 2;
+  uint64 bytes = 3;
+}
+
+message ScriptStoreListEntry {
+  string key = 1;
+  // At most 4 KiB; StoreGet returns the whole value.
+  string value = 2;
+  uint32 size = 3;
+  bool truncated = 4;
+}
+
+message ScriptStoreListResponse {
+  repeated ScriptStoreNamespace namespaces = 1;
+  repeated ScriptStoreListEntry entries = 2;
+  ScriptStoreInfo info = 3;
+}
+
+message ScriptStoreInfo {
+  bool persistent = 1;
+  uint64 bytes = 2;
+  uint64 limit = 3;
+}

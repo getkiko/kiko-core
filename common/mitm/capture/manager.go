@@ -520,6 +520,12 @@ func hitsSize(hits []flow.RewriteHit) int64 {
 			c := &hits[i].Changes[j]
 			size += int64(len(c.Name)+len(c.Before)+len(c.After)+len(c.Op)) + headerOverhead
 		}
+		if run := hits[i].Run; run != nil {
+			size += int64(len(run.Phase)+len(run.Error)+len(run.Reason)) + headerOverhead
+			for j := range run.Logs {
+				size += int64(len(run.Logs[j].Level)+len(run.Logs[j].Message)) + headerOverhead
+			}
+		}
 	}
 	return size
 }

@@ -132,6 +132,20 @@ type Query struct {
 	DeliveryError *Failure  `json:"delivery_error,omitempty"`
 	Incomplete    bool      `json:"incomplete,omitempty"`
 	Rewritten     string    `json:"rewritten,omitempty"`
+	// Scripts are the dns script actions that ran for the query, in order.
+	Scripts []ScriptRun `json:"scripts,omitempty"`
+}
+
+// ScriptRun is the result of one dns script action.
+type ScriptRun struct {
+	Tag string `json:"tag"`
+	// Outcome is answer, server, pass, reject (the script failed and on_error is reject),
+	// error (the script failed and the query went on) or maybe (a policy test, script not run).
+	Outcome string `json:"outcome"`
+	// Detail is the answer, the server tag or the error text.
+	Detail     string  `json:"detail,omitempty"`
+	Cached     bool    `json:"cached,omitempty"`
+	DurationMS float64 `json:"duration_ms"`
 }
 
 func failure(err error, stage string) *Failure {

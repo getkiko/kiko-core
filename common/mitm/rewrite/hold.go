@@ -19,9 +19,13 @@ type Held struct {
 	// Complete reports that Data is the whole body as received (or rewritten, when Changed);
 	// otherwise Replay, when not nil, yields the body from its first byte and Data is nil.
 	Complete bool
-	Changed  bool
-	Data     []byte
-	Replay   io.Reader
+	// Reason is why the body rules did not run (one of the Skip* constants); empty when the
+	// body was collected within every limit. A body that is Complete but was too costly for
+	// the budget carries SkipBusy.
+	Reason  string
+	Changed bool
+	Data    []byte
+	Replay  io.Reader
 }
 
 // Hold buffers a message body for the body rules of the plan. It returns nil when no body
@@ -34,14 +38,23 @@ type Held struct {
 // A body that is too long, too slow or beyond the budget is not an error: the result is
 // not Complete and its records say why. An error means src failed.
 func (p *Plan) Hold(scope, contentType, encoding string, src io.Reader, length int64, streaming bool, maxBody int64, reserved *int64, before func()) (*Held, error) {
-	if !p.NeedsBody(scope, contentType) {
+	return p.HoldFor(scope, contentType, encoding, src, length, streaming, maxBody, 0, reserved, before, false)
+}
+
+// HoldFor is Hold for a caller that needs the body beyond what the body rules of the plan
+// select (scripts): want makes it buffer the message even when no rule does. The plan may be
+// nil. maxBody bounds the buffering; ruleMax (0: the same) is the largest body the body rules
+// of the plan process, so that a caller that buffers more for scripts does not enlarge the
+// limit of the rules.
+func (p *Plan) HoldFor(scope, contentType, encoding string, src io.Reader, length int64, streaming bool, maxBody, ruleMax int64, reserved *int64, before func(), want bool) (*Held, error) {
+	if !want && !p.NeedsBody(scope, contentType) {
 		return nil, nil
 	}
 	if maxBody <= 0 {
 		maxBody = DefaultMaxBodySize
 	}
 	skip := func(reason string) *Held {
-		return &Held{Hits: p.SkipHits(scope, contentType, reason)}
+		return &Held{Hits: p.SkipHits(scope, contentType, reason), Reason: reason}
 	}
 	if streaming {
 		return skip(SkipStream), nil
@@ -89,12 +102,19 @@ func (p *Plan) Hold(scope, contentType, encoding string, src io.Reader, length i
 		body.Buffering.Release(taken)
 		held := skip(SkipBusy)
 		held.Complete, held.Data = true, res.Data
+		held.Reason = SkipBusy
 		return held, nil
 	} else {
 		taken += extra
 	}
 	*reserved += taken
-	result := p.ApplyBody(scope, contentType, encoding, res.Data, maxBody)
+	if ruleMax > 0 && int64(len(res.Data)) > ruleMax && p.NeedsBody(scope, contentType) {
+		return &Held{Hits: p.SkipHits(scope, contentType, SkipSize), Complete: true, Data: res.Data}, nil
+	}
+	if ruleMax <= 0 {
+		ruleMax = maxBody
+	}
+	result := p.ApplyBody(scope, contentType, encoding, res.Data, ruleMax)
 	return &Held{Hits: result.Hits, Complete: true, Changed: result.Changed, Data: result.Data}, nil
 }
 

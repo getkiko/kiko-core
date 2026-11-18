@@ -138,3 +138,36 @@ func internalAddressRefused(this N.Dialer, destination M.Socksaddr, conn net.Con
 	}
 	return nil
 }
+
+// scriptTargetGuard is implemented by the MITM engine: it names the reason an address is
+// off limits to the script $httpClient, or returns "".
+type scriptTargetGuard interface {
+	ScriptAddressRefused(addr netip.Addr) string
+}
+
+// scriptAddressRefused closes the gap that a host name leaves for the script $httpClient:
+// the name is only resolved by the dialer, so a direct outbound that ended up at an address
+// of this machine or its local network (a name pointed there, DNS rebinding) is refused
+// after the dial and before any byte is sent. Other outbounds resolve on the far side, where
+// only the name rules apply; a direct outbound with a detour shows the detour's address.
+func (m *ConnectionManager) scriptAddressRefused(this N.Dialer, conn net.Conn) error {
+	if outbound, isOutbound := this.(adapter.Outbound); !isOutbound || outbound.Type() != C.TypeDirect {
+		return nil
+	}
+	guard, ok := m.mitm.(scriptTargetGuard)
+	if !ok {
+		return E.New("refused: no target guard")
+	}
+	remote, ok := conn.RemoteAddr().(*net.TCPAddr)
+	if !ok {
+		return nil
+	}
+	addr, ok := netip.AddrFromSlice(remote.IP)
+	if !ok {
+		return nil
+	}
+	if reason := guard.ScriptAddressRefused(addr); reason != "" {
+		return E.New("refused: ", reason, " (", addr.Unmap(), ")")
+	}
+	return nil
+}

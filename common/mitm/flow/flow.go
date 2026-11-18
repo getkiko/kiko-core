@@ -85,7 +85,7 @@ type RequestHead struct {
 }
 
 // RewriteHit is one rewrite rule that matched an exchange. Kind is "url",
-// "header", "map_local" or "connect"; Side is "request" or "response" for
+// "header", "map_local", "connect", "body" or "script"; Side is "request" or "response" for
 // header rules.
 type RewriteHit struct {
 	Kind    string
@@ -95,6 +95,29 @@ type RewriteHit struct {
 	Target  string
 	Status  int
 	Changes []RewriteChange
+	// Run is set for Kind "script": the details of the script run.
+	Run *ScriptRun
+}
+
+// ScriptRun describes one script run in a RewriteHit of Kind "script". Rule and Target of the
+// hit are the script's tag; Action is modify, respond, abort, none, error, timeout, limit,
+// paused or skipped.
+type ScriptRun struct {
+	// Phase is "http-request" or "http-response".
+	Phase    string
+	Duration time.Duration
+	// Error is the message of an error, timeout or limit hit.
+	Error string
+	// Reason is why a script was skipped (stream, size, timeout, busy, encoding, decode,
+	// decoded-size) or paused.
+	Reason string
+	Logs   []ScriptLog
+}
+
+// ScriptLog is one console line of a script run.
+type ScriptLog struct {
+	Level   string // log, info, warn, error
+	Message string
 }
 
 // RewriteChange is one header operation that changed a message.

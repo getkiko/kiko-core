@@ -24,6 +24,7 @@ func NewServer(startedService *StartedService, secret string) *grpc.Server {
 	RegisterDNSMonitor(server, startedService)
 	RegisterMITM(server, startedService)
 	RegisterHTTPCapture(server, startedService)
+	RegisterScript(server, startedService)
 	healthServer.SetServingStatus(StartedService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 	reflection.Register(server)

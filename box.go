@@ -232,6 +232,15 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, E.Cause(err, "initialize mitm")
 	}
+	err = route.ValidateScriptReferences(options.Scripts, common.PtrValueOrDefault(options.Route), common.PtrValueOrDefault(options.DNS))
+	if err != nil {
+		return nil, err
+	}
+	commitScripts, err := mitmEngine.ReloadScripts(options.Scripts, options.MITM)
+	if err != nil {
+		return nil, E.Cause(err, "initialize scripts")
+	}
+	commitScripts()
 	mitmEngine.SetControlEndpoints(controlEndpoints(experimentalOptions)...)
 	service.MustRegister[adapter.MITMEngine](ctx, mitmEngine)
 	internalServices = append(internalServices, mitmEngine)
@@ -462,7 +471,11 @@ func New(options Options) (*Box, error) {
 		cacheFile := cachefile.New(ctx, logFactory.NewLogger("cache-file"), common.PtrValueOrDefault(experimentalOptions.CacheFile))
 		service.MustRegister[adapter.CacheFile](ctx, cacheFile)
 		internalServices = append(internalServices, cacheFile)
+		mitmEngine.Scripts().SetStore(cacheFile.ScriptStore())
+	} else if len(options.Scripts) > 0 {
+		logFactory.NewLogger("script").Warn("no cache file: $persistentStore values of scripts are kept in memory and lost on restart")
 	}
+	mitmEngine.Scripts().SetHTTPClient(mitmEngine.ScriptHTTPClient(router, outboundManager))
 	if needClashAPI {
 		clashServer, err := experimental.NewClashServer(ctx, logFactory.(log.ObservableFactory), common.PtrValueOrDefault(experimentalOptions.ClashAPI))
 		if err != nil {

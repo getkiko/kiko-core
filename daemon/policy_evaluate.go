@@ -64,6 +64,8 @@ func (s *StartedService) TestPolicy(ctx context.Context, request *PolicyTestRequ
 		Source:      M.Socksaddr{Addr: source, Port: uint16(request.GetSourcePort())},
 		Destination: M.Socksaddr{Addr: destination, Port: uint16(request.GetDestinationPort())},
 		Domain:      strings.TrimSuffix(strings.ToLower(request.GetDomain()), "."),
+		// Scripts do not run in a test; the ones that could change the result are reported.
+		ScriptDryRun: &adapter.ScriptDryRun{},
 	}
 	answer := &PolicyTestResult{RuleIndex: -1, TestedAt: time.Now().UnixMilli()}
 	if revision := service.FromContext[*lifecycle.Instance](instance.ctx); revision != nil {
@@ -95,6 +97,7 @@ func (s *StartedService) TestPolicy(ctx context.Context, request *PolicyTestRequ
 				return nil, status.Error(codes.Unavailable, err.Error())
 			}
 		}
+		answer.ScriptMaybe = metadata.ScriptDryRun.Tags()
 		answer.Action = "dns"
 		answer.DnsRcode = mDNS.RcodeToString[response.Rcode]
 		for _, address := range boxDNS.MessageToAddresses(response) {
@@ -120,5 +123,6 @@ func (s *StartedService) TestPolicy(ctx context.Context, request *PolicyTestRequ
 	}
 	answer.Action, answer.Rule, answer.RuleIndex, answer.OutboundPath = result.Action, result.Rule, int32(result.RuleIndex), result.OutboundPath
 	answer.Mitm = result.MITM
+	answer.ScriptMaybe = metadata.ScriptDryRun.Tags()
 	return answer, nil
 }

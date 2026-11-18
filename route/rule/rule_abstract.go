@@ -19,8 +19,11 @@ type abstractDefaultRule struct {
 	destinationPortItems    []RuleItem
 	allItems                []RuleItem
 	ruleSetItem             *RuleSetItem
-	invert                  bool
-	action                  adapter.RuleAction
+	// scriptItem is checked last, after every other condition holds, so that a script only
+	// runs for connections the rest of the rule already accepts.
+	scriptItem RuleItem
+	invert     bool
+	action     adapter.RuleAction
 }
 
 func (r *abstractDefaultRule) Type() string {
@@ -78,6 +81,9 @@ func (r *abstractDefaultRule) matchInner(metadata *adapter.InboundContext) bool 
 		matched = r.ruleSetItem.matchWithOuterGroups(metadata, groups)
 	} else {
 		matched = groups.done()
+	}
+	if matched && r.scriptItem != nil && !r.scriptItem.Match(metadata) {
+		matched = false
 	}
 	if matched {
 		metadata.DeferredIPCIDRMatchGroups &^= uint8(groups.satisfied)

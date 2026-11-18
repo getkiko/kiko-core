@@ -8,6 +8,7 @@ import (
 
 	"github.com/sagernet/sing-box/common/mitm/capture"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/script"
 	N "github.com/sagernet/sing/common/network"
 )
 
@@ -70,6 +71,14 @@ type MITMHostRejecter interface {
 // nothing (decryption off and no records kept).
 type MITMCaptureProvider interface {
 	Capture() *capture.Manager
+}
+
+// MITMScriptProvider is implemented by a MITMEngine that runs scripts: Scripts is the
+// manager of the top-level "scripts" and ScriptHub keeps their recent console lines and
+// notifications.
+type MITMScriptProvider interface {
+	Scripts() *script.Manager
+	ScriptHub() *script.Hub
 }
 
 // MITMRedialFunc dials a fresh, unencrypted connection to the destination of

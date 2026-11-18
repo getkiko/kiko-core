@@ -40,6 +40,7 @@ const (
 	RuleActionTypeSniff        = "sniff"
 	RuleActionTypeResolve      = "resolve"
 	RuleActionTypePredefined   = "predefined"
+	RuleActionTypeScript       = "script"
 )
 
 const (

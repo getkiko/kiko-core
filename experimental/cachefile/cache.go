@@ -26,6 +26,10 @@ var (
 	bucketMode     = []byte("clash_mode")
 	bucketRuleSet  = []byte("rule_set")
 
+	// bucketScriptStore holds the $persistentStore values of scripts (written by the script
+	// store; listed here so that the cleanup at open does not delete it).
+	bucketScriptStore = []byte("script_store")
+
 	bucketNameList = []string{
 		string(bucketSelected),
 		string(bucketExpand),
@@ -33,6 +37,7 @@ var (
 		string(bucketRuleSet),
 		string(bucketRDRC),
 		string(bucketDNSCache),
+		string(bucketScriptStore),
 	}
 
 	cacheIDDefault = []byte("default")
@@ -65,6 +70,8 @@ type CacheFile struct {
 	saveRDRC           map[saveCacheKey]bool
 	saveDNSCacheAccess sync.RWMutex
 	saveDNSCache       map[saveCacheKey]saveDNSCacheEntry
+	scriptStoreOnce    sync.Once
+	scriptStore        *scriptStore
 }
 
 type saveCacheKey struct {

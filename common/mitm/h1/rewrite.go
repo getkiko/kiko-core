@@ -46,6 +46,24 @@ func (s *session) rewritePlan() *rewrite.Plan {
 	return set.Plan(s.scheme(), req.Header.Get("Host"), req.Target)
 }
 
+// rewriteSet returns the current rewrite rule set, nil without one.
+func (s *session) rewriteSet() *rewrite.Set {
+	if s.options.Rewrite == nil {
+		return nil
+	}
+	return s.options.Rewrite()
+}
+
+// firstNonEmpty returns the first of the lists that has records.
+func firstNonEmpty(lists ...[]flow.RewriteHit) []flow.RewriteHit {
+	for _, l := range lists {
+		if len(l) > 0 {
+			return l
+		}
+	}
+	return nil
+}
+
 func toFlowHeaders(header httpx.Header) []flow.Header {
 	out := make([]flow.Header, len(header))
 	for i := range header {
