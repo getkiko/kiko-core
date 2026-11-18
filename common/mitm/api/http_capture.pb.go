@@ -573,7 +573,7 @@ type HTTPRecord struct {
 	RequestEncoding  string      `protobuf:"bytes,30,opt,name=request_encoding,json=requestEncoding,proto3" json:"request_encoding,omitempty"`
 	ResponseEncoding string      `protobuf:"bytes,31,opt,name=response_encoding,json=responseEncoding,proto3" json:"response_encoding,omitempty"`
 	Timing           *HTTPTiming `protobuf:"bytes,32,opt,name=timing,proto3" json:"timing,omitempty"`
-	State            RecordState `protobuf:"varint,33,opt,name=state,proto3,enum=sbui.mitm.v1.RecordState" json:"state,omitempty"`
+	State            RecordState `protobuf:"varint,33,opt,name=state,proto3,enum=kiko.mitm.v1.RecordState" json:"state,omitempty"`
 	Error            string      `protobuf:"bytes,34,opt,name=error,proto3" json:"error,omitempty"`
 	// The upstream certificate was not verified.
 	Unverified    bool              `protobuf:"varint,35,opt,name=unverified,proto3" json:"unverified,omitempty"`
@@ -1202,7 +1202,7 @@ func (x *HTTPRewriteChange) GetHasAfter() bool {
 
 type CaptureEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          EventKind              `protobuf:"varint,1,opt,name=kind,proto3,enum=sbui.mitm.v1.EventKind" json:"kind,omitempty"`
+	Kind          EventKind              `protobuf:"varint,1,opt,name=kind,proto3,enum=kiko.mitm.v1.EventKind" json:"kind,omitempty"`
 	Record        *HTTPRecord            `protobuf:"bytes,2,opt,name=record,proto3" json:"record,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1600,7 +1600,7 @@ type GetBodyRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Instance string                 `protobuf:"bytes,2,opt,name=instance,proto3" json:"instance,omitempty"`
-	Side     BodySide               `protobuf:"varint,3,opt,name=side,proto3,enum=sbui.mitm.v1.BodySide" json:"side,omitempty"`
+	Side     BodySide               `protobuf:"varint,3,opt,name=side,proto3,enum=kiko.mitm.v1.BodySide" json:"side,omitempty"`
 	Offset   int64                  `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
 	// Zero means up to the end.
 	Length int64 `protobuf:"varint,5,opt,name=length,proto3" json:"length,omitempty"`
@@ -2148,7 +2148,7 @@ var File_common_mitm_api_http_capture_proto protoreflect.FileDescriptor
 
 const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\n" +
-	"\"common/mitm/api/http_capture.proto\x12\fsbui.mitm.v1\x1a\x1bgoogle/protobuf/empty.proto\"J\n" +
+	"\"common/mitm/api/http_capture.proto\x12\fkiko.mitm.v1\x1a\x1bgoogle/protobuf/empty.proto\"J\n" +
 	"\x16SubscribeEventsRequest\x12\x1a\n" +
 	"\binstance\x18\x01 \x01(\tR\binstance\x12\x14\n" +
 	"\x05after\x18\x02 \x01(\x04R\x05after\"6\n" +
@@ -2196,7 +2196,7 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\rconnection_id\x18\x05 \x01(\tR\fconnectionId\x12#\n" +
 	"\rrequest_index\x18\x06 \x01(\rR\frequestIndex\x12<\n" +
 	"\n" +
-	"connection\x18\a \x01(\v2\x1c.sbui.mitm.v1.HTTPConnectionR\n" +
+	"connection\x18\a \x01(\v2\x1c.kiko.mitm.v1.HTTPConnectionR\n" +
 	"connection\x12\x16\n" +
 	"\x06method\x18\b \x01(\tR\x06method\x12\x16\n" +
 	"\x06scheme\x18\t \x01(\tR\x06scheme\x12\x1c\n" +
@@ -2208,10 +2208,10 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\x05proto\x18\x0e \x01(\tR\x05proto\x12\x16\n" +
 	"\x06status\x18\x0f \x01(\x05R\x06status\x12\x18\n" +
 	"\ainterim\x18\x10 \x03(\x05R\ainterim\x12A\n" +
-	"\x0frequest_headers\x18\x11 \x03(\v2\x18.sbui.mitm.v1.HTTPHeaderR\x0erequestHeaders\x12C\n" +
-	"\x10response_headers\x18\x12 \x03(\v2\x18.sbui.mitm.v1.HTTPHeaderR\x0fresponseHeaders\x12C\n" +
-	"\x10request_trailers\x18\x13 \x03(\v2\x18.sbui.mitm.v1.HTTPHeaderR\x0frequestTrailers\x12E\n" +
-	"\x11response_trailers\x18\x14 \x03(\v2\x18.sbui.mitm.v1.HTTPHeaderR\x10responseTrailers\x12#\n" +
+	"\x0frequest_headers\x18\x11 \x03(\v2\x18.kiko.mitm.v1.HTTPHeaderR\x0erequestHeaders\x12C\n" +
+	"\x10response_headers\x18\x12 \x03(\v2\x18.kiko.mitm.v1.HTTPHeaderR\x0fresponseHeaders\x12C\n" +
+	"\x10request_trailers\x18\x13 \x03(\v2\x18.kiko.mitm.v1.HTTPHeaderR\x0frequestTrailers\x12E\n" +
+	"\x11response_trailers\x18\x14 \x03(\v2\x18.kiko.mitm.v1.HTTPHeaderR\x10responseTrailers\x12#\n" +
 	"\rrequest_bytes\x18\x15 \x01(\x03R\frequestBytes\x12%\n" +
 	"\x0eresponse_bytes\x18\x16 \x01(\x03R\rresponseBytes\x12,\n" +
 	"\x12request_body_saved\x18\x17 \x01(\bR\x10requestBodySaved\x12.\n" +
@@ -2223,14 +2223,14 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\fbody_dropped\x18\x1d \x01(\bR\vbodyDropped\x12)\n" +
 	"\x10request_encoding\x18\x1e \x01(\tR\x0frequestEncoding\x12+\n" +
 	"\x11response_encoding\x18\x1f \x01(\tR\x10responseEncoding\x120\n" +
-	"\x06timing\x18  \x01(\v2\x18.sbui.mitm.v1.HTTPTimingR\x06timing\x12/\n" +
-	"\x05state\x18! \x01(\x0e2\x19.sbui.mitm.v1.RecordStateR\x05state\x12\x14\n" +
+	"\x06timing\x18  \x01(\v2\x18.kiko.mitm.v1.HTTPTimingR\x06timing\x12/\n" +
+	"\x05state\x18! \x01(\x0e2\x19.kiko.mitm.v1.RecordStateR\x05state\x12\x14\n" +
 	"\x05error\x18\" \x01(\tR\x05error\x12\x1e\n" +
 	"\n" +
 	"unverified\x18# \x01(\bR\n" +
 	"unverified\x12\x1c\n" +
 	"\trewritten\x18$ \x01(\bR\trewritten\x128\n" +
-	"\brewrites\x18% \x03(\v2\x1c.sbui.mitm.v1.HTTPRewriteHitR\brewrites\"\xfe\x01\n" +
+	"\brewrites\x18% \x03(\v2\x1c.kiko.mitm.v1.HTTPRewriteHitR\brewrites\"\xfe\x01\n" +
 	"\x0eHTTPRewriteHit\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x16\n" +
@@ -2238,8 +2238,8 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\x04side\x18\x04 \x01(\tR\x04side\x12\x16\n" +
 	"\x06target\x18\x05 \x01(\tR\x06target\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\x05R\x06status\x129\n" +
-	"\achanges\x18\a \x03(\v2\x1f.sbui.mitm.v1.HTTPRewriteChangeR\achanges\x12-\n" +
-	"\x03run\x18\b \x01(\v2\x1b.sbui.mitm.v1.HTTPScriptRunR\x03run\"\xb7\x01\n" +
+	"\achanges\x18\a \x03(\v2\x1f.kiko.mitm.v1.HTTPRewriteChangeR\achanges\x12-\n" +
+	"\x03run\x18\b \x01(\v2\x1b.kiko.mitm.v1.HTTPScriptRunR\x03run\"\xb7\x01\n" +
 	"\rHTTPScriptRun\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x14\n" +
 	"\x05phase\x18\x02 \x01(\tR\x05phase\x12\x1f\n" +
@@ -2247,7 +2247,7 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"durationUs\x12\x14\n" +
 	"\x05error\x18\x04 \x01(\tR\x05error\x12\x16\n" +
 	"\x06reason\x18\x05 \x01(\tR\x06reason\x12/\n" +
-	"\x04logs\x18\x06 \x03(\v2\x1b.sbui.mitm.v1.HTTPScriptLogR\x04logs\"?\n" +
+	"\x04logs\x18\x06 \x03(\v2\x1b.kiko.mitm.v1.HTTPScriptLogR\x04logs\"?\n" +
 	"\rHTTPScriptLog\x12\x14\n" +
 	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xa1\x01\n" +
@@ -2260,16 +2260,16 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\x05after\x18\x05 \x01(\tR\x05after\x12\x1b\n" +
 	"\thas_after\x18\x06 \x01(\bR\bhasAfter\"m\n" +
 	"\fCaptureEvent\x12+\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x17.sbui.mitm.v1.EventKindR\x04kind\x120\n" +
-	"\x06record\x18\x02 \x01(\v2\x18.sbui.mitm.v1.HTTPRecordR\x06record\"\xe5\x01\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x17.kiko.mitm.v1.EventKindR\x04kind\x120\n" +
+	"\x06record\x18\x02 \x01(\v2\x18.kiko.mitm.v1.HTTPRecordR\x06record\"\xe5\x01\n" +
 	"\x0eCapturePayload\x12\x1a\n" +
 	"\binstance\x18\x01 \x01(\tR\binstance\x12\x10\n" +
 	"\x03seq\x18\x02 \x01(\x04R\x03seq\x12\x14\n" +
 	"\x05floor\x18\x03 \x01(\x04R\x05floor\x12\x14\n" +
 	"\x05reset\x18\x04 \x01(\bR\x05reset\x12\x10\n" +
 	"\x03gap\x18\x05 \x01(\bR\x03gap\x122\n" +
-	"\x06events\x18\x06 \x03(\v2\x1a.sbui.mitm.v1.CaptureEventR\x06events\x123\n" +
-	"\x06status\x18\a \x01(\v2\x1b.sbui.mitm.v1.CaptureStatusR\x06status\"\x93\x01\n" +
+	"\x06events\x18\x06 \x03(\v2\x1a.kiko.mitm.v1.CaptureEventR\x06events\x123\n" +
+	"\x06status\x18\a \x01(\v2\x1b.kiko.mitm.v1.CaptureStatusR\x06status\"\x93\x01\n" +
 	"\x12ListRecordsRequest\x12\x16\n" +
 	"\x06search\x18\x01 \x01(\tR\x06search\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12#\n" +
@@ -2279,10 +2279,10 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\n" +
 	"RecordList\x12\x1a\n" +
 	"\binstance\x18\x01 \x01(\tR\binstance\x122\n" +
-	"\arecords\x18\x02 \x03(\v2\x18.sbui.mitm.v1.HTTPRecordR\arecords\x12\x1f\n" +
+	"\arecords\x18\x02 \x03(\v2\x18.kiko.mitm.v1.HTTPRecordR\arecords\x12\x1f\n" +
 	"\vnext_before\x18\x03 \x01(\x04R\n" +
 	"nextBefore\x123\n" +
-	"\x06status\x18\x04 \x01(\v2\x1b.sbui.mitm.v1.CaptureStatusR\x06status\">\n" +
+	"\x06status\x18\x04 \x01(\v2\x1b.kiko.mitm.v1.CaptureStatusR\x06status\">\n" +
 	"\x10GetRecordRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\tR\binstance\"A\n" +
@@ -2292,7 +2292,7 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\x0eGetBodyRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\tR\binstance\x12*\n" +
-	"\x04side\x18\x03 \x01(\x0e2\x16.sbui.mitm.v1.BodySideR\x04side\x12\x16\n" +
+	"\x04side\x18\x03 \x01(\x0e2\x16.kiko.mitm.v1.BodySideR\x04side\x12\x16\n" +
 	"\x06offset\x18\x04 \x01(\x03R\x06offset\x12\x16\n" +
 	"\x06length\x18\x05 \x01(\x03R\x06length\x12\x18\n" +
 	"\adecoded\x18\x06 \x01(\bR\adecoded\"\x81\x02\n" +
@@ -2333,7 +2333,7 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\tsource_id\x18\x01 \x01(\tR\bsourceId\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12\x10\n" +
 	"\x03url\x18\x03 \x01(\tR\x03url\x122\n" +
-	"\aheaders\x18\x04 \x03(\v2\x18.sbui.mitm.v1.HTTPHeaderR\aheaders\x12\x12\n" +
+	"\aheaders\x18\x04 \x03(\v2\x18.kiko.mitm.v1.HTTPHeaderR\aheaders\x12\x12\n" +
 	"\x04body\x18\x05 \x01(\fR\x04body\x12\x1a\n" +
 	"\boutbound\x18\x06 \x01(\tR\boutbound\x12\x1d\n" +
 	"\n" +
@@ -2342,7 +2342,7 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"verify_tls\x18\b \x01(\bR\tverifyTls\x12\x1a\n" +
 	"\binstance\x18\t \x01(\tR\binstance\"X\n" +
 	"\x0eReplayResponse\x120\n" +
-	"\x06record\x18\x01 \x01(\v2\x18.sbui.mitm.v1.HTTPRecordR\x06record\x12\x14\n" +
+	"\x06record\x18\x01 \x01(\v2\x18.kiko.mitm.v1.HTTPRecordR\x06record\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error*z\n" +
 	"\vRecordState\x12\x1c\n" +
 	"\x18RECORD_STATE_IN_PROGRESS\x10\x00\x12\x19\n" +
@@ -2358,15 +2358,15 @@ const file_common_mitm_api_http_capture_proto_rawDesc = "" +
 	"\x11BODY_SIDE_REQUEST\x10\x00\x12\x16\n" +
 	"\x12BODY_SIDE_RESPONSE\x10\x012\x98\x05\n" +
 	"\vHTTPCapture\x12W\n" +
-	"\x0fSubscribeEvents\x12$.sbui.mitm.v1.SubscribeEventsRequest\x1a\x1c.sbui.mitm.v1.CapturePayload0\x01\x12I\n" +
-	"\vListRecords\x12 .sbui.mitm.v1.ListRecordsRequest\x1a\x18.sbui.mitm.v1.RecordList\x12E\n" +
-	"\tGetRecord\x12\x1e.sbui.mitm.v1.GetRecordRequest\x1a\x18.sbui.mitm.v1.HTTPRecord\x12B\n" +
-	"\aGetBody\x12\x1c.sbui.mitm.v1.GetBodyRequest\x1a\x17.sbui.mitm.v1.BodyChunk0\x01\x12<\n" +
-	"\x05Clear\x12\x16.google.protobuf.Empty\x1a\x1b.sbui.mitm.v1.CaptureStatus\x12@\n" +
-	"\tGetStatus\x12\x16.google.protobuf.Empty\x1a\x1b.sbui.mitm.v1.CaptureStatus\x12N\n" +
-	"\fDeleteRecord\x12!.sbui.mitm.v1.DeleteRecordRequest\x1a\x1b.sbui.mitm.v1.CaptureStatus\x12E\n" +
-	"\x0ePurgePersisted\x12\x16.google.protobuf.Empty\x1a\x1b.sbui.mitm.v1.CaptureStatus\x12C\n" +
-	"\x06Replay\x12\x1b.sbui.mitm.v1.ReplayRequest\x1a\x1c.sbui.mitm.v1.ReplayResponseB6Z4github.com/sagernet/sing-box/common/mitm/api;mitmapib\x06proto3"
+	"\x0fSubscribeEvents\x12$.kiko.mitm.v1.SubscribeEventsRequest\x1a\x1c.kiko.mitm.v1.CapturePayload0\x01\x12I\n" +
+	"\vListRecords\x12 .kiko.mitm.v1.ListRecordsRequest\x1a\x18.kiko.mitm.v1.RecordList\x12E\n" +
+	"\tGetRecord\x12\x1e.kiko.mitm.v1.GetRecordRequest\x1a\x18.kiko.mitm.v1.HTTPRecord\x12B\n" +
+	"\aGetBody\x12\x1c.kiko.mitm.v1.GetBodyRequest\x1a\x17.kiko.mitm.v1.BodyChunk0\x01\x12<\n" +
+	"\x05Clear\x12\x16.google.protobuf.Empty\x1a\x1b.kiko.mitm.v1.CaptureStatus\x12@\n" +
+	"\tGetStatus\x12\x16.google.protobuf.Empty\x1a\x1b.kiko.mitm.v1.CaptureStatus\x12N\n" +
+	"\fDeleteRecord\x12!.kiko.mitm.v1.DeleteRecordRequest\x1a\x1b.kiko.mitm.v1.CaptureStatus\x12E\n" +
+	"\x0ePurgePersisted\x12\x16.google.protobuf.Empty\x1a\x1b.kiko.mitm.v1.CaptureStatus\x12C\n" +
+	"\x06Replay\x12\x1b.kiko.mitm.v1.ReplayRequest\x1a\x1c.kiko.mitm.v1.ReplayResponseB6Z4github.com/sagernet/sing-box/common/mitm/api;mitmapib\x06proto3"
 
 var (
 	file_common_mitm_api_http_capture_proto_rawDescOnce sync.Once
@@ -2383,70 +2383,70 @@ func file_common_mitm_api_http_capture_proto_rawDescGZIP() []byte {
 var file_common_mitm_api_http_capture_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_common_mitm_api_http_capture_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_common_mitm_api_http_capture_proto_goTypes = []any{
-	(RecordState)(0),               // 0: sbui.mitm.v1.RecordState
-	(EventKind)(0),                 // 1: sbui.mitm.v1.EventKind
-	(BodySide)(0),                  // 2: sbui.mitm.v1.BodySide
-	(*SubscribeEventsRequest)(nil), // 3: sbui.mitm.v1.SubscribeEventsRequest
-	(*HTTPHeader)(nil),             // 4: sbui.mitm.v1.HTTPHeader
-	(*HTTPTiming)(nil),             // 5: sbui.mitm.v1.HTTPTiming
-	(*HTTPConnection)(nil),         // 6: sbui.mitm.v1.HTTPConnection
-	(*HTTPRecord)(nil),             // 7: sbui.mitm.v1.HTTPRecord
-	(*HTTPRewriteHit)(nil),         // 8: sbui.mitm.v1.HTTPRewriteHit
-	(*HTTPScriptRun)(nil),          // 9: sbui.mitm.v1.HTTPScriptRun
-	(*HTTPScriptLog)(nil),          // 10: sbui.mitm.v1.HTTPScriptLog
-	(*HTTPRewriteChange)(nil),      // 11: sbui.mitm.v1.HTTPRewriteChange
-	(*CaptureEvent)(nil),           // 12: sbui.mitm.v1.CaptureEvent
-	(*CapturePayload)(nil),         // 13: sbui.mitm.v1.CapturePayload
-	(*ListRecordsRequest)(nil),     // 14: sbui.mitm.v1.ListRecordsRequest
-	(*RecordList)(nil),             // 15: sbui.mitm.v1.RecordList
-	(*GetRecordRequest)(nil),       // 16: sbui.mitm.v1.GetRecordRequest
-	(*DeleteRecordRequest)(nil),    // 17: sbui.mitm.v1.DeleteRecordRequest
-	(*GetBodyRequest)(nil),         // 18: sbui.mitm.v1.GetBodyRequest
-	(*BodyChunk)(nil),              // 19: sbui.mitm.v1.BodyChunk
-	(*CaptureStatus)(nil),          // 20: sbui.mitm.v1.CaptureStatus
-	(*ReplayRequest)(nil),          // 21: sbui.mitm.v1.ReplayRequest
-	(*ReplayResponse)(nil),         // 22: sbui.mitm.v1.ReplayResponse
+	(RecordState)(0),               // 0: kiko.mitm.v1.RecordState
+	(EventKind)(0),                 // 1: kiko.mitm.v1.EventKind
+	(BodySide)(0),                  // 2: kiko.mitm.v1.BodySide
+	(*SubscribeEventsRequest)(nil), // 3: kiko.mitm.v1.SubscribeEventsRequest
+	(*HTTPHeader)(nil),             // 4: kiko.mitm.v1.HTTPHeader
+	(*HTTPTiming)(nil),             // 5: kiko.mitm.v1.HTTPTiming
+	(*HTTPConnection)(nil),         // 6: kiko.mitm.v1.HTTPConnection
+	(*HTTPRecord)(nil),             // 7: kiko.mitm.v1.HTTPRecord
+	(*HTTPRewriteHit)(nil),         // 8: kiko.mitm.v1.HTTPRewriteHit
+	(*HTTPScriptRun)(nil),          // 9: kiko.mitm.v1.HTTPScriptRun
+	(*HTTPScriptLog)(nil),          // 10: kiko.mitm.v1.HTTPScriptLog
+	(*HTTPRewriteChange)(nil),      // 11: kiko.mitm.v1.HTTPRewriteChange
+	(*CaptureEvent)(nil),           // 12: kiko.mitm.v1.CaptureEvent
+	(*CapturePayload)(nil),         // 13: kiko.mitm.v1.CapturePayload
+	(*ListRecordsRequest)(nil),     // 14: kiko.mitm.v1.ListRecordsRequest
+	(*RecordList)(nil),             // 15: kiko.mitm.v1.RecordList
+	(*GetRecordRequest)(nil),       // 16: kiko.mitm.v1.GetRecordRequest
+	(*DeleteRecordRequest)(nil),    // 17: kiko.mitm.v1.DeleteRecordRequest
+	(*GetBodyRequest)(nil),         // 18: kiko.mitm.v1.GetBodyRequest
+	(*BodyChunk)(nil),              // 19: kiko.mitm.v1.BodyChunk
+	(*CaptureStatus)(nil),          // 20: kiko.mitm.v1.CaptureStatus
+	(*ReplayRequest)(nil),          // 21: kiko.mitm.v1.ReplayRequest
+	(*ReplayResponse)(nil),         // 22: kiko.mitm.v1.ReplayResponse
 	(*emptypb.Empty)(nil),          // 23: google.protobuf.Empty
 }
 var file_common_mitm_api_http_capture_proto_depIdxs = []int32{
-	6,  // 0: sbui.mitm.v1.HTTPRecord.connection:type_name -> sbui.mitm.v1.HTTPConnection
-	4,  // 1: sbui.mitm.v1.HTTPRecord.request_headers:type_name -> sbui.mitm.v1.HTTPHeader
-	4,  // 2: sbui.mitm.v1.HTTPRecord.response_headers:type_name -> sbui.mitm.v1.HTTPHeader
-	4,  // 3: sbui.mitm.v1.HTTPRecord.request_trailers:type_name -> sbui.mitm.v1.HTTPHeader
-	4,  // 4: sbui.mitm.v1.HTTPRecord.response_trailers:type_name -> sbui.mitm.v1.HTTPHeader
-	5,  // 5: sbui.mitm.v1.HTTPRecord.timing:type_name -> sbui.mitm.v1.HTTPTiming
-	0,  // 6: sbui.mitm.v1.HTTPRecord.state:type_name -> sbui.mitm.v1.RecordState
-	8,  // 7: sbui.mitm.v1.HTTPRecord.rewrites:type_name -> sbui.mitm.v1.HTTPRewriteHit
-	11, // 8: sbui.mitm.v1.HTTPRewriteHit.changes:type_name -> sbui.mitm.v1.HTTPRewriteChange
-	9,  // 9: sbui.mitm.v1.HTTPRewriteHit.run:type_name -> sbui.mitm.v1.HTTPScriptRun
-	10, // 10: sbui.mitm.v1.HTTPScriptRun.logs:type_name -> sbui.mitm.v1.HTTPScriptLog
-	1,  // 11: sbui.mitm.v1.CaptureEvent.kind:type_name -> sbui.mitm.v1.EventKind
-	7,  // 12: sbui.mitm.v1.CaptureEvent.record:type_name -> sbui.mitm.v1.HTTPRecord
-	12, // 13: sbui.mitm.v1.CapturePayload.events:type_name -> sbui.mitm.v1.CaptureEvent
-	20, // 14: sbui.mitm.v1.CapturePayload.status:type_name -> sbui.mitm.v1.CaptureStatus
-	7,  // 15: sbui.mitm.v1.RecordList.records:type_name -> sbui.mitm.v1.HTTPRecord
-	20, // 16: sbui.mitm.v1.RecordList.status:type_name -> sbui.mitm.v1.CaptureStatus
-	2,  // 17: sbui.mitm.v1.GetBodyRequest.side:type_name -> sbui.mitm.v1.BodySide
-	4,  // 18: sbui.mitm.v1.ReplayRequest.headers:type_name -> sbui.mitm.v1.HTTPHeader
-	7,  // 19: sbui.mitm.v1.ReplayResponse.record:type_name -> sbui.mitm.v1.HTTPRecord
-	3,  // 20: sbui.mitm.v1.HTTPCapture.SubscribeEvents:input_type -> sbui.mitm.v1.SubscribeEventsRequest
-	14, // 21: sbui.mitm.v1.HTTPCapture.ListRecords:input_type -> sbui.mitm.v1.ListRecordsRequest
-	16, // 22: sbui.mitm.v1.HTTPCapture.GetRecord:input_type -> sbui.mitm.v1.GetRecordRequest
-	18, // 23: sbui.mitm.v1.HTTPCapture.GetBody:input_type -> sbui.mitm.v1.GetBodyRequest
-	23, // 24: sbui.mitm.v1.HTTPCapture.Clear:input_type -> google.protobuf.Empty
-	23, // 25: sbui.mitm.v1.HTTPCapture.GetStatus:input_type -> google.protobuf.Empty
-	17, // 26: sbui.mitm.v1.HTTPCapture.DeleteRecord:input_type -> sbui.mitm.v1.DeleteRecordRequest
-	23, // 27: sbui.mitm.v1.HTTPCapture.PurgePersisted:input_type -> google.protobuf.Empty
-	21, // 28: sbui.mitm.v1.HTTPCapture.Replay:input_type -> sbui.mitm.v1.ReplayRequest
-	13, // 29: sbui.mitm.v1.HTTPCapture.SubscribeEvents:output_type -> sbui.mitm.v1.CapturePayload
-	15, // 30: sbui.mitm.v1.HTTPCapture.ListRecords:output_type -> sbui.mitm.v1.RecordList
-	7,  // 31: sbui.mitm.v1.HTTPCapture.GetRecord:output_type -> sbui.mitm.v1.HTTPRecord
-	19, // 32: sbui.mitm.v1.HTTPCapture.GetBody:output_type -> sbui.mitm.v1.BodyChunk
-	20, // 33: sbui.mitm.v1.HTTPCapture.Clear:output_type -> sbui.mitm.v1.CaptureStatus
-	20, // 34: sbui.mitm.v1.HTTPCapture.GetStatus:output_type -> sbui.mitm.v1.CaptureStatus
-	20, // 35: sbui.mitm.v1.HTTPCapture.DeleteRecord:output_type -> sbui.mitm.v1.CaptureStatus
-	20, // 36: sbui.mitm.v1.HTTPCapture.PurgePersisted:output_type -> sbui.mitm.v1.CaptureStatus
-	22, // 37: sbui.mitm.v1.HTTPCapture.Replay:output_type -> sbui.mitm.v1.ReplayResponse
+	6,  // 0: kiko.mitm.v1.HTTPRecord.connection:type_name -> kiko.mitm.v1.HTTPConnection
+	4,  // 1: kiko.mitm.v1.HTTPRecord.request_headers:type_name -> kiko.mitm.v1.HTTPHeader
+	4,  // 2: kiko.mitm.v1.HTTPRecord.response_headers:type_name -> kiko.mitm.v1.HTTPHeader
+	4,  // 3: kiko.mitm.v1.HTTPRecord.request_trailers:type_name -> kiko.mitm.v1.HTTPHeader
+	4,  // 4: kiko.mitm.v1.HTTPRecord.response_trailers:type_name -> kiko.mitm.v1.HTTPHeader
+	5,  // 5: kiko.mitm.v1.HTTPRecord.timing:type_name -> kiko.mitm.v1.HTTPTiming
+	0,  // 6: kiko.mitm.v1.HTTPRecord.state:type_name -> kiko.mitm.v1.RecordState
+	8,  // 7: kiko.mitm.v1.HTTPRecord.rewrites:type_name -> kiko.mitm.v1.HTTPRewriteHit
+	11, // 8: kiko.mitm.v1.HTTPRewriteHit.changes:type_name -> kiko.mitm.v1.HTTPRewriteChange
+	9,  // 9: kiko.mitm.v1.HTTPRewriteHit.run:type_name -> kiko.mitm.v1.HTTPScriptRun
+	10, // 10: kiko.mitm.v1.HTTPScriptRun.logs:type_name -> kiko.mitm.v1.HTTPScriptLog
+	1,  // 11: kiko.mitm.v1.CaptureEvent.kind:type_name -> kiko.mitm.v1.EventKind
+	7,  // 12: kiko.mitm.v1.CaptureEvent.record:type_name -> kiko.mitm.v1.HTTPRecord
+	12, // 13: kiko.mitm.v1.CapturePayload.events:type_name -> kiko.mitm.v1.CaptureEvent
+	20, // 14: kiko.mitm.v1.CapturePayload.status:type_name -> kiko.mitm.v1.CaptureStatus
+	7,  // 15: kiko.mitm.v1.RecordList.records:type_name -> kiko.mitm.v1.HTTPRecord
+	20, // 16: kiko.mitm.v1.RecordList.status:type_name -> kiko.mitm.v1.CaptureStatus
+	2,  // 17: kiko.mitm.v1.GetBodyRequest.side:type_name -> kiko.mitm.v1.BodySide
+	4,  // 18: kiko.mitm.v1.ReplayRequest.headers:type_name -> kiko.mitm.v1.HTTPHeader
+	7,  // 19: kiko.mitm.v1.ReplayResponse.record:type_name -> kiko.mitm.v1.HTTPRecord
+	3,  // 20: kiko.mitm.v1.HTTPCapture.SubscribeEvents:input_type -> kiko.mitm.v1.SubscribeEventsRequest
+	14, // 21: kiko.mitm.v1.HTTPCapture.ListRecords:input_type -> kiko.mitm.v1.ListRecordsRequest
+	16, // 22: kiko.mitm.v1.HTTPCapture.GetRecord:input_type -> kiko.mitm.v1.GetRecordRequest
+	18, // 23: kiko.mitm.v1.HTTPCapture.GetBody:input_type -> kiko.mitm.v1.GetBodyRequest
+	23, // 24: kiko.mitm.v1.HTTPCapture.Clear:input_type -> google.protobuf.Empty
+	23, // 25: kiko.mitm.v1.HTTPCapture.GetStatus:input_type -> google.protobuf.Empty
+	17, // 26: kiko.mitm.v1.HTTPCapture.DeleteRecord:input_type -> kiko.mitm.v1.DeleteRecordRequest
+	23, // 27: kiko.mitm.v1.HTTPCapture.PurgePersisted:input_type -> google.protobuf.Empty
+	21, // 28: kiko.mitm.v1.HTTPCapture.Replay:input_type -> kiko.mitm.v1.ReplayRequest
+	13, // 29: kiko.mitm.v1.HTTPCapture.SubscribeEvents:output_type -> kiko.mitm.v1.CapturePayload
+	15, // 30: kiko.mitm.v1.HTTPCapture.ListRecords:output_type -> kiko.mitm.v1.RecordList
+	7,  // 31: kiko.mitm.v1.HTTPCapture.GetRecord:output_type -> kiko.mitm.v1.HTTPRecord
+	19, // 32: kiko.mitm.v1.HTTPCapture.GetBody:output_type -> kiko.mitm.v1.BodyChunk
+	20, // 33: kiko.mitm.v1.HTTPCapture.Clear:output_type -> kiko.mitm.v1.CaptureStatus
+	20, // 34: kiko.mitm.v1.HTTPCapture.GetStatus:output_type -> kiko.mitm.v1.CaptureStatus
+	20, // 35: kiko.mitm.v1.HTTPCapture.DeleteRecord:output_type -> kiko.mitm.v1.CaptureStatus
+	20, // 36: kiko.mitm.v1.HTTPCapture.PurgePersisted:output_type -> kiko.mitm.v1.CaptureStatus
+	22, // 37: kiko.mitm.v1.HTTPCapture.Replay:output_type -> kiko.mitm.v1.ReplayResponse
 	29, // [29:38] is the sub-list for method output_type
 	20, // [20:29] is the sub-list for method input_type
 	20, // [20:20] is the sub-list for extension type_name

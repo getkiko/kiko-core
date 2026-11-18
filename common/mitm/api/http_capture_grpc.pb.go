@@ -20,15 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	HTTPCapture_SubscribeEvents_FullMethodName = "/sbui.mitm.v1.HTTPCapture/SubscribeEvents"
-	HTTPCapture_ListRecords_FullMethodName     = "/sbui.mitm.v1.HTTPCapture/ListRecords"
-	HTTPCapture_GetRecord_FullMethodName       = "/sbui.mitm.v1.HTTPCapture/GetRecord"
-	HTTPCapture_GetBody_FullMethodName         = "/sbui.mitm.v1.HTTPCapture/GetBody"
-	HTTPCapture_Clear_FullMethodName           = "/sbui.mitm.v1.HTTPCapture/Clear"
-	HTTPCapture_GetStatus_FullMethodName       = "/sbui.mitm.v1.HTTPCapture/GetStatus"
-	HTTPCapture_DeleteRecord_FullMethodName    = "/sbui.mitm.v1.HTTPCapture/DeleteRecord"
-	HTTPCapture_PurgePersisted_FullMethodName  = "/sbui.mitm.v1.HTTPCapture/PurgePersisted"
-	HTTPCapture_Replay_FullMethodName          = "/sbui.mitm.v1.HTTPCapture/Replay"
+	HTTPCapture_SubscribeEvents_FullMethodName = "/kiko.mitm.v1.HTTPCapture/SubscribeEvents"
+	HTTPCapture_ListRecords_FullMethodName     = "/kiko.mitm.v1.HTTPCapture/ListRecords"
+	HTTPCapture_GetRecord_FullMethodName       = "/kiko.mitm.v1.HTTPCapture/GetRecord"
+	HTTPCapture_GetBody_FullMethodName         = "/kiko.mitm.v1.HTTPCapture/GetBody"
+	HTTPCapture_Clear_FullMethodName           = "/kiko.mitm.v1.HTTPCapture/Clear"
+	HTTPCapture_GetStatus_FullMethodName       = "/kiko.mitm.v1.HTTPCapture/GetStatus"
+	HTTPCapture_DeleteRecord_FullMethodName    = "/kiko.mitm.v1.HTTPCapture/DeleteRecord"
+	HTTPCapture_PurgePersisted_FullMethodName  = "/kiko.mitm.v1.HTTPCapture/PurgePersisted"
+	HTTPCapture_Replay_FullMethodName          = "/kiko.mitm.v1.HTTPCapture/Replay"
 )
 
 // HTTPCaptureClient is the client API for HTTPCapture service.
@@ -411,7 +411,7 @@ func _HTTPCapture_Replay_Handler(srv interface{}, ctx context.Context, dec func(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var HTTPCapture_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sbui.mitm.v1.HTTPCapture",
+	ServiceName: "kiko.mitm.v1.HTTPCapture",
 	HandlerType: (*HTTPCaptureServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

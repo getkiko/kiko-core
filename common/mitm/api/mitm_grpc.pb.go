@@ -20,10 +20,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MITM_GetCapabilities_FullMethodName = "/sbui.mitm.v1.MITM/GetCapabilities"
-	MITM_SetAuthority_FullMethodName    = "/sbui.mitm.v1.MITM/SetAuthority"
-	MITM_GetStatus_FullMethodName       = "/sbui.mitm.v1.MITM/GetStatus"
-	MITM_ClearSkip_FullMethodName       = "/sbui.mitm.v1.MITM/ClearSkip"
+	MITM_GetCapabilities_FullMethodName = "/kiko.mitm.v1.MITM/GetCapabilities"
+	MITM_SetAuthority_FullMethodName    = "/kiko.mitm.v1.MITM/SetAuthority"
+	MITM_GetStatus_FullMethodName       = "/kiko.mitm.v1.MITM/GetStatus"
+	MITM_ClearSkip_FullMethodName       = "/kiko.mitm.v1.MITM/ClearSkip"
 )
 
 // MITMClient is the client API for MITM service.
@@ -223,7 +223,7 @@ func _MITM_ClearSkip_Handler(srv interface{}, ctx context.Context, dec func(inte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var MITM_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sbui.mitm.v1.MITM",
+	ServiceName: "kiko.mitm.v1.MITM",
 	HandlerType: (*MITMServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

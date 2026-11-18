@@ -318,7 +318,7 @@ var File_common_dnsmonitor_api_dns_monitor_proto protoreflect.FileDescriptor
 
 const file_common_dnsmonitor_api_dns_monitor_proto_rawDesc = "" +
 	"\n" +
-	"'common/dnsmonitor/api/dns_monitor.proto\x12\x12sbui.dnsmonitor.v1\x1a\x1bgoogle/protobuf/empty.proto\"\x8d\x01\n" +
+	"'common/dnsmonitor/api/dns_monitor.proto\x12\x12kiko.dnsmonitor.v1\x1a\x1bgoogle/protobuf/empty.proto\"\x8d\x01\n" +
 	"\fCapabilities\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12\x1a\n" +
@@ -341,11 +341,11 @@ const file_common_dnsmonitor_api_dns_monitor_proto_rawDesc = "" +
 	"\x04json\x18\x01 \x01(\fR\x04json2\x8c\x03\n" +
 	"\n" +
 	"DNSMonitor\x12K\n" +
-	"\x0fGetCapabilities\x12\x16.google.protobuf.Empty\x1a .sbui.dnsmonitor.v1.Capabilities\x12V\n" +
-	"\x0fSubscribeEvents\x12$.sbui.dnsmonitor.v1.SubscribeRequest\x1a\x1b.sbui.dnsmonitor.v1.Payload0\x01\x12K\n" +
-	"\vListQueries\x12\x1f.sbui.dnsmonitor.v1.ListRequest\x1a\x1b.sbui.dnsmonitor.v1.Payload\x12G\n" +
-	"\bGetQuery\x12\x1e.sbui.dnsmonitor.v1.GetRequest\x1a\x1b.sbui.dnsmonitor.v1.Payload\x12C\n" +
-	"\fClearHistory\x12\x16.google.protobuf.Empty\x1a\x1b.sbui.dnsmonitor.v1.PayloadBBZ@github.com/sagernet/sing-box/common/dnsmonitor/api;dnsmonitorapib\x06proto3"
+	"\x0fGetCapabilities\x12\x16.google.protobuf.Empty\x1a .kiko.dnsmonitor.v1.Capabilities\x12V\n" +
+	"\x0fSubscribeEvents\x12$.kiko.dnsmonitor.v1.SubscribeRequest\x1a\x1b.kiko.dnsmonitor.v1.Payload0\x01\x12K\n" +
+	"\vListQueries\x12\x1f.kiko.dnsmonitor.v1.ListRequest\x1a\x1b.kiko.dnsmonitor.v1.Payload\x12G\n" +
+	"\bGetQuery\x12\x1e.kiko.dnsmonitor.v1.GetRequest\x1a\x1b.kiko.dnsmonitor.v1.Payload\x12C\n" +
+	"\fClearHistory\x12\x16.google.protobuf.Empty\x1a\x1b.kiko.dnsmonitor.v1.PayloadBBZ@github.com/sagernet/sing-box/common/dnsmonitor/api;dnsmonitorapib\x06proto3"
 
 var (
 	file_common_dnsmonitor_api_dns_monitor_proto_rawDescOnce sync.Once
@@ -361,24 +361,24 @@ func file_common_dnsmonitor_api_dns_monitor_proto_rawDescGZIP() []byte {
 
 var file_common_dnsmonitor_api_dns_monitor_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_common_dnsmonitor_api_dns_monitor_proto_goTypes = []any{
-	(*Capabilities)(nil),     // 0: sbui.dnsmonitor.v1.Capabilities
-	(*SubscribeRequest)(nil), // 1: sbui.dnsmonitor.v1.SubscribeRequest
-	(*ListRequest)(nil),      // 2: sbui.dnsmonitor.v1.ListRequest
-	(*GetRequest)(nil),       // 3: sbui.dnsmonitor.v1.GetRequest
-	(*Payload)(nil),          // 4: sbui.dnsmonitor.v1.Payload
+	(*Capabilities)(nil),     // 0: kiko.dnsmonitor.v1.Capabilities
+	(*SubscribeRequest)(nil), // 1: kiko.dnsmonitor.v1.SubscribeRequest
+	(*ListRequest)(nil),      // 2: kiko.dnsmonitor.v1.ListRequest
+	(*GetRequest)(nil),       // 3: kiko.dnsmonitor.v1.GetRequest
+	(*Payload)(nil),          // 4: kiko.dnsmonitor.v1.Payload
 	(*emptypb.Empty)(nil),    // 5: google.protobuf.Empty
 }
 var file_common_dnsmonitor_api_dns_monitor_proto_depIdxs = []int32{
-	5, // 0: sbui.dnsmonitor.v1.DNSMonitor.GetCapabilities:input_type -> google.protobuf.Empty
-	1, // 1: sbui.dnsmonitor.v1.DNSMonitor.SubscribeEvents:input_type -> sbui.dnsmonitor.v1.SubscribeRequest
-	2, // 2: sbui.dnsmonitor.v1.DNSMonitor.ListQueries:input_type -> sbui.dnsmonitor.v1.ListRequest
-	3, // 3: sbui.dnsmonitor.v1.DNSMonitor.GetQuery:input_type -> sbui.dnsmonitor.v1.GetRequest
-	5, // 4: sbui.dnsmonitor.v1.DNSMonitor.ClearHistory:input_type -> google.protobuf.Empty
-	0, // 5: sbui.dnsmonitor.v1.DNSMonitor.GetCapabilities:output_type -> sbui.dnsmonitor.v1.Capabilities
-	4, // 6: sbui.dnsmonitor.v1.DNSMonitor.SubscribeEvents:output_type -> sbui.dnsmonitor.v1.Payload
-	4, // 7: sbui.dnsmonitor.v1.DNSMonitor.ListQueries:output_type -> sbui.dnsmonitor.v1.Payload
-	4, // 8: sbui.dnsmonitor.v1.DNSMonitor.GetQuery:output_type -> sbui.dnsmonitor.v1.Payload
-	4, // 9: sbui.dnsmonitor.v1.DNSMonitor.ClearHistory:output_type -> sbui.dnsmonitor.v1.Payload
+	5, // 0: kiko.dnsmonitor.v1.DNSMonitor.GetCapabilities:input_type -> google.protobuf.Empty
+	1, // 1: kiko.dnsmonitor.v1.DNSMonitor.SubscribeEvents:input_type -> kiko.dnsmonitor.v1.SubscribeRequest
+	2, // 2: kiko.dnsmonitor.v1.DNSMonitor.ListQueries:input_type -> kiko.dnsmonitor.v1.ListRequest
+	3, // 3: kiko.dnsmonitor.v1.DNSMonitor.GetQuery:input_type -> kiko.dnsmonitor.v1.GetRequest
+	5, // 4: kiko.dnsmonitor.v1.DNSMonitor.ClearHistory:input_type -> google.protobuf.Empty
+	0, // 5: kiko.dnsmonitor.v1.DNSMonitor.GetCapabilities:output_type -> kiko.dnsmonitor.v1.Capabilities
+	4, // 6: kiko.dnsmonitor.v1.DNSMonitor.SubscribeEvents:output_type -> kiko.dnsmonitor.v1.Payload
+	4, // 7: kiko.dnsmonitor.v1.DNSMonitor.ListQueries:output_type -> kiko.dnsmonitor.v1.Payload
+	4, // 8: kiko.dnsmonitor.v1.DNSMonitor.GetQuery:output_type -> kiko.dnsmonitor.v1.Payload
+	4, // 9: kiko.dnsmonitor.v1.DNSMonitor.ClearHistory:output_type -> kiko.dnsmonitor.v1.Payload
 	5, // [5:10] is the sub-list for method output_type
 	0, // [0:5] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

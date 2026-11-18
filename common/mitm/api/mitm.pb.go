@@ -444,7 +444,7 @@ var File_common_mitm_api_mitm_proto protoreflect.FileDescriptor
 
 const file_common_mitm_api_mitm_proto_rawDesc = "" +
 	"\n" +
-	"\x1acommon/mitm/api/mitm.proto\x12\fsbui.mitm.v1\x1a\x1bgoogle/protobuf/empty.proto\"Q\n" +
+	"\x1acommon/mitm/api/mitm.proto\x12\fkiko.mitm.v1\x1a\x1bgoogle/protobuf/empty.proto\"Q\n" +
 	"\fCapabilities\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12\x1a\n" +
 	"\bfeatures\x18\x02 \x03(\tR\bfeatures\"\xa0\x01\n" +
@@ -458,8 +458,8 @@ const file_common_mitm_api_mitm_proto_rawDesc = "" +
 	"\x15authority_fingerprint\x18\x02 \x01(\tR\x14authorityFingerprint\x12+\n" +
 	"\x11authority_pending\x18\x03 \x01(\bR\x10authorityPending\x12&\n" +
 	"\x0fleaf_cache_size\x18\x04 \x01(\rR\rleafCacheSize\x12+\n" +
-	"\x04skip\x18\x05 \x03(\v2\x17.sbui.mitm.v1.SkipEntryR\x04skip\x121\n" +
-	"\bfailures\x18\x06 \x03(\v2\x15.sbui.mitm.v1.FailureR\bfailures\x12)\n" +
+	"\x04skip\x18\x05 \x03(\v2\x17.kiko.mitm.v1.SkipEntryR\x04skip\x121\n" +
+	"\bfailures\x18\x06 \x03(\v2\x15.kiko.mitm.v1.FailureR\bfailures\x12)\n" +
 	"\x10root_fingerprint\x18\a \x01(\tR\x0frootFingerprint\x12.\n" +
 	"\x13authority_not_after\x18\b \x01(\x03R\x11authorityNotAfter\x12-\n" +
 	"\x12certificate_source\x18\t \x01(\tR\x11certificateSource\"e\n" +
@@ -476,10 +476,10 @@ const file_common_mitm_api_mitm_proto_rawDesc = "" +
 	"\x10ClearSkipRequest\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host2\x94\x02\n" +
 	"\x04MITM\x12E\n" +
-	"\x0fGetCapabilities\x12\x16.google.protobuf.Empty\x1a\x1a.sbui.mitm.v1.Capabilities\x12G\n" +
-	"\fSetAuthority\x12!.sbui.mitm.v1.SetAuthorityRequest\x1a\x14.sbui.mitm.v1.Status\x129\n" +
-	"\tGetStatus\x12\x16.google.protobuf.Empty\x1a\x14.sbui.mitm.v1.Status\x12A\n" +
-	"\tClearSkip\x12\x1e.sbui.mitm.v1.ClearSkipRequest\x1a\x14.sbui.mitm.v1.StatusB6Z4github.com/sagernet/sing-box/common/mitm/api;mitmapib\x06proto3"
+	"\x0fGetCapabilities\x12\x16.google.protobuf.Empty\x1a\x1a.kiko.mitm.v1.Capabilities\x12G\n" +
+	"\fSetAuthority\x12!.kiko.mitm.v1.SetAuthorityRequest\x1a\x14.kiko.mitm.v1.Status\x129\n" +
+	"\tGetStatus\x12\x16.google.protobuf.Empty\x1a\x14.kiko.mitm.v1.Status\x12A\n" +
+	"\tClearSkip\x12\x1e.kiko.mitm.v1.ClearSkipRequest\x1a\x14.kiko.mitm.v1.StatusB6Z4github.com/sagernet/sing-box/common/mitm/api;mitmapib\x06proto3"
 
 var (
 	file_common_mitm_api_mitm_proto_rawDescOnce sync.Once
@@ -495,25 +495,25 @@ func file_common_mitm_api_mitm_proto_rawDescGZIP() []byte {
 
 var file_common_mitm_api_mitm_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_common_mitm_api_mitm_proto_goTypes = []any{
-	(*Capabilities)(nil),        // 0: sbui.mitm.v1.Capabilities
-	(*SetAuthorityRequest)(nil), // 1: sbui.mitm.v1.SetAuthorityRequest
-	(*Status)(nil),              // 2: sbui.mitm.v1.Status
-	(*SkipEntry)(nil),           // 3: sbui.mitm.v1.SkipEntry
-	(*Failure)(nil),             // 4: sbui.mitm.v1.Failure
-	(*ClearSkipRequest)(nil),    // 5: sbui.mitm.v1.ClearSkipRequest
+	(*Capabilities)(nil),        // 0: kiko.mitm.v1.Capabilities
+	(*SetAuthorityRequest)(nil), // 1: kiko.mitm.v1.SetAuthorityRequest
+	(*Status)(nil),              // 2: kiko.mitm.v1.Status
+	(*SkipEntry)(nil),           // 3: kiko.mitm.v1.SkipEntry
+	(*Failure)(nil),             // 4: kiko.mitm.v1.Failure
+	(*ClearSkipRequest)(nil),    // 5: kiko.mitm.v1.ClearSkipRequest
 	(*emptypb.Empty)(nil),       // 6: google.protobuf.Empty
 }
 var file_common_mitm_api_mitm_proto_depIdxs = []int32{
-	3, // 0: sbui.mitm.v1.Status.skip:type_name -> sbui.mitm.v1.SkipEntry
-	4, // 1: sbui.mitm.v1.Status.failures:type_name -> sbui.mitm.v1.Failure
-	6, // 2: sbui.mitm.v1.MITM.GetCapabilities:input_type -> google.protobuf.Empty
-	1, // 3: sbui.mitm.v1.MITM.SetAuthority:input_type -> sbui.mitm.v1.SetAuthorityRequest
-	6, // 4: sbui.mitm.v1.MITM.GetStatus:input_type -> google.protobuf.Empty
-	5, // 5: sbui.mitm.v1.MITM.ClearSkip:input_type -> sbui.mitm.v1.ClearSkipRequest
-	0, // 6: sbui.mitm.v1.MITM.GetCapabilities:output_type -> sbui.mitm.v1.Capabilities
-	2, // 7: sbui.mitm.v1.MITM.SetAuthority:output_type -> sbui.mitm.v1.Status
-	2, // 8: sbui.mitm.v1.MITM.GetStatus:output_type -> sbui.mitm.v1.Status
-	2, // 9: sbui.mitm.v1.MITM.ClearSkip:output_type -> sbui.mitm.v1.Status
+	3, // 0: kiko.mitm.v1.Status.skip:type_name -> kiko.mitm.v1.SkipEntry
+	4, // 1: kiko.mitm.v1.Status.failures:type_name -> kiko.mitm.v1.Failure
+	6, // 2: kiko.mitm.v1.MITM.GetCapabilities:input_type -> google.protobuf.Empty
+	1, // 3: kiko.mitm.v1.MITM.SetAuthority:input_type -> kiko.mitm.v1.SetAuthorityRequest
+	6, // 4: kiko.mitm.v1.MITM.GetStatus:input_type -> google.protobuf.Empty
+	5, // 5: kiko.mitm.v1.MITM.ClearSkip:input_type -> kiko.mitm.v1.ClearSkipRequest
+	0, // 6: kiko.mitm.v1.MITM.GetCapabilities:output_type -> kiko.mitm.v1.Capabilities
+	2, // 7: kiko.mitm.v1.MITM.SetAuthority:output_type -> kiko.mitm.v1.Status
+	2, // 8: kiko.mitm.v1.MITM.GetStatus:output_type -> kiko.mitm.v1.Status
+	2, // 9: kiko.mitm.v1.MITM.ClearSkip:output_type -> kiko.mitm.v1.Status
 	6, // [6:10] is the sub-list for method output_type
 	2, // [2:6] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

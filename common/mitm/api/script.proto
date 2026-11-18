@@ -1,5 +1,5 @@
 syntax = "proto3";
-package sbui.mitm.v1;
+package kiko.mitm.v1;
 option go_package = "github.com/sagernet/sing-box/common/mitm/api;mitmapi";
 import "google/protobuf/empty.proto";
 

@@ -1932,19 +1932,19 @@ var File_common_mitm_api_script_proto protoreflect.FileDescriptor
 
 const file_common_mitm_api_script_proto_rawDesc = "" +
 	"\n" +
-	"\x1ccommon/mitm/api/script.proto\x12\fsbui.mitm.v1\x1a\x1bgoogle/protobuf/empty.proto\"8\n" +
+	"\x1ccommon/mitm/api/script.proto\x12\fkiko.mitm.v1\x1a\x1bgoogle/protobuf/empty.proto\"8\n" +
 	"\fScriptHeader\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\"\xa5\x01\n" +
 	"\x14ScriptRequestMessage\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x124\n" +
-	"\aheaders\x18\x03 \x03(\v2\x1a.sbui.mitm.v1.ScriptHeaderR\aheaders\x12\x12\n" +
+	"\aheaders\x18\x03 \x03(\v2\x1a.kiko.mitm.v1.ScriptHeaderR\aheaders\x12\x12\n" +
 	"\x04body\x18\x04 \x01(\fR\x04body\x12\x19\n" +
 	"\bhas_body\x18\x05 \x01(\bR\ahasBody\"\x94\x01\n" +
 	"\x15ScriptResponseMessage\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\x05R\x06status\x124\n" +
-	"\aheaders\x18\x02 \x03(\v2\x1a.sbui.mitm.v1.ScriptHeaderR\aheaders\x12\x12\n" +
+	"\aheaders\x18\x02 \x03(\v2\x1a.kiko.mitm.v1.ScriptHeaderR\aheaders\x12\x12\n" +
 	"\x04body\x18\x03 \x01(\fR\x04body\x12\x19\n" +
 	"\bhas_body\x18\x04 \x01(\bR\ahasBody\":\n" +
 	"\x10ScriptStoreEntry\x12\x10\n" +
@@ -1961,12 +1961,12 @@ const file_common_mitm_api_script_proto_rawDesc = "" +
 	"\n" +
 	"timeout_ms\x18\a \x01(\x03R\ttimeoutMs\x12\x19\n" +
 	"\bmax_size\x18\b \x01(\x03R\amaxSize\x12<\n" +
-	"\arequest\x18\t \x01(\v2\".sbui.mitm.v1.ScriptRequestMessageR\arequest\x12?\n" +
+	"\arequest\x18\t \x01(\v2\".kiko.mitm.v1.ScriptRequestMessageR\arequest\x12?\n" +
 	"\bresponse\x18\n" +
-	" \x01(\v2#.sbui.mitm.v1.ScriptResponseMessageR\bresponse\x12\x10\n" +
+	" \x01(\v2#.kiko.mitm.v1.ScriptResponseMessageR\bresponse\x12\x10\n" +
 	"\x03tag\x18\v \x01(\tR\x03tag\x124\n" +
-	"\x05store\x18\f \x03(\v2\x1e.sbui.mitm.v1.ScriptStoreEntryR\x05store\x121\n" +
-	"\x04rule\x18\r \x01(\v2\x1d.sbui.mitm.v1.ScriptRuleInputR\x04rule\"\xd6\x02\n" +
+	"\x05store\x18\f \x03(\v2\x1e.kiko.mitm.v1.ScriptStoreEntryR\x05store\x121\n" +
+	"\x04rule\x18\r \x01(\v2\x1d.kiko.mitm.v1.ScriptRuleInputR\x04rule\"\xd6\x02\n" +
 	"\x0fScriptRuleInput\x12\x16\n" +
 	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x0e\n" +
 	"\x02ip\x18\x02 \x01(\tR\x02ip\x12\x12\n" +
@@ -2003,17 +2003,17 @@ const file_common_mitm_api_script_proto_rawDesc = "" +
 	"error_kind\x18\x04 \x01(\tR\terrorKind\x12\x1f\n" +
 	"\vduration_us\x18\x05 \x01(\x03R\n" +
 	"durationUs\x12/\n" +
-	"\x04logs\x18\x06 \x03(\v2\x1b.sbui.mitm.v1.ScriptLogLineR\x04logs\x12F\n" +
-	"\rnotifications\x18\a \x03(\v2 .sbui.mitm.v1.ScriptNotificationR\rnotifications\x124\n" +
-	"\achanges\x18\b \x03(\v2\x1a.sbui.mitm.v1.ScriptChangeR\achanges\x12\x10\n" +
+	"\x04logs\x18\x06 \x03(\v2\x1b.kiko.mitm.v1.ScriptLogLineR\x04logs\x12F\n" +
+	"\rnotifications\x18\a \x03(\v2 .kiko.mitm.v1.ScriptNotificationR\rnotifications\x124\n" +
+	"\achanges\x18\b \x03(\v2\x1a.kiko.mitm.v1.ScriptChangeR\achanges\x12\x10\n" +
 	"\x03url\x18\t \x01(\tR\x03url\x12'\n" +
 	"\x0fheaders_changed\x18\n" +
 	" \x01(\bR\x0eheadersChanged\x124\n" +
-	"\aheaders\x18\v \x03(\v2\x1a.sbui.mitm.v1.ScriptHeaderR\aheaders\x12!\n" +
+	"\aheaders\x18\v \x03(\v2\x1a.kiko.mitm.v1.ScriptHeaderR\aheaders\x12!\n" +
 	"\fbody_changed\x18\f \x01(\bR\vbodyChanged\x12\x12\n" +
 	"\x04body\x18\r \x01(\fR\x04body\x12\x16\n" +
 	"\x06status\x18\x0e \x01(\x05R\x06status\x12?\n" +
-	"\bresponse\x18\x0f \x01(\v2#.sbui.mitm.v1.ScriptResponseMessageR\bresponse\x12\x16\n" +
+	"\bresponse\x18\x0f \x01(\v2#.kiko.mitm.v1.ScriptResponseMessageR\bresponse\x12\x16\n" +
 	"\x06output\x18\x10 \x01(\tR\x06output\x12\x1a\n" +
 	"\bdecision\x18\x11 \x01(\tR\bdecision\"@\n" +
 	"\x10ScriptRunRequest\x12\x10\n" +
@@ -2024,7 +2024,7 @@ const file_common_mitm_api_script_proto_rawDesc = "" +
 	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1f\n" +
 	"\vduration_us\x18\x03 \x01(\x03R\n" +
 	"durationUs\x12/\n" +
-	"\x04logs\x18\x04 \x03(\v2\x1b.sbui.mitm.v1.ScriptLogLineR\x04logs\x12\x16\n" +
+	"\x04logs\x18\x04 \x03(\v2\x1b.kiko.mitm.v1.ScriptLogLineR\x04logs\x12\x16\n" +
 	"\x06output\x18\x05 \x01(\tR\x06output\"\xf1\x02\n" +
 	"\vScriptState\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x12\n" +
@@ -2043,7 +2043,7 @@ const file_common_mitm_api_script_proto_rawDesc = "" +
 	"\x10last_duration_us\x18\f \x01(\x03R\x0elastDurationUs\x12\x1e\n" +
 	"\vnext_run_ms\x18\r \x01(\x03R\tnextRunMs\"\xb4\x01\n" +
 	"\x10ScriptStatusList\x123\n" +
-	"\ascripts\x18\x01 \x03(\v2\x19.sbui.mitm.v1.ScriptStateR\ascripts\x12)\n" +
+	"\ascripts\x18\x01 \x03(\v2\x19.kiko.mitm.v1.ScriptStateR\ascripts\x12)\n" +
 	"\x10store_persistent\x18\x02 \x01(\bR\x0fstorePersistent\x12\x1f\n" +
 	"\vstore_bytes\x18\x03 \x01(\x04R\n" +
 	"storeBytes\x12\x1f\n" +
@@ -2090,10 +2090,10 @@ const file_common_mitm_api_script_proto_rawDesc = "" +
 	"\ttruncated\x18\x04 \x01(\bR\ttruncated\"\xce\x01\n" +
 	"\x17ScriptStoreListResponse\x12B\n" +
 	"\n" +
-	"namespaces\x18\x01 \x03(\v2\".sbui.mitm.v1.ScriptStoreNamespaceR\n" +
+	"namespaces\x18\x01 \x03(\v2\".kiko.mitm.v1.ScriptStoreNamespaceR\n" +
 	"namespaces\x12<\n" +
-	"\aentries\x18\x02 \x03(\v2\".sbui.mitm.v1.ScriptStoreListEntryR\aentries\x121\n" +
-	"\x04info\x18\x03 \x01(\v2\x1d.sbui.mitm.v1.ScriptStoreInfoR\x04info\"]\n" +
+	"\aentries\x18\x02 \x03(\v2\".kiko.mitm.v1.ScriptStoreListEntryR\aentries\x121\n" +
+	"\x04info\x18\x03 \x01(\v2\x1d.kiko.mitm.v1.ScriptStoreInfoR\x04info\"]\n" +
 	"\x0fScriptStoreInfo\x12\x1e\n" +
 	"\n" +
 	"persistent\x18\x01 \x01(\bR\n" +
@@ -2101,15 +2101,15 @@ const file_common_mitm_api_script_proto_rawDesc = "" +
 	"\x05bytes\x18\x02 \x01(\x04R\x05bytes\x12\x14\n" +
 	"\x05limit\x18\x03 \x01(\x04R\x05limit2\xe7\x05\n" +
 	"\x06Script\x12U\n" +
-	"\bEvaluate\x12#.sbui.mitm.v1.ScriptEvaluateRequest\x1a$.sbui.mitm.v1.ScriptEvaluateResponse\x12F\n" +
-	"\x03Run\x12\x1e.sbui.mitm.v1.ScriptRunRequest\x1a\x1f.sbui.mitm.v1.ScriptRunResponse\x12C\n" +
-	"\tGetStatus\x12\x16.google.protobuf.Empty\x1a\x1e.sbui.mitm.v1.ScriptStatusList\x12U\n" +
-	"\rSubscribeLogs\x12$.sbui.mitm.v1.ScriptSubscribeRequest\x1a\x1c.sbui.mitm.v1.ScriptLogEntry0\x01\x12b\n" +
-	"\x16SubscribeNotifications\x12$.sbui.mitm.v1.ScriptSubscribeRequest\x1a .sbui.mitm.v1.ScriptNotification0\x01\x12X\n" +
-	"\tStoreList\x12$.sbui.mitm.v1.ScriptStoreListRequest\x1a%.sbui.mitm.v1.ScriptStoreListResponse\x12H\n" +
-	"\bStoreGet\x12\x1c.sbui.mitm.v1.ScriptStoreKey\x1a\x1e.sbui.mitm.v1.ScriptStoreValue\x12N\n" +
-	"\bStoreSet\x12#.sbui.mitm.v1.ScriptStoreSetRequest\x1a\x1d.sbui.mitm.v1.ScriptStoreInfo\x12J\n" +
-	"\vStoreDelete\x12\x1c.sbui.mitm.v1.ScriptStoreKey\x1a\x1d.sbui.mitm.v1.ScriptStoreInfoB6Z4github.com/sagernet/sing-box/common/mitm/api;mitmapib\x06proto3"
+	"\bEvaluate\x12#.kiko.mitm.v1.ScriptEvaluateRequest\x1a$.kiko.mitm.v1.ScriptEvaluateResponse\x12F\n" +
+	"\x03Run\x12\x1e.kiko.mitm.v1.ScriptRunRequest\x1a\x1f.kiko.mitm.v1.ScriptRunResponse\x12C\n" +
+	"\tGetStatus\x12\x16.google.protobuf.Empty\x1a\x1e.kiko.mitm.v1.ScriptStatusList\x12U\n" +
+	"\rSubscribeLogs\x12$.kiko.mitm.v1.ScriptSubscribeRequest\x1a\x1c.kiko.mitm.v1.ScriptLogEntry0\x01\x12b\n" +
+	"\x16SubscribeNotifications\x12$.kiko.mitm.v1.ScriptSubscribeRequest\x1a .kiko.mitm.v1.ScriptNotification0\x01\x12X\n" +
+	"\tStoreList\x12$.kiko.mitm.v1.ScriptStoreListRequest\x1a%.kiko.mitm.v1.ScriptStoreListResponse\x12H\n" +
+	"\bStoreGet\x12\x1c.kiko.mitm.v1.ScriptStoreKey\x1a\x1e.kiko.mitm.v1.ScriptStoreValue\x12N\n" +
+	"\bStoreSet\x12#.kiko.mitm.v1.ScriptStoreSetRequest\x1a\x1d.kiko.mitm.v1.ScriptStoreInfo\x12J\n" +
+	"\vStoreDelete\x12\x1c.kiko.mitm.v1.ScriptStoreKey\x1a\x1d.kiko.mitm.v1.ScriptStoreInfoB6Z4github.com/sagernet/sing-box/common/mitm/api;mitmapib\x06proto3"
 
 var (
 	file_common_mitm_api_script_proto_rawDescOnce sync.Once
@@ -2125,67 +2125,67 @@ func file_common_mitm_api_script_proto_rawDescGZIP() []byte {
 
 var file_common_mitm_api_script_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_common_mitm_api_script_proto_goTypes = []any{
-	(*ScriptHeader)(nil),            // 0: sbui.mitm.v1.ScriptHeader
-	(*ScriptRequestMessage)(nil),    // 1: sbui.mitm.v1.ScriptRequestMessage
-	(*ScriptResponseMessage)(nil),   // 2: sbui.mitm.v1.ScriptResponseMessage
-	(*ScriptStoreEntry)(nil),        // 3: sbui.mitm.v1.ScriptStoreEntry
-	(*ScriptEvaluateRequest)(nil),   // 4: sbui.mitm.v1.ScriptEvaluateRequest
-	(*ScriptRuleInput)(nil),         // 5: sbui.mitm.v1.ScriptRuleInput
-	(*ScriptLogLine)(nil),           // 6: sbui.mitm.v1.ScriptLogLine
-	(*ScriptChange)(nil),            // 7: sbui.mitm.v1.ScriptChange
-	(*ScriptEvaluateResponse)(nil),  // 8: sbui.mitm.v1.ScriptEvaluateResponse
-	(*ScriptRunRequest)(nil),        // 9: sbui.mitm.v1.ScriptRunRequest
-	(*ScriptRunResponse)(nil),       // 10: sbui.mitm.v1.ScriptRunResponse
-	(*ScriptState)(nil),             // 11: sbui.mitm.v1.ScriptState
-	(*ScriptStatusList)(nil),        // 12: sbui.mitm.v1.ScriptStatusList
-	(*ScriptSubscribeRequest)(nil),  // 13: sbui.mitm.v1.ScriptSubscribeRequest
-	(*ScriptLogEntry)(nil),          // 14: sbui.mitm.v1.ScriptLogEntry
-	(*ScriptNotification)(nil),      // 15: sbui.mitm.v1.ScriptNotification
-	(*ScriptStoreKey)(nil),          // 16: sbui.mitm.v1.ScriptStoreKey
-	(*ScriptStoreValue)(nil),        // 17: sbui.mitm.v1.ScriptStoreValue
-	(*ScriptStoreSetRequest)(nil),   // 18: sbui.mitm.v1.ScriptStoreSetRequest
-	(*ScriptStoreListRequest)(nil),  // 19: sbui.mitm.v1.ScriptStoreListRequest
-	(*ScriptStoreNamespace)(nil),    // 20: sbui.mitm.v1.ScriptStoreNamespace
-	(*ScriptStoreListEntry)(nil),    // 21: sbui.mitm.v1.ScriptStoreListEntry
-	(*ScriptStoreListResponse)(nil), // 22: sbui.mitm.v1.ScriptStoreListResponse
-	(*ScriptStoreInfo)(nil),         // 23: sbui.mitm.v1.ScriptStoreInfo
+	(*ScriptHeader)(nil),            // 0: kiko.mitm.v1.ScriptHeader
+	(*ScriptRequestMessage)(nil),    // 1: kiko.mitm.v1.ScriptRequestMessage
+	(*ScriptResponseMessage)(nil),   // 2: kiko.mitm.v1.ScriptResponseMessage
+	(*ScriptStoreEntry)(nil),        // 3: kiko.mitm.v1.ScriptStoreEntry
+	(*ScriptEvaluateRequest)(nil),   // 4: kiko.mitm.v1.ScriptEvaluateRequest
+	(*ScriptRuleInput)(nil),         // 5: kiko.mitm.v1.ScriptRuleInput
+	(*ScriptLogLine)(nil),           // 6: kiko.mitm.v1.ScriptLogLine
+	(*ScriptChange)(nil),            // 7: kiko.mitm.v1.ScriptChange
+	(*ScriptEvaluateResponse)(nil),  // 8: kiko.mitm.v1.ScriptEvaluateResponse
+	(*ScriptRunRequest)(nil),        // 9: kiko.mitm.v1.ScriptRunRequest
+	(*ScriptRunResponse)(nil),       // 10: kiko.mitm.v1.ScriptRunResponse
+	(*ScriptState)(nil),             // 11: kiko.mitm.v1.ScriptState
+	(*ScriptStatusList)(nil),        // 12: kiko.mitm.v1.ScriptStatusList
+	(*ScriptSubscribeRequest)(nil),  // 13: kiko.mitm.v1.ScriptSubscribeRequest
+	(*ScriptLogEntry)(nil),          // 14: kiko.mitm.v1.ScriptLogEntry
+	(*ScriptNotification)(nil),      // 15: kiko.mitm.v1.ScriptNotification
+	(*ScriptStoreKey)(nil),          // 16: kiko.mitm.v1.ScriptStoreKey
+	(*ScriptStoreValue)(nil),        // 17: kiko.mitm.v1.ScriptStoreValue
+	(*ScriptStoreSetRequest)(nil),   // 18: kiko.mitm.v1.ScriptStoreSetRequest
+	(*ScriptStoreListRequest)(nil),  // 19: kiko.mitm.v1.ScriptStoreListRequest
+	(*ScriptStoreNamespace)(nil),    // 20: kiko.mitm.v1.ScriptStoreNamespace
+	(*ScriptStoreListEntry)(nil),    // 21: kiko.mitm.v1.ScriptStoreListEntry
+	(*ScriptStoreListResponse)(nil), // 22: kiko.mitm.v1.ScriptStoreListResponse
+	(*ScriptStoreInfo)(nil),         // 23: kiko.mitm.v1.ScriptStoreInfo
 	(*emptypb.Empty)(nil),           // 24: google.protobuf.Empty
 }
 var file_common_mitm_api_script_proto_depIdxs = []int32{
-	0,  // 0: sbui.mitm.v1.ScriptRequestMessage.headers:type_name -> sbui.mitm.v1.ScriptHeader
-	0,  // 1: sbui.mitm.v1.ScriptResponseMessage.headers:type_name -> sbui.mitm.v1.ScriptHeader
-	1,  // 2: sbui.mitm.v1.ScriptEvaluateRequest.request:type_name -> sbui.mitm.v1.ScriptRequestMessage
-	2,  // 3: sbui.mitm.v1.ScriptEvaluateRequest.response:type_name -> sbui.mitm.v1.ScriptResponseMessage
-	3,  // 4: sbui.mitm.v1.ScriptEvaluateRequest.store:type_name -> sbui.mitm.v1.ScriptStoreEntry
-	5,  // 5: sbui.mitm.v1.ScriptEvaluateRequest.rule:type_name -> sbui.mitm.v1.ScriptRuleInput
-	6,  // 6: sbui.mitm.v1.ScriptEvaluateResponse.logs:type_name -> sbui.mitm.v1.ScriptLogLine
-	15, // 7: sbui.mitm.v1.ScriptEvaluateResponse.notifications:type_name -> sbui.mitm.v1.ScriptNotification
-	7,  // 8: sbui.mitm.v1.ScriptEvaluateResponse.changes:type_name -> sbui.mitm.v1.ScriptChange
-	0,  // 9: sbui.mitm.v1.ScriptEvaluateResponse.headers:type_name -> sbui.mitm.v1.ScriptHeader
-	2,  // 10: sbui.mitm.v1.ScriptEvaluateResponse.response:type_name -> sbui.mitm.v1.ScriptResponseMessage
-	6,  // 11: sbui.mitm.v1.ScriptRunResponse.logs:type_name -> sbui.mitm.v1.ScriptLogLine
-	11, // 12: sbui.mitm.v1.ScriptStatusList.scripts:type_name -> sbui.mitm.v1.ScriptState
-	20, // 13: sbui.mitm.v1.ScriptStoreListResponse.namespaces:type_name -> sbui.mitm.v1.ScriptStoreNamespace
-	21, // 14: sbui.mitm.v1.ScriptStoreListResponse.entries:type_name -> sbui.mitm.v1.ScriptStoreListEntry
-	23, // 15: sbui.mitm.v1.ScriptStoreListResponse.info:type_name -> sbui.mitm.v1.ScriptStoreInfo
-	4,  // 16: sbui.mitm.v1.Script.Evaluate:input_type -> sbui.mitm.v1.ScriptEvaluateRequest
-	9,  // 17: sbui.mitm.v1.Script.Run:input_type -> sbui.mitm.v1.ScriptRunRequest
-	24, // 18: sbui.mitm.v1.Script.GetStatus:input_type -> google.protobuf.Empty
-	13, // 19: sbui.mitm.v1.Script.SubscribeLogs:input_type -> sbui.mitm.v1.ScriptSubscribeRequest
-	13, // 20: sbui.mitm.v1.Script.SubscribeNotifications:input_type -> sbui.mitm.v1.ScriptSubscribeRequest
-	19, // 21: sbui.mitm.v1.Script.StoreList:input_type -> sbui.mitm.v1.ScriptStoreListRequest
-	16, // 22: sbui.mitm.v1.Script.StoreGet:input_type -> sbui.mitm.v1.ScriptStoreKey
-	18, // 23: sbui.mitm.v1.Script.StoreSet:input_type -> sbui.mitm.v1.ScriptStoreSetRequest
-	16, // 24: sbui.mitm.v1.Script.StoreDelete:input_type -> sbui.mitm.v1.ScriptStoreKey
-	8,  // 25: sbui.mitm.v1.Script.Evaluate:output_type -> sbui.mitm.v1.ScriptEvaluateResponse
-	10, // 26: sbui.mitm.v1.Script.Run:output_type -> sbui.mitm.v1.ScriptRunResponse
-	12, // 27: sbui.mitm.v1.Script.GetStatus:output_type -> sbui.mitm.v1.ScriptStatusList
-	14, // 28: sbui.mitm.v1.Script.SubscribeLogs:output_type -> sbui.mitm.v1.ScriptLogEntry
-	15, // 29: sbui.mitm.v1.Script.SubscribeNotifications:output_type -> sbui.mitm.v1.ScriptNotification
-	22, // 30: sbui.mitm.v1.Script.StoreList:output_type -> sbui.mitm.v1.ScriptStoreListResponse
-	17, // 31: sbui.mitm.v1.Script.StoreGet:output_type -> sbui.mitm.v1.ScriptStoreValue
-	23, // 32: sbui.mitm.v1.Script.StoreSet:output_type -> sbui.mitm.v1.ScriptStoreInfo
-	23, // 33: sbui.mitm.v1.Script.StoreDelete:output_type -> sbui.mitm.v1.ScriptStoreInfo
+	0,  // 0: kiko.mitm.v1.ScriptRequestMessage.headers:type_name -> kiko.mitm.v1.ScriptHeader
+	0,  // 1: kiko.mitm.v1.ScriptResponseMessage.headers:type_name -> kiko.mitm.v1.ScriptHeader
+	1,  // 2: kiko.mitm.v1.ScriptEvaluateRequest.request:type_name -> kiko.mitm.v1.ScriptRequestMessage
+	2,  // 3: kiko.mitm.v1.ScriptEvaluateRequest.response:type_name -> kiko.mitm.v1.ScriptResponseMessage
+	3,  // 4: kiko.mitm.v1.ScriptEvaluateRequest.store:type_name -> kiko.mitm.v1.ScriptStoreEntry
+	5,  // 5: kiko.mitm.v1.ScriptEvaluateRequest.rule:type_name -> kiko.mitm.v1.ScriptRuleInput
+	6,  // 6: kiko.mitm.v1.ScriptEvaluateResponse.logs:type_name -> kiko.mitm.v1.ScriptLogLine
+	15, // 7: kiko.mitm.v1.ScriptEvaluateResponse.notifications:type_name -> kiko.mitm.v1.ScriptNotification
+	7,  // 8: kiko.mitm.v1.ScriptEvaluateResponse.changes:type_name -> kiko.mitm.v1.ScriptChange
+	0,  // 9: kiko.mitm.v1.ScriptEvaluateResponse.headers:type_name -> kiko.mitm.v1.ScriptHeader
+	2,  // 10: kiko.mitm.v1.ScriptEvaluateResponse.response:type_name -> kiko.mitm.v1.ScriptResponseMessage
+	6,  // 11: kiko.mitm.v1.ScriptRunResponse.logs:type_name -> kiko.mitm.v1.ScriptLogLine
+	11, // 12: kiko.mitm.v1.ScriptStatusList.scripts:type_name -> kiko.mitm.v1.ScriptState
+	20, // 13: kiko.mitm.v1.ScriptStoreListResponse.namespaces:type_name -> kiko.mitm.v1.ScriptStoreNamespace
+	21, // 14: kiko.mitm.v1.ScriptStoreListResponse.entries:type_name -> kiko.mitm.v1.ScriptStoreListEntry
+	23, // 15: kiko.mitm.v1.ScriptStoreListResponse.info:type_name -> kiko.mitm.v1.ScriptStoreInfo
+	4,  // 16: kiko.mitm.v1.Script.Evaluate:input_type -> kiko.mitm.v1.ScriptEvaluateRequest
+	9,  // 17: kiko.mitm.v1.Script.Run:input_type -> kiko.mitm.v1.ScriptRunRequest
+	24, // 18: kiko.mitm.v1.Script.GetStatus:input_type -> google.protobuf.Empty
+	13, // 19: kiko.mitm.v1.Script.SubscribeLogs:input_type -> kiko.mitm.v1.ScriptSubscribeRequest
+	13, // 20: kiko.mitm.v1.Script.SubscribeNotifications:input_type -> kiko.mitm.v1.ScriptSubscribeRequest
+	19, // 21: kiko.mitm.v1.Script.StoreList:input_type -> kiko.mitm.v1.ScriptStoreListRequest
+	16, // 22: kiko.mitm.v1.Script.StoreGet:input_type -> kiko.mitm.v1.ScriptStoreKey
+	18, // 23: kiko.mitm.v1.Script.StoreSet:input_type -> kiko.mitm.v1.ScriptStoreSetRequest
+	16, // 24: kiko.mitm.v1.Script.StoreDelete:input_type -> kiko.mitm.v1.ScriptStoreKey
+	8,  // 25: kiko.mitm.v1.Script.Evaluate:output_type -> kiko.mitm.v1.ScriptEvaluateResponse
+	10, // 26: kiko.mitm.v1.Script.Run:output_type -> kiko.mitm.v1.ScriptRunResponse
+	12, // 27: kiko.mitm.v1.Script.GetStatus:output_type -> kiko.mitm.v1.ScriptStatusList
+	14, // 28: kiko.mitm.v1.Script.SubscribeLogs:output_type -> kiko.mitm.v1.ScriptLogEntry
+	15, // 29: kiko.mitm.v1.Script.SubscribeNotifications:output_type -> kiko.mitm.v1.ScriptNotification
+	22, // 30: kiko.mitm.v1.Script.StoreList:output_type -> kiko.mitm.v1.ScriptStoreListResponse
+	17, // 31: kiko.mitm.v1.Script.StoreGet:output_type -> kiko.mitm.v1.ScriptStoreValue
+	23, // 32: kiko.mitm.v1.Script.StoreSet:output_type -> kiko.mitm.v1.ScriptStoreInfo
+	23, // 33: kiko.mitm.v1.Script.StoreDelete:output_type -> kiko.mitm.v1.ScriptStoreInfo
 	25, // [25:34] is the sub-list for method output_type
 	16, // [16:25] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name

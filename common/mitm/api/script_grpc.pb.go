@@ -20,15 +20,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Script_Evaluate_FullMethodName               = "/sbui.mitm.v1.Script/Evaluate"
-	Script_Run_FullMethodName                    = "/sbui.mitm.v1.Script/Run"
-	Script_GetStatus_FullMethodName              = "/sbui.mitm.v1.Script/GetStatus"
-	Script_SubscribeLogs_FullMethodName          = "/sbui.mitm.v1.Script/SubscribeLogs"
-	Script_SubscribeNotifications_FullMethodName = "/sbui.mitm.v1.Script/SubscribeNotifications"
-	Script_StoreList_FullMethodName              = "/sbui.mitm.v1.Script/StoreList"
-	Script_StoreGet_FullMethodName               = "/sbui.mitm.v1.Script/StoreGet"
-	Script_StoreSet_FullMethodName               = "/sbui.mitm.v1.Script/StoreSet"
-	Script_StoreDelete_FullMethodName            = "/sbui.mitm.v1.Script/StoreDelete"
+	Script_Evaluate_FullMethodName               = "/kiko.mitm.v1.Script/Evaluate"
+	Script_Run_FullMethodName                    = "/kiko.mitm.v1.Script/Run"
+	Script_GetStatus_FullMethodName              = "/kiko.mitm.v1.Script/GetStatus"
+	Script_SubscribeLogs_FullMethodName          = "/kiko.mitm.v1.Script/SubscribeLogs"
+	Script_SubscribeNotifications_FullMethodName = "/kiko.mitm.v1.Script/SubscribeNotifications"
+	Script_StoreList_FullMethodName              = "/kiko.mitm.v1.Script/StoreList"
+	Script_StoreGet_FullMethodName               = "/kiko.mitm.v1.Script/StoreGet"
+	Script_StoreSet_FullMethodName               = "/kiko.mitm.v1.Script/StoreSet"
+	Script_StoreDelete_FullMethodName            = "/kiko.mitm.v1.Script/StoreDelete"
 )
 
 // ScriptClient is the client API for Script service.
@@ -421,7 +421,7 @@ func _Script_StoreDelete_Handler(srv interface{}, ctx context.Context, dec func(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Script_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sbui.mitm.v1.Script",
+	ServiceName: "kiko.mitm.v1.Script",
 	HandlerType: (*ScriptServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

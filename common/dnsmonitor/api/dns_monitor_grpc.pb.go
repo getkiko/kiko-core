@@ -20,11 +20,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DNSMonitor_GetCapabilities_FullMethodName = "/sbui.dnsmonitor.v1.DNSMonitor/GetCapabilities"
-	DNSMonitor_SubscribeEvents_FullMethodName = "/sbui.dnsmonitor.v1.DNSMonitor/SubscribeEvents"
-	DNSMonitor_ListQueries_FullMethodName     = "/sbui.dnsmonitor.v1.DNSMonitor/ListQueries"
-	DNSMonitor_GetQuery_FullMethodName        = "/sbui.dnsmonitor.v1.DNSMonitor/GetQuery"
-	DNSMonitor_ClearHistory_FullMethodName    = "/sbui.dnsmonitor.v1.DNSMonitor/ClearHistory"
+	DNSMonitor_GetCapabilities_FullMethodName = "/kiko.dnsmonitor.v1.DNSMonitor/GetCapabilities"
+	DNSMonitor_SubscribeEvents_FullMethodName = "/kiko.dnsmonitor.v1.DNSMonitor/SubscribeEvents"
+	DNSMonitor_ListQueries_FullMethodName     = "/kiko.dnsmonitor.v1.DNSMonitor/ListQueries"
+	DNSMonitor_GetQuery_FullMethodName        = "/kiko.dnsmonitor.v1.DNSMonitor/GetQuery"
+	DNSMonitor_ClearHistory_FullMethodName    = "/kiko.dnsmonitor.v1.DNSMonitor/ClearHistory"
 )
 
 // DNSMonitorClient is the client API for DNSMonitor service.
@@ -255,7 +255,7 @@ func _DNSMonitor_ClearHistory_Handler(srv interface{}, ctx context.Context, dec 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var DNSMonitor_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "sbui.dnsmonitor.v1.DNSMonitor",
+	ServiceName: "kiko.dnsmonitor.v1.DNSMonitor",
 	HandlerType: (*DNSMonitorServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
