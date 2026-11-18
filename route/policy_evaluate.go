@@ -15,6 +15,9 @@ type PolicyTestResult struct {
 	Rule         string
 	RuleIndex    int
 	OutboundPath []string
+	// MITM is the HTTPS decryption result: "decrypted", "skipped:<reason>",
+	// "blocked-quic" or empty when the connection is not intercepted.
+	MITM string
 }
 
 // TestPolicy walks active rules with synthetic connection metadata, without dialing the destination.
@@ -42,6 +45,9 @@ func (r *Router) TestPolicy(ctx context.Context, metadata adapter.InboundContext
 		}
 	}
 	result.OutboundPath, err = r.outboundPath(outboundTag, &metadata)
+	if err == nil {
+		result.MITM = r.testMITM(outboundTag, &metadata)
+	}
 	return result, err
 }
 

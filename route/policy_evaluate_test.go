@@ -47,6 +47,7 @@ type policyRule struct {
 	name     string
 	outbound string
 	match    func(*adapter.InboundContext) bool
+	mitm     string
 }
 
 func (*policyRule) Start() error                                  { return nil }
@@ -54,7 +55,9 @@ func (*policyRule) Close() error                                  { return nil }
 func (*policyRule) Type() string                                  { return "default" }
 func (r *policyRule) String() string                              { return r.name }
 func (r *policyRule) Match(metadata *adapter.InboundContext) bool { return r.match(metadata) }
-func (r *policyRule) Action() adapter.RuleAction                  { return &R.RuleActionRoute{Outbound: r.outbound} }
+func (r *policyRule) Action() adapter.RuleAction {
+	return &R.RuleActionRoute{Outbound: r.outbound, RuleActionRouteOptions: R.RuleActionRouteOptions{MITM: r.mitm}}
+}
 
 func TestPolicyFollowsPreferredRoutesAndCurrentSelector(t *testing.T) {
 	ctx := service.ContextWithDefaultRegistry(context.Background())

@@ -27,6 +27,11 @@ func newRuleActionRouteOptions(options option.RawRouteOptionsActionOptions) (Rul
 	if err != nil {
 		return RuleActionRouteOptions{}, err
 	}
+	switch options.MITM {
+	case "", C.MITMOverrideSkip, C.MITMOverrideForce:
+	default:
+		return RuleActionRouteOptions{}, E.New("unknown mitm override: ", options.MITM)
+	}
 	return RuleActionRouteOptions{
 		OverrideAddress:           M.ParseSocksaddrHostPort(options.OverrideAddress, 0),
 		OverridePort:              options.OverridePort,
@@ -40,6 +45,7 @@ func newRuleActionRouteOptions(options option.RawRouteOptionsActionOptions) (Rul
 		TLSRecordFragment:         options.TLSRecordFragment,
 		TLSSpoof:                  spoof,
 		TLSSpoofMethod:            spoofMethod,
+		MITM:                      options.MITM,
 	}, nil
 }
 
@@ -222,6 +228,7 @@ type RuleActionRouteOptions struct {
 	TLSRecordFragment         bool
 	TLSSpoof                  string
 	TLSSpoofMethod            tlsspoof.Method
+	MITM                      string
 }
 
 func (r *RuleActionRouteOptions) Type() string {
@@ -273,6 +280,9 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 	if r.TLSSpoof != "" {
 		descriptions = append(descriptions, F.ToString("tls-spoof=", r.TLSSpoof))
 		descriptions = append(descriptions, F.ToString("tls-spoof-method=", r.TLSSpoofMethod.String()))
+	}
+	if r.MITM != "" {
+		descriptions = append(descriptions, F.ToString("mitm=", r.MITM))
 	}
 	return descriptions
 }

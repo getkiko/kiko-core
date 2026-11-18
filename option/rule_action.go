@@ -178,6 +178,7 @@ type RawRouteOptionsActionOptions struct {
 	TLSRecordFragment        bool               `json:"tls_record_fragment,omitempty"`
 	TLSSpoof                 string             `json:"tls_spoof,omitempty"`
 	TLSSpoofMethod           string             `json:"tls_spoof_method,omitempty" enum:"wrong-sequence,wrong-checksum,wrong-ack,wrong-md5,wrong-timestamp"`
+	MITM                     string             `json:"mitm,omitempty" enum:"skip,force"`
 }
 
 type RouteOptionsActionOptions RawRouteOptionsActionOptions

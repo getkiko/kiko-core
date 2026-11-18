@@ -32,6 +32,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/direct"
 	"github.com/sagernet/sing-box/route"
+	"github.com/sagernet/sing-box/route/mitm"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -58,6 +59,7 @@ type Box struct {
 	dnsTransport        *dns.TransportManager
 	dnsRouter           *dns.Router
 	dnsMonitor          *dnsmonitor.Manager
+	mitm                *mitm.Engine
 	connection          *route.ConnectionManager
 	router              *route.Router
 	referenceManager    *route.ReferenceManager
@@ -171,6 +173,10 @@ func New(options Options) (*Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = checkMITMDebugOptions(options.MITM, debugOptions)
+	if err != nil {
+		return nil, err
+	}
 	var needCacheFile bool
 	var needClashAPI bool
 	var needV2RayAPI bool
@@ -221,6 +227,14 @@ func New(options Options) (*Box, error) {
 		service.MustRegister[adapter.CertificateStore](ctx, certificateStore)
 		internalServices = append(internalServices, certificateStore)
 	}
+	// Must register before ConnectionManager and Router: both read it from the context when created.
+	mitmEngine, err := mitm.NewEngine(ctx, logFactory.NewLogger("mitm"), options.MITM)
+	if err != nil {
+		return nil, E.Cause(err, "initialize mitm")
+	}
+	mitmEngine.SetControlEndpoints(controlEndpoints(experimentalOptions)...)
+	service.MustRegister[adapter.MITMEngine](ctx, mitmEngine)
+	internalServices = append(internalServices, mitmEngine)
 	netnsManager, err := netns.NewManager(logFactory.NewLogger("netns"), options.NetworkNamespaces, options.NetworkNamespaceHolderArgs)
 	if err != nil {
 		return nil, err
@@ -500,6 +514,7 @@ func New(options Options) (*Box, error) {
 		certificateProvider: certificateProviderManager,
 		dnsRouter:           dnsRouter,
 		dnsMonitor:          dnsMonitor,
+		mitm:                mitmEngine,
 		connection:          connectionManager,
 		router:              router,
 		referenceManager:    referenceManager,

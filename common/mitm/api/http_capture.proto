@@ -1,0 +1,255 @@
+syntax = "proto3";
+package sbui.mitm.v1;
+option go_package = "github.com/sagernet/sing-box/common/mitm/api;mitmapi";
+import "google/protobuf/empty.proto";
+
+// HTTPCapture serves the decrypted HTTP exchanges kept in memory. Events and
+// records carry metadata only; bodies are fetched separately.
+service HTTPCapture {
+  // SubscribeEvents streams changes after the cursor. The first payload may
+  // be a snapshot (reset). The stream ends with the context.
+  rpc SubscribeEvents(SubscribeEventsRequest) returns (stream CapturePayload);
+  rpc ListRecords(ListRecordsRequest) returns (RecordList);
+  rpc GetRecord(GetRecordRequest) returns (HTTPRecord);
+  rpc GetBody(GetBodyRequest) returns (stream BodyChunk);
+  // Clear drops finished records; records in progress stay.
+  rpc Clear(google.protobuf.Empty) returns (CaptureStatus);
+  rpc GetStatus(google.protobuf.Empty) returns (CaptureStatus);
+  // Replay sends a request through the core's router with the inbound
+  // "kiko-internal" and returns the record of its exchange. The exchange
+  // is never decrypted again.
+  rpc Replay(ReplayRequest) returns (ReplayResponse);
+}
+
+message SubscribeEventsRequest {
+  // Empty on the first call, then the instance of the previous payload.
+  string instance = 1;
+  uint64 after = 2;
+}
+
+message HTTPHeader {
+  string name = 1;
+  string value = 2;
+}
+
+message HTTPTiming {
+  // Unix nanoseconds; zero when the moment was not reached.
+  int64 start = 1;
+  int64 request_headers = 2;
+  int64 request_body = 3;
+  int64 first_byte = 4;
+  int64 response_headers = 5;
+  int64 response_body = 6;
+  int64 end = 7;
+  // Nanoseconds; zero when unknown.
+  int64 dns = 8;
+  int64 connect = 9;
+  int64 tls = 10;
+}
+
+message HTTPConnection {
+  string id = 1;
+  string source = 2;
+  string destination = 3;
+  string host = 4;
+  string inbound = 5;
+  string inbound_type = 6;
+  string outbound = 7;
+  string outbound_type = 8;
+  string rule = 9;
+  string process_name = 10;
+  string process_path = 11;
+  uint32 process_id = 12;
+  string user = 13;
+}
+
+enum RecordState {
+  RECORD_STATE_IN_PROGRESS = 0;
+  RECORD_STATE_COMPLETE = 1;
+  RECORD_STATE_FAILED = 2;
+  RECORD_STATE_UPGRADED = 3;
+}
+
+message HTTPRecord {
+  string id = 1;
+  string instance = 2;
+  uint64 seq = 3;
+  uint64 created_seq = 4;
+  string connection_id = 5;
+  uint32 request_index = 6;
+  HTTPConnection connection = 7;
+  string method = 8;
+  string scheme = 9;
+  string authority = 10;
+  string host = 11;
+  // Path with query.
+  string path = 12;
+  string url = 13;
+  // "http/1.1" or "h2".
+  string proto = 14;
+  int32 status = 15;
+  repeated int32 interim = 16;
+  repeated HTTPHeader request_headers = 17;
+  repeated HTTPHeader response_headers = 18;
+  repeated HTTPHeader request_trailers = 19;
+  repeated HTTPHeader response_trailers = 20;
+  // Bytes that passed, saved or not.
+  int64 request_bytes = 21;
+  int64 response_bytes = 22;
+  bool request_body_saved = 23;
+  bool response_body_saved = 24;
+  int64 request_body_stored = 25;
+  int64 response_body_stored = 26;
+  bool request_body_truncated = 27;
+  bool response_body_truncated = 28;
+  // The memory budget stopped saving a body.
+  bool body_dropped = 29;
+  string request_encoding = 30;
+  string response_encoding = 31;
+  HTTPTiming timing = 32;
+  RecordState state = 33;
+  string error = 34;
+  // The upstream certificate was not verified.
+  bool unverified = 35;
+  bool rewritten = 36;
+  repeated HTTPRewriteHit rewrites = 37;
+}
+
+// A rewrite rule that matched an exchange. kind is url, header, map_local or
+// connect; side is request or response for header rules.
+message HTTPRewriteHit {
+  string kind = 1;
+  string rule = 2;
+  string action = 3;
+  string side = 4;
+  string target = 5;
+  int32 status = 6;
+  repeated HTTPRewriteChange changes = 7;
+}
+
+message HTTPRewriteChange {
+  string op = 1;
+  string name = 2;
+  string before = 3;
+  bool had_before = 4;
+  string after = 5;
+  bool has_after = 6;
+}
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_NEW = 1;
+  EVENT_KIND_UPDATE = 2;
+  EVENT_KIND_DONE = 3;
+}
+
+message CaptureEvent {
+  EventKind kind = 1;
+  HTTPRecord record = 2;
+}
+
+message CapturePayload {
+  string instance = 1;
+  // Cursor to resume from.
+  uint64 seq = 2;
+  uint64 floor = 3;
+  // Events replace the client's list.
+  bool reset = 4;
+  // The reset was caused by eviction or Clear within the same instance.
+  bool gap = 5;
+  repeated CaptureEvent events = 6;
+  CaptureStatus status = 7;
+}
+
+message ListRecordsRequest {
+  string search = 1;
+  string host = 2;
+  string connection_id = 3;
+  uint32 limit = 4;
+  // Numeric record id; the page starts below it.
+  uint64 before = 5;
+}
+
+message RecordList {
+  string instance = 1;
+  repeated HTTPRecord records = 2;
+  uint64 next_before = 3;
+  CaptureStatus status = 4;
+}
+
+message GetRecordRequest {
+  string id = 1;
+  string instance = 2;
+}
+
+enum BodySide {
+  BODY_SIDE_REQUEST = 0;
+  BODY_SIDE_RESPONSE = 1;
+}
+
+message GetBodyRequest {
+  string id = 1;
+  string instance = 2;
+  BodySide side = 3;
+  int64 offset = 4;
+  // Zero means up to the end.
+  int64 length = 5;
+  // Undo the Content-Encoding.
+  bool decoded = 6;
+}
+
+message BodyChunk {
+  bytes data = 1;
+  // The view lacks bytes that passed.
+  bool truncated = 2;
+  string encoding = 3;
+  // Size of the whole view (saved or decoded bytes).
+  int64 total = 4;
+  // Bytes that passed, saved or not.
+  int64 original_size = 5;
+  // Body capture was on for the exchange.
+  bool saved = 6;
+  // The body ended.
+  bool complete = 7;
+  // Why a decoded view is partial.
+  string decode_error = 8;
+  // Offset of data within the view.
+  int64 offset = 9;
+}
+
+message CaptureStatus {
+  string instance = 1;
+  bool enabled = 2;
+  bool body_enabled = 3;
+  uint32 record_count = 4;
+  uint32 in_progress = 5;
+  int64 byte_estimate = 6;
+  int64 max_memory = 7;
+  uint32 max_records = 8;
+  uint64 total = 9;
+  uint64 evicted = 10;
+  uint64 body_dropped = 11;
+}
+
+message ReplayRequest {
+  // Record the request was edited from; informational.
+  string source_id = 1;
+  string method = 2;
+  // Only http and https.
+  string url = 3;
+  repeated HTTPHeader headers = 4;
+  bytes body = 5;
+  // Outbound tag; empty follows the routing rules.
+  string outbound = 6;
+  // Zero means 30 seconds; at most 120 seconds.
+  uint32 timeout_ms = 7;
+  // False accepts any upstream certificate and marks the record unverified.
+  bool verify_tls = 8;
+  string instance = 9;
+}
+
+message ReplayResponse {
+  // The finished record, failed ones included.
+  HTTPRecord record = 1;
+  string error = 2;
+}

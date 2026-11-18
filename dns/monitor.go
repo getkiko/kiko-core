@@ -36,6 +36,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 	ctx, t, owner := dnsmonitor.Ensure(ctx, message)
 	ctx = monitorResolver(ctx, transport)
 	response, err := c.exchange(ctx, transport, message, options, checker)
+	response = c.rewriteResponse(ctx, response)
 	if owner {
 		t.End(response, err)
 	} else {
@@ -48,6 +49,7 @@ func (c *Client) ExchangeAsync(ctx context.Context, transport adapter.DNSTranspo
 	ctx, t, owner := dnsmonitor.Ensure(ctx, message)
 	ctx = monitorResolver(ctx, transport)
 	c.exchangeAsync(ctx, transport, message, options, checker, func(response *dns.Msg, err error) {
+		response = c.rewriteResponse(ctx, response)
 		if owner {
 			t.End(response, err)
 		} else {

@@ -1,6 +1,8 @@
 package box
 
 import (
+	"net"
+	"net/netip"
 	"runtime/debug"
 
 	"github.com/sagernet/sing-box/option"
@@ -12,6 +14,25 @@ func checkDebugOptions(options option.DebugOptions) error {
 		return E.New("legacy oom_killer in debug options is removed, use oom-killer service instead")
 	}
 	return nil
+}
+
+// checkMITMDebugOptions keeps the debug listener on loopback while HTTPS
+// decryption holds certificate authority keys in memory.
+func checkMITMDebugOptions(mitmOptions *option.MITMOptions, options option.DebugOptions) error {
+	if mitmOptions == nil || !mitmOptions.Enabled || options.Listen == "" {
+		return nil
+	}
+	host, _, err := net.SplitHostPort(options.Listen)
+	if err == nil {
+		if host == "localhost" {
+			return nil
+		}
+		addr, err := netip.ParseAddr(host)
+		if err == nil && addr.Unmap().IsLoopback() {
+			return nil
+		}
+	}
+	return E.New("HTTPS decryption requires experimental.debug.listen on a loopback address")
 }
 
 func applyDebugOptions(options option.DebugOptions) {

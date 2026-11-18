@@ -464,8 +464,11 @@ type PolicyTestResult struct {
 	DnsRcode          string                 `protobuf:"bytes,9,opt,name=dns_rcode,json=dnsRcode,proto3" json:"dns_rcode,omitempty"`
 	TestedAt          int64                  `protobuf:"varint,10,opt,name=tested_at,json=testedAt,proto3" json:"tested_at,omitempty"`
 	ConfigRevision    string                 `protobuf:"bytes,11,opt,name=config_revision,json=configRevision,proto3" json:"config_revision,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// mitm is the HTTPS decryption result of the tested connection: empty
+	// when not intercepted, "decrypt", "skip:<reason>" or "block_quic".
+	Mitm          string `protobuf:"bytes,12,opt,name=mitm,proto3" json:"mitm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PolicyTestResult) Reset() {
@@ -571,6 +574,13 @@ func (x *PolicyTestResult) GetTestedAt() int64 {
 func (x *PolicyTestResult) GetConfigRevision() string {
 	if x != nil {
 		return x.ConfigRevision
+	}
+	return ""
+}
+
+func (x *PolicyTestResult) GetMitm() string {
+	if x != nil {
+		return x.Mitm
 	}
 	return ""
 }
@@ -1585,7 +1595,15 @@ type Connection struct {
 	ProcessInfo   *ProcessInfo           `protobuf:"bytes,22,opt,name=processInfo,proto3" json:"processInfo,omitempty"`
 	// rejectCount is how many times a reject rule refused the connection
 	// within the merge window; 0 for a carried connection.
-	RejectCount   int64 `protobuf:"varint,23,opt,name=rejectCount,proto3" json:"rejectCount,omitempty"`
+	RejectCount int64 `protobuf:"varint,23,opt,name=rejectCount,proto3" json:"rejectCount,omitempty"`
+	// mitm is the HTTPS decryption state of the connection: empty when the
+	// connection is not intercepted, otherwise "pending", "decrypted",
+	// "failed" or "skipped".
+	Mitm string `protobuf:"bytes,24,opt,name=mitm,proto3" json:"mitm,omitempty"`
+	// httpRequests is how many HTTP requests the decrypted connection carried.
+	HttpRequests int64 `protobuf:"varint,25,opt,name=httpRequests,proto3" json:"httpRequests,omitempty"`
+	// mitmError is why decryption failed or was skipped.
+	MitmError     string `protobuf:"bytes,26,opt,name=mitmError,proto3" json:"mitmError,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1779,6 +1797,27 @@ func (x *Connection) GetRejectCount() int64 {
 		return x.RejectCount
 	}
 	return 0
+}
+
+func (x *Connection) GetMitm() string {
+	if x != nil {
+		return x.Mitm
+	}
+	return ""
+}
+
+func (x *Connection) GetHttpRequests() int64 {
+	if x != nil {
+		return x.HttpRequests
+	}
+	return 0
+}
+
+func (x *Connection) GetMitmError() string {
+	if x != nil {
+		return x.MitmError
+	}
+	return ""
 }
 
 type ProcessInfo struct {
@@ -8527,7 +8566,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\bprotocol\x18\a \x01(\tR\bprotocol\x12\x1f\n" +
 	"\vsource_port\x18\b \x01(\rR\n" +
 	"sourcePort\x12)\n" +
-	"\x10destination_port\x18\t \x01(\rR\x0fdestinationPort\"\xf3\x02\n" +
+	"\x10destination_port\x18\t \x01(\rR\x0fdestinationPort\"\x87\x03\n" +
 	"\x10PolicyTestResult\x12\x16\n" +
 	"\x06action\x18\x01 \x01(\tR\x06action\x12\x12\n" +
 	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x1d\n" +
@@ -8544,7 +8583,8 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\tdns_rcode\x18\t \x01(\tR\bdnsRcode\x12\x1b\n" +
 	"\ttested_at\x18\n" +
 	" \x01(\x03R\btestedAt\x12'\n" +
-	"\x0fconfig_revision\x18\v \x01(\tR\x0econfigRevision\"\xad\x01\n" +
+	"\x0fconfig_revision\x18\v \x01(\tR\x0econfigRevision\x12\x12\n" +
+	"\x04mitm\x18\f \x01(\tR\x04mitm\"\xad\x01\n" +
 	"\rServiceStatus\x122\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1a.daemon.ServiceStatus.TypeR\x06status\x12\"\n" +
 	"\ferrorMessage\x18\x02 \x01(\tR\ferrorMessage\"D\n" +
@@ -8625,7 +8665,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\bclosedAt\x18\x06 \x01(\x03R\bclosedAt\"Y\n" +
 	"\x10ConnectionEvents\x12/\n" +
 	"\x06events\x18\x01 \x03(\v2\x17.daemon.ConnectionEventR\x06events\x12\x14\n" +
-	"\x05reset\x18\x02 \x01(\bR\x05reset\"\xb7\x05\n" +
+	"\x05reset\x18\x02 \x01(\bR\x05reset\"\x8d\x06\n" +
 	"\n" +
 	"Connection\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
@@ -8651,7 +8691,10 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\foutboundType\x18\x14 \x01(\tR\foutboundType\x12\x1c\n" +
 	"\tchainList\x18\x15 \x03(\tR\tchainList\x125\n" +
 	"\vprocessInfo\x18\x16 \x01(\v2\x13.daemon.ProcessInfoR\vprocessInfo\x12 \n" +
-	"\vrejectCount\x18\x17 \x01(\x03R\vrejectCount\"\xa5\x01\n" +
+	"\vrejectCount\x18\x17 \x01(\x03R\vrejectCount\x12\x12\n" +
+	"\x04mitm\x18\x18 \x01(\tR\x04mitm\x12\"\n" +
+	"\fhttpRequests\x18\x19 \x01(\x03R\fhttpRequests\x12\x1c\n" +
+	"\tmitmError\x18\x1a \x01(\tR\tmitmError\"\xa5\x01\n" +
 	"\vProcessInfo\x12\x1c\n" +
 	"\tprocessId\x18\x01 \x01(\rR\tprocessId\x12\x16\n" +
 	"\x06userId\x18\x02 \x01(\x05R\x06userId\x12\x1a\n" +

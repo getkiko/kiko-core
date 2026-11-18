@@ -1,0 +1,3 @@
+go test fuzz v1
+[]byte("HTTP/1.0 100 \r\n0:\r\nContent-Length:00A0\r\n\r\n")
+byte('\x02')

@@ -27,3 +27,15 @@ func TestDNSRuleActionRespondRejectsUnknownFields(t *testing.T) {
 	err := json.UnmarshalContext(context.Background(), []byte(`{"action":"respond","disable_cache":true}`), &action)
 	require.ErrorContains(t, err, "unknown field")
 }
+
+func TestRouteOptionsActionMITM(t *testing.T) {
+	t.Parallel()
+
+	var action RuleAction
+	err := json.UnmarshalContext(context.Background(), []byte(`{"action":"route-options","mitm":"skip"}`), &action)
+	require.NoError(t, err)
+	require.Equal(t, C.MITMOverrideSkip, action.RouteOptionsOptions.MITM)
+	err = json.UnmarshalContext(context.Background(), []byte(`{"action":"route","outbound":"direct","mitm":"force"}`), &action)
+	require.NoError(t, err)
+	require.Equal(t, C.MITMOverrideForce, action.RouteOptions.MITM)
+}

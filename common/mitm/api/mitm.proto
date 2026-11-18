@@ -1,0 +1,66 @@
+syntax = "proto3";
+package sbui.mitm.v1;
+option go_package = "github.com/sagernet/sing-box/common/mitm/api;mitmapi";
+import "google/protobuf/empty.proto";
+
+// MITM manages the certificate authority of HTTPS decryption.
+// No RPC returns private key material.
+service MITM {
+  rpc GetCapabilities(google.protobuf.Empty) returns (Capabilities);
+  // SetAuthority loads an intermediate CA into memory; an empty chain and
+  // key clear it. It is accepted only from a loopback or unix socket peer, or
+  // over TLS.
+  rpc SetAuthority(SetAuthorityRequest) returns (Status);
+  rpc GetStatus(google.protobuf.Empty) returns (Status);
+  rpc ClearSkip(ClearSkipRequest) returns (Status);
+}
+
+message Capabilities {
+  uint32 schema_version = 1;
+  repeated string features = 2;
+}
+
+message SetAuthorityRequest {
+  // PEM certificates: the signing intermediate CA first, then its issuers up
+  // to and including the root.
+  bytes cert_chain_pem = 1;
+  // PKCS#8 DER private key of the intermediate CA.
+  bytes key_pkcs8 = 2;
+  // Lowercase hex SHA-256 of the root certificate DER; must match the last
+  // certificate of the chain.
+  string root_fingerprint = 3;
+  // Unix seconds; must equal the intermediate certificate expiry.
+  int64 not_after = 4;
+}
+
+message Status {
+  bool enabled = 1;
+  // Lowercase hex SHA-256 of the loaded intermediate CA certificate DER.
+  string authority_fingerprint = 2;
+  bool authority_pending = 3;
+  uint32 leaf_cache_size = 4;
+  repeated SkipEntry skip = 5;
+  repeated Failure failures = 6;
+  // Lowercase hex SHA-256 of the root certificate of the loaded chain.
+  string root_fingerprint = 7;
+  // Unix seconds of the loaded intermediate CA expiry; 0 when pending.
+  int64 authority_not_after = 8;
+  // certificate source: "managed" or "file".
+  string certificate_source = 9;
+}
+
+message SkipEntry {
+  string host = 1;
+  string source = 2;
+  int64 until = 3;
+  string reason = 4;
+}
+
+message Failure {
+  string host = 1;
+  string reason = 2;
+  int64 time = 3;
+  uint32 count = 4;
+}
+
+message ClearSkipRequest { string host = 1; }

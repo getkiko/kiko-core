@@ -73,6 +73,13 @@ func (m *Manager) newTrackerMetadata(metadata adapter.InboundContext, matchedRul
 	chain := common.Map(metadata.OutboundChain, adapter.Outbound.Tag)
 	slices.Reverse(chain)
 	outbound := metadata.OutboundChain[len(metadata.OutboundChain)-1]
+	if metadata.MITM != nil {
+		var rule string
+		if matchedRule != nil {
+			rule = matchedRule.String()
+		}
+		metadata.MITM.SetConnection(id.String(), rule)
+	}
 	return TrackerMetadata{
 		ID:           id,
 		Metadata:     metadata,

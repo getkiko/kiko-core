@@ -131,6 +131,7 @@ type Query struct {
 	Delivery      string    `json:"delivery,omitempty"`
 	DeliveryError *Failure  `json:"delivery_error,omitempty"`
 	Incomplete    bool      `json:"incomplete,omitempty"`
+	Rewritten     string    `json:"rewritten,omitempty"`
 }
 
 func failure(err error, stage string) *Failure {

@@ -107,6 +107,9 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if deadline.NeedAdditionalReadDeadline(conn) {
 		conn = deadline.NewConn(conn)
 	}
+	if metadata.ForcedOutbound != "" {
+		return r.routeForcedConnection(ctx, conn, metadata, onClose)
+	}
 	selectedRule, _, buffers, _, err := r.matchRule(ctx, &metadata, conn, nil)
 	if err != nil {
 		return err
@@ -162,6 +165,12 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	}
 	metadata.RouteOutbound = selectedOutbound.Tag()
 	metadata.OutboundChain = chain
+	if r.mitm != nil && !metadata.Internal {
+		metadata.MITM = r.mitm.Decide(&metadata)
+		if err := r.rejectHost(ctx, &metadata, selectedRule, buffers); err != nil {
+			return err
+		}
+	}
 	for _, tracker := range r.trackers {
 		conn = tracker.RoutedConnection(ctx, conn, metadata, selectedRule, selectedOutbound)
 	}
@@ -354,6 +363,10 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 			return r.hijackDNSPacket(ctx, conn, packetBuffers, metadata, onClose)
 		}
 	}
+	if r.blockQUIC(ctx, &metadata) {
+		N.ReleaseMultiPacketBuffer(packetBuffers)
+		return &R.RejectedError{Cause: R.ErrReset}
+	}
 	if selectedRule == nil || selectReturn {
 		selectedOutbound = r.outbound.Default()
 	}
@@ -468,6 +481,9 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 			applyRouteOptionsOverride(&metadata, action)
 		case *R.RuleActionRoute:
 			applyRouteOptionsOverride(&metadata, &action.RuleActionRouteOptions)
+			if r.blockQUIC(ctx, &metadata) {
+				return adapter.PreMatchResult{Action: adapter.PreMatchReject}
+			}
 			return r.preMatchFlow(ctx, &metadata, packetDestination, currentRule, action.Outbound)
 		case *R.RuleActionBypass:
 			applyRouteOptionsOverride(&metadata, &action.RuleActionRouteOptions)
@@ -476,6 +492,9 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 					return continueResult
 				}
 				return adapter.PreMatchResult{Action: adapter.PreMatchBypass}
+			}
+			if r.blockQUIC(ctx, &metadata) {
+				return adapter.PreMatchResult{Action: adapter.PreMatchReject}
 			}
 			if metadata.Destination.IsDomain() || metadata.Destination != packetDestination {
 				return r.preMatchFlow(ctx, &metadata, packetDestination, currentRule, action.Outbound)
@@ -511,6 +530,9 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 			return continueResult
 		}
 	}
+	if r.blockQUIC(ctx, &metadata) {
+		return adapter.PreMatchResult{Action: adapter.PreMatchReject}
+	}
 	return r.preMatchFlow(ctx, &metadata, packetDestination, nil, "")
 }
 
@@ -531,6 +553,9 @@ func applyRouteOptionsOverride(metadata *adapter.InboundContext, routeOptions *R
 	}
 	if routeOptions.UDPTimeout > 0 {
 		metadata.UDPTimeout = routeOptions.UDPTimeout
+	}
+	if routeOptions.MITM != "" {
+		metadata.MITMOverride = routeOptions.MITM
 	}
 }
 
@@ -767,6 +792,9 @@ match:
 			if routeOptions.TLSSpoof != "" {
 				metadata.TLSSpoof = routeOptions.TLSSpoof
 				metadata.TLSSpoofMethod = routeOptions.TLSSpoofMethod
+			}
+			if routeOptions.MITM != "" {
+				metadata.MITMOverride = routeOptions.MITM
 			}
 		}
 		switch action := currentRule.Action().(type) {

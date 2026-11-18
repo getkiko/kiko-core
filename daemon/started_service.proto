@@ -86,6 +86,9 @@ message PolicyTestResult {
   string dns_rcode = 9;
   int64 tested_at = 10;
   string config_revision = 11;
+  // mitm is the HTTPS decryption result of the tested connection: empty
+  // when not intercepted, "decrypt", "skip:<reason>" or "block_quic".
+  string mitm = 12;
 }
 
 message ServiceStatus {
@@ -247,6 +250,14 @@ message Connection {
   // rejectCount is how many times a reject rule refused the connection
   // within the merge window; 0 for a carried connection.
   int64 rejectCount = 23;
+  // mitm is the HTTPS decryption state of the connection: empty when the
+  // connection is not intercepted, otherwise "pending", "decrypted",
+  // "failed" or "skipped".
+  string mitm = 24;
+  // httpRequests is how many HTTP requests the decrypted connection carried.
+  int64 httpRequests = 25;
+  // mitmError is why decryption failed or was skipped.
+  string mitmError = 26;
 }
 
 message ProcessInfo {

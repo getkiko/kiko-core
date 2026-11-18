@@ -39,12 +39,14 @@ type ConnectionManager struct {
 	access         sync.Mutex
 	connections    list.List[io.Closer]
 	pinner         adapter.ObjectPinner
+	mitm           adapter.MITMEngine
 }
 
 func NewConnectionManager(ctx context.Context, logger logger.ContextLogger) *ConnectionManager {
 	return &ConnectionManager{
 		logger:         logger,
 		urlTestHistory: service.PtrFromContext[urltest.HistoryStorage](ctx),
+		mitm:           service.FromContext[adapter.MITMEngine](ctx),
 	}
 }
 
@@ -148,7 +150,8 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		return
 	}
 	reportGroupDial(&metadata, N.NetworkTCP, dialStart, nil)
-	remoteConn, onClose = meterGroupConn(&metadata, remoteConn, onClose)
+	meter, onClose := newGroupMeter(&metadata, onClose)
+	remoteConn = meter.wrap(remoteConn)
 	err = N.ReportConnHandshakeSuccess(conn, remoteConn)
 	if err != nil {
 		err = E.Cause(err, "report handshake success")
@@ -170,6 +173,12 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 			return
 		}
 		remoteConn = spoofConn
+	}
+	metadata.MITM.SetConnectDuration(time.Since(dialStart))
+	if m.mitm != nil && metadata.MITM.Serves() {
+		metadata.MITMRedialTo = m.mitmRedialTo(this, &metadata, meter)
+		go m.mitm.Serve(ctx, conn, remoteConn, m.mitmRedial(this, &metadata, meter), &metadata, onClose)
+		return
 	}
 	serverFirst := sniff.Skip(&metadata)
 	var done atomic.Bool

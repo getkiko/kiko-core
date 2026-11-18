@@ -119,5 +119,6 @@ func (s *StartedService) TestPolicy(ctx context.Context, request *PolicyTestRequ
 		return nil, status.Error(codes.Unavailable, routeErr.Error())
 	}
 	answer.Action, answer.Rule, answer.RuleIndex, answer.OutboundPath = result.Action, result.Rule, int32(result.RuleIndex), result.OutboundPath
+	answer.Mitm = result.MITM
 	return answer, nil
 }

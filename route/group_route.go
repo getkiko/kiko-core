@@ -69,6 +69,15 @@ func reportGroupDial(metadata *adapter.InboundContext, network string, start tim
 // learn from how connections close, and reports to them when it closes;
 // other connections are left as they are.
 func meterGroupConn(metadata *adapter.InboundContext, remoteConn net.Conn, onClose N.CloseHandlerFunc) (net.Conn, N.CloseHandlerFunc) {
+	meter, onClose := newGroupMeter(metadata, onClose)
+	return meter.wrap(remoteConn), onClose
+}
+
+// newGroupMeter returns the meter of a routed TCP connection and onClose
+// extended to report it, or a nil meter and onClose when no group on the
+// chain learns from closes. Every connection the meter wraps adds to the
+// same report.
+func newGroupMeter(metadata *adapter.InboundContext, onClose N.CloseHandlerFunc) (*groupMeter, N.CloseHandlerFunc) {
 	chain := metadata.OutboundChain
 	var learners []int
 	for i := 0; i+1 < len(chain); i++ {
@@ -77,17 +86,24 @@ func meterGroupConn(metadata *adapter.InboundContext, remoteConn net.Conn, onClo
 		}
 	}
 	if len(learners) == 0 {
-		return remoteConn, onClose
+		return nil, onClose
 	}
 	meter := &groupMeter{start: time.Now()}
-	conn := bufio.NewCounterConn(remoteConn, []N.CountFunc{meter.read}, []N.CountFunc{meter.write})
 	metadataCopy := *metadata
-	return conn, N.AppendClose(onClose, func(err error) {
+	return meter, N.AppendClose(onClose, func(err error) {
 		report := meter.report(err)
 		for _, i := range learners {
 			chain[i].(adapter.GroupCloseFeedback).ReportClose(chain[i+1], &metadataCopy, report)
 		}
 	})
+}
+
+// wrap counts conn into the meter; a nil meter returns conn.
+func (m *groupMeter) wrap(conn net.Conn) net.Conn {
+	if m == nil {
+		return conn
+	}
+	return bufio.NewCounterConn(conn, []N.CountFunc{m.read}, []N.CountFunc{m.write})
 }
 
 type groupMeter struct {

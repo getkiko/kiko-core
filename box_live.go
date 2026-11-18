@@ -46,7 +46,7 @@ func (s *Box) LiveSnapshot() []byte {
 }
 
 // ApplyLiveConfig applies changes to route rules, route.final, outbounds,
-// DNS servers and DNS rules without recreating the instance. Other changes
+// DNS servers, DNS rules and HTTPS decryption without recreating the instance. Other changes
 // are reported as RestartRequired. A non-nil error means nothing was applied.
 func (s *Box) ApplyLiveConfig(ctx context.Context, content []byte, revision int64) (adapter.LiveConfigResult, error) {
 	s.liveAccess.Lock()
@@ -496,6 +496,15 @@ func (s *Box) applyLive(oldOptions, newOptions option.Options) error {
 	if err != nil {
 		return err
 	}
+	// Experimental options need a restart, so the running debug options apply.
+	err = checkMITMDebugOptions(newOptions.MITM, s.debugOptions)
+	if err != nil {
+		return err
+	}
+	commitMITM, err := s.mitm.Reload(newOptions.MITM)
+	if err != nil {
+		return E.Cause(err, "reload mitm")
+	}
 	err = s.reloadInlineRuleSets(common.PtrValueOrDefault(oldOptions.Route).RuleSet, newRoute.RuleSet)
 	if err != nil {
 		return err
@@ -505,6 +514,7 @@ func (s *Box) applyLive(oldOptions, newOptions option.Options) error {
 		return err
 	}
 	committed = true
+	commitMITM()
 	retiredOutbounds := outboundStaging.Commit()
 	retiredTransports := transportStaging.Commit()
 	oldRouteRules := s.router.SwapRules(routeRules)

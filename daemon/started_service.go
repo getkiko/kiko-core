@@ -899,20 +899,54 @@ type connectionSnapshot struct {
 	uplink     int64
 	downlink   int64
 	hadTraffic bool
+	mitm       mitmSnapshot
+}
+
+// mitmSnapshot is the decryption state a client last received for a
+// connection; a change is sent as an update carrying the connection.
+type mitmSnapshot struct {
+	status   string
+	requests int64
+	reason   string
+}
+
+func currentMITMSnapshot(metadata *trafficcontrol.TrackerMetadata) mitmSnapshot {
+	state := metadata.Metadata.MITM
+	return mitmSnapshot{status: state.Status().String(), requests: state.Requests(), reason: mitmReason(state)}
+}
+
+// mitmUnverified is the Connection.mitm_error marker of a decrypted
+// connection whose upstream certificate was not verified (skip_verify).
+// mitm_error otherwise holds only the reason of a failed or skipped
+// connection, so it is empty for a decrypted one and the marker cannot clash.
+const mitmUnverified = "unverified"
+
+func mitmReason(state *adapter.MITMState) string {
+	reason := state.Reason()
+	if reason == "" && state.Status() == adapter.MITMStatusDecrypted && state.Unverified() {
+		return mitmUnverified
+	}
+	return reason
+}
+
+func sentMITMSnapshot(conn *Connection) mitmSnapshot {
+	return mitmSnapshot{status: conn.Mitm, requests: conn.HttpRequests, reason: conn.MitmError}
 }
 
 func (s *StartedService) buildInitialConnectionState(manager *trafficcontrol.Manager, router adapter.Router, snapshots map[uuid.UUID]connectionSnapshot) []*ConnectionEvent {
 	var events []*ConnectionEvent
 
 	for _, metadata := range manager.Connections() {
+		conn := buildConnectionProto(metadata, router)
 		events = append(events, &ConnectionEvent{
 			Type:       ConnectionEventType_CONNECTION_EVENT_NEW,
 			Id:         metadata.ID.String(),
-			Connection: buildConnectionProto(metadata, router),
+			Connection: conn,
 		})
 		snapshots[metadata.ID] = connectionSnapshot{
 			uplink:   metadata.Upload.Load(),
 			downlink: metadata.Download.Load(),
+			mitm:     sentMITMSnapshot(conn),
 		}
 	}
 
@@ -935,14 +969,16 @@ func (s *StartedService) applyConnectionEvent(event trafficcontrol.ConnectionEve
 		if _, exists := snapshots[event.ID]; exists {
 			return nil
 		}
+		conn := buildConnectionProto(event.Metadata, router)
 		snapshots[event.ID] = connectionSnapshot{
 			uplink:   event.Metadata.Upload.Load(),
 			downlink: event.Metadata.Download.Load(),
+			mitm:     sentMITMSnapshot(conn),
 		}
 		return &ConnectionEvent{
 			Type:       ConnectionEventType_CONNECTION_EVENT_NEW,
 			Id:         event.ID.String(),
-			Connection: buildConnectionProto(event.Metadata, router),
+			Connection: conn,
 		}
 	case trafficcontrol.ConnectionEventClosed:
 		delete(snapshots, event.ID)
@@ -980,58 +1016,69 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficcontrol.Manager, ro
 		currentDownload := metadata.Download.Load()
 		snapshot, exists := snapshots[metadata.ID]
 		if !exists {
+			conn := buildConnectionProto(metadata, router)
 			snapshots[metadata.ID] = connectionSnapshot{
 				uplink:   currentUpload,
 				downlink: currentDownload,
+				mitm:     sentMITMSnapshot(conn),
 			}
 			events = append(events, &ConnectionEvent{
 				Type:       ConnectionEventType_CONNECTION_EVENT_NEW,
 				Id:         metadata.ID.String(),
-				Connection: buildConnectionProto(metadata, router),
+				Connection: conn,
 			})
 			continue
 		}
+		var event *ConnectionEvent
 		uplinkDelta := currentUpload - snapshot.uplink
 		downlinkDelta := currentDownload - snapshot.downlink
 		if uplinkDelta < 0 || downlinkDelta < 0 {
 			if snapshot.hadTraffic {
-				events = append(events, &ConnectionEvent{
+				event = &ConnectionEvent{
 					Type:          ConnectionEventType_CONNECTION_EVENT_UPDATE,
 					Id:            metadata.ID.String(),
 					UplinkDelta:   0,
 					DownlinkDelta: 0,
-				})
+				}
 			}
 			snapshot.uplink = currentUpload
 			snapshot.downlink = currentDownload
 			snapshot.hadTraffic = false
-			snapshots[metadata.ID] = snapshot
-			continue
-		}
-		if uplinkDelta > 0 || downlinkDelta > 0 {
+		} else if uplinkDelta > 0 || downlinkDelta > 0 {
 			snapshot.uplink = currentUpload
 			snapshot.downlink = currentDownload
 			snapshot.hadTraffic = true
-			snapshots[metadata.ID] = snapshot
-			events = append(events, &ConnectionEvent{
+			event = &ConnectionEvent{
 				Type:          ConnectionEventType_CONNECTION_EVENT_UPDATE,
 				Id:            metadata.ID.String(),
 				UplinkDelta:   uplinkDelta,
 				DownlinkDelta: downlinkDelta,
-			})
-			continue
-		}
-		if snapshot.hadTraffic {
+			}
+		} else if snapshot.hadTraffic {
 			snapshot.uplink = currentUpload
 			snapshot.downlink = currentDownload
 			snapshot.hadTraffic = false
-			snapshots[metadata.ID] = snapshot
-			events = append(events, &ConnectionEvent{
+			event = &ConnectionEvent{
 				Type:          ConnectionEventType_CONNECTION_EVENT_UPDATE,
 				Id:            metadata.ID.String(),
 				UplinkDelta:   0,
 				DownlinkDelta: 0,
-			})
+			}
+		}
+		// A changed decryption state is sent with the whole connection.
+		if currentMITMSnapshot(metadata) != snapshot.mitm {
+			if event == nil {
+				event = &ConnectionEvent{
+					Type: ConnectionEventType_CONNECTION_EVENT_UPDATE,
+					Id:   metadata.ID.String(),
+				}
+			}
+			event.Connection = buildConnectionProto(metadata, router)
+			snapshot.mitm = sentMITMSnapshot(event.Connection)
+		}
+		snapshots[metadata.ID] = snapshot
+		if event != nil {
+			events = append(events, event)
 		}
 	}
 
@@ -1121,6 +1168,9 @@ func buildConnectionProto(metadata *trafficcontrol.TrackerMetadata, router adapt
 		ChainList:     metadata.Chain,
 		ProcessInfo:   processInfo,
 		RejectCount:   rejectCount(metadata),
+		Mitm:          metadata.Metadata.MITM.Status().String(),
+		HttpRequests:  metadata.Metadata.MITM.Requests(),
+		MitmError:     mitmReason(metadata.Metadata.MITM),
 	}
 }
 

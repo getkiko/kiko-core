@@ -47,6 +47,9 @@ type InboundManager interface {
 type InboundContext struct {
 	Inbound     string
 	InboundType string
+	// Internal marks connections the core opens for itself. Only code sets
+	// it; the inbound name is for display.
+	Internal    bool
 	IPVersion   uint8
 	Network     string
 	Source      M.Socksaddr
@@ -84,6 +87,14 @@ type InboundContext struct {
 	TLSRecordFragment         bool
 	TLSSpoof                  string
 	TLSSpoofMethod            tlsspoof.Method
+	MITMOverride              string
+	MITM                      *MITMState
+	// MITMRedialTo, set by the connection manager for a connection served by
+	// the MITM engine, dials another origin through the same outbound.
+	MITMRedialTo MITMRedialToFunc
+	// ForcedOutbound is the tag of the outbound that takes the connection,
+	// bypassing rule matching.
+	ForcedOutbound string
 
 	NetworkStrategy     *C.NetworkStrategy
 	NetworkType         []C.InterfaceType
