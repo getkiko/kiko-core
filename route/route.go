@@ -194,6 +194,34 @@ func resolveOutbound(outbound adapter.Outbound, network string) ([]adapter.Outbo
 	return chain, nil
 }
 
+// resolveFlowOutbound is resolveOutbound for a forwarded flow, with the flow
+// trackers of the groups on the chain. Each group's tracker is taken before
+// the chain is resolved again, so a selection that changes in between
+// interrupts the flow when it attaches, or fails the resolution.
+func resolveFlowOutbound(outbound adapter.Outbound, network string) ([]adapter.Outbound, []func() tun.FlowTracker, error) {
+	chain, err := resolveOutbound(outbound, network)
+	if err != nil {
+		return nil, nil, err
+	}
+	var factories []func() tun.FlowTracker
+	for _, it := range chain {
+		if tracked, isTracked := it.(adapter.FlowTrackerOutbound); isTracked {
+			factories = append(factories, tracked.FlowTrackerFactory())
+		}
+	}
+	if len(factories) == 0 {
+		return chain, nil, nil
+	}
+	again, err := resolveOutbound(outbound, network)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !slices.Equal(chain, again) {
+		return nil, nil, E.New("outbound selection changed")
+	}
+	return chain, factories, nil
+}
+
 func registerInterrupt(chain []adapter.Outbound, closer io.Closer, onClose N.CloseHandlerFunc) N.CloseHandlerFunc {
 	var removers []func()
 	for _, outbound := range chain {
@@ -491,7 +519,8 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 			return continueResult
 		}
 	}
-	chain, err := resolveOutbound(outbound, metadata.Network)
+	routedOutbound := outbound
+	chain, groupTrackerFactories, err := resolveFlowOutbound(outbound, metadata.Network)
 	if err != nil {
 		return continueResult
 	}
@@ -549,20 +578,27 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 	metadataCopy := *metadata
 	result.NewTracker = func() tun.FlowTracker {
 		r.logger.InfoContext(ctx, "pre-match: forward ", metadataCopy.Network, " connection from ", metadataCopy.Source.AddrString(), " to ", metadataCopy.Destination.AddrString(), " via outbound/", outbound.Type(), "[", outbound.Tag(), "]")
-		flowTrackers := make([]tun.FlowTracker, 0, len(r.trackers)+2)
+		flowTrackers := make([]tun.FlowTracker, 0, len(r.trackers)+len(groupTrackerFactories)+2)
 		flowTrackers = append(flowTrackers, newFlowLogger(ctx, r.logger, metadataCopy, outbound))
-		flowInterrupter := newFlowInterrupter(chain)
+		// Groups that hand out flow trackers interrupt the flow through them
+		// below; the interrupter covers any other group.
+		flowInterrupter := newFlowInterrupter(common.Filter(chain, func(it adapter.Outbound) bool {
+			_, tracked := it.(adapter.FlowTrackerOutbound)
+			return !tracked
+		}))
 		if flowInterrupter != nil {
 			flowTrackers = append(flowTrackers, flowInterrupter)
 		}
 		for _, tracker := range r.trackers {
-			flowTracker := tracker.RoutedFlow(ctx, metadataCopy, matchedRule, outbound)
+			flowTracker := tracker.RoutedFlow(ctx, metadataCopy, matchedRule, routedOutbound)
 			if flowTracker != nil {
 				flowTrackers = append(flowTrackers, flowTracker)
 			}
 		}
-		if len(flowTrackers) == 1 {
-			return flowTrackers[0]
+		// Register traffic trackers first so an already interrupted group can
+		// close the whole flow during AttachFlow without leaving a live row.
+		for _, factory := range groupTrackerFactories {
+			flowTrackers = append(flowTrackers, factory())
 		}
 		return &multiFlowTracker{trackers: flowTrackers}
 	}

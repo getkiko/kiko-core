@@ -18,6 +18,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -33,6 +34,7 @@ func RegisterURLTest(registry *outbound.Registry) {
 }
 
 var (
+	_ adapter.FlowTrackerOutbound     = (*URLTest)(nil)
 	_ adapter.OutboundGroup           = (*URLTest)(nil)
 	_ adapter.InterfaceUpdateListener = (*URLTest)(nil)
 	_ adapter.Referrer                = (*URLTest)(nil)
@@ -168,6 +170,7 @@ func (s *URLTest) InterfaceUpdated(ctx context.Context) {
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	token := s.group.interruptGroup.Begin()
 	s.group.Touch()
 	var outbound adapter.Outbound
 	switch N.NetworkName(network) {
@@ -188,7 +191,10 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 	conn, err := outbound.DialContext(ctx, network, destination)
 	if err == nil {
 		dnsmonitor.Remember(ctx, conn)
-		wrapped := s.group.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+		wrapped, err := token.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+		if err != nil {
+			return nil, err
+		}
 		dnsmonitor.Alias(ctx, conn, wrapped)
 		return wrapped, nil
 	}
@@ -198,6 +204,7 @@ func (s *URLTest) DialContext(ctx context.Context, network string, destination M
 }
 
 func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	token := s.group.interruptGroup.Begin()
 	s.group.Touch()
 	outbound := s.group.selectedOutboundUDP
 	if outbound == nil {
@@ -210,13 +217,22 @@ func (s *URLTest) ListenPacket(ctx context.Context, destination M.Socksaddr) (ne
 	conn, err := outbound.ListenPacket(ctx, destination)
 	if err == nil {
 		dnsmonitor.Remember(ctx, conn)
-		wrapped := s.group.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+		wrapped, err := token.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+		if err != nil {
+			return nil, err
+		}
 		dnsmonitor.Alias(ctx, conn, wrapped)
 		return wrapped, nil
 	}
 	s.logger.ErrorContext(ctx, err)
 	s.group.history.DeleteURLTestHistory(outbound.Tag())
 	return nil, err
+}
+
+func (s *URLTest) FlowTrackerFactory() func() tun.FlowTracker {
+	s.group.Touch()
+	token := s.group.interruptGroup.Begin()
+	return func() tun.FlowTracker { return token.NewFlowTracker(true) }
 }
 
 type URLTestGroup struct {

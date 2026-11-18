@@ -229,6 +229,11 @@ message DeprecatedWarning {
 
 message StartedAt {
   int64 startedAt = 1;
+  int64 instanceId = 2;
+  string configRevision = 3;
+  bool ready = 4;
+  string reloadError = 5;
+  int32 reloadProtocol = 6;
 }
 
 message OutboundList {

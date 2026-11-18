@@ -11,6 +11,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/lifecycle"
 	"github.com/sagernet/sing-box/common/networkquality"
 	"github.com/sagernet/sing-box/common/stun"
 	"github.com/sagernet/sing-box/common/trafficcontrol"
@@ -1148,7 +1149,15 @@ func (s *StartedService) GetDeprecatedWarnings(ctx context.Context, empty *empty
 func (s *StartedService) GetStartedAt(ctx context.Context, empty *emptypb.Empty) (*StartedAt, error) {
 	s.serviceAccess.RLock()
 	defer s.serviceAccess.RUnlock()
-	return &StartedAt{StartedAt: s.startedAt.UnixMilli()}, nil
+	value := &StartedAt{StartedAt: s.startedAt.UnixMilli()}
+	if instance := service.FromContext[*lifecycle.Instance](s.ctx); instance != nil {
+		value.InstanceId = instance.ID
+		value.ConfigRevision = instance.Revision
+		value.Ready = instance.Ready.Load()
+		value.ReloadError = instance.ReloadError
+		value.ReloadProtocol = lifecycle.ReloadProtocol
+	}
+	return value, nil
 }
 
 func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.ServerStreamingServer[OutboundList]) error {

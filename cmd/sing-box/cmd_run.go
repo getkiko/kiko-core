@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"github.com/sagernet/sing-box/common/lifecycle"
 	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
-	runtimeDebug "runtime/debug"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -131,13 +132,27 @@ func mergeOptionsList(optionsList []*OptionsEntry) (option.Options, error) {
 }
 
 func create(options option.Options) (*box.Box, context.CancelFunc, error) {
+	return createWithReloadError(options, "")
+}
+
+func createWithReloadError(options option.Options, reloadError string) (*box.Box, context.CancelFunc, error) {
 	if disableColor {
 		if options.Log == nil {
 			options.Log = &option.LogOptions{}
 		}
 		options.Log.DisableColor = true
 	}
-	ctx, cancel := context.WithCancel(service.ExtendContext(globalCtx))
+	revision := ""
+	for _, entry := range options.Services {
+		if api, ok := entry.Options.(*option.APIServiceOptions); ok {
+			revision = api.ConfigRevision
+			if entry.Tag == "kiko-api" {
+				break
+			}
+		}
+	}
+	state := lifecycle.New(revision, reloadError)
+	ctx, cancel := context.WithCancel(service.ContextWith(service.ExtendContext(globalCtx), state))
 	instance, err := box.New(box.Options{
 		Context:                    ctx,
 		Options:                    options,
@@ -149,7 +164,9 @@ func create(options option.Options) (*box.Box, context.CancelFunc, error) {
 	}
 
 	osSignals := make(chan os.Signal, 1)
-	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	// run queues SIGHUP until startup completes. Only termination signals
+	// cancel an in-progress start; the API may already be listening here.
+	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM)
 	defer func() {
 		signal.Stop(osSignals)
 		close(osSignals)
@@ -168,6 +185,7 @@ func create(options option.Options) (*box.Box, context.CancelFunc, error) {
 		cancel()
 		return nil, nil, E.Cause(err, "start service")
 	}
+	state.Ready.Store(true)
 	return instance, cancel, nil
 }
 
@@ -184,50 +202,126 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	osSignals := make(chan os.Signal, 1)
-	signal.Notify(osSignals, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
-	defer signal.Stop(osSignals)
+	// Keep immutable snapshots: constructors and Start can mutate option values.
+	snapshot, err := json.MarshalContext(globalCtx, options)
+	if err != nil {
+		return err
+	}
+	reloadSignals := make(chan os.Signal, 1)
+	terminationSignals := make(chan os.Signal, 1)
+	signal.Notify(reloadSignals, syscall.SIGHUP)
+	signal.Notify(terminationSignals, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(reloadSignals)
+	defer signal.Stop(terminationSignals)
+	instance, cancel, err := createSnapshot(snapshot, "")
+	if err != nil {
+		return err
+	}
 	for {
-		instance, cancel, createErr := create(options)
-		if createErr != nil {
-			return createErr
+		// Separate queues preserve termination even when HUP is already pending.
+		select {
+		case <-terminationSignals:
+			closeInstance(instance, cancel)
+			return nil
+		default:
 		}
-		runtimeDebug.FreeOSMemory()
-		for {
-			osSignal := <-osSignals
-			if osSignal == syscall.SIGHUP {
-				err = check()
-				if err != nil {
-					log.Error(E.Cause(err, "reload service"))
-					continue
-				}
-			}
-			cancel()
-			closeCtx, closed := context.WithCancel(context.Background())
-			go closeMonitor(closeCtx)
-			err = instance.Close()
-			closed()
-			if osSignal != syscall.SIGHUP {
-				if err != nil {
-					log.Error(E.Cause(err, "sing-box did not closed properly"))
-				}
-				return nil
-			}
-			break
+		select {
+		case <-terminationSignals:
+			closeInstance(instance, cancel)
+			return nil
+		case <-reloadSignals:
 		}
-		options, err = readConfigAndMerge()
+		began := time.Now()
+		next, readErr := readConfigAndMerge()
+		if readErr != nil {
+			log.Error(E.Cause(readErr, "reload: read configuration"))
+			continue
+		}
+		candidate, encodeErr := json.MarshalContext(globalCtx, next)
+		if encodeErr != nil {
+			log.Error(E.Cause(encodeErr, "reload: snapshot configuration"))
+			continue
+		}
+		// Check a separate decoded copy, then apply exactly the checked snapshot.
+		checked, decodeErr := decodeSnapshot(candidate)
+		if decodeErr != nil {
+			log.Error(decodeErr)
+			continue
+		}
+		if checkErr := checkOptions(checked); checkErr != nil {
+			log.Error(E.Cause(checkErr, "reload: validate configuration"))
+			continue
+		}
+		log.Info("reload: closing previous instance")
+		if closeErr := closeInstance(instance, cancel); closeErr != nil {
+			// Continuing after incomplete cleanup can acquire the same resources twice.
+			return E.Cause(closeErr, "reload: close previous instance")
+		}
+		// A pending termination wins over the new start and rollback.
+		select {
+		case <-terminationSignals:
+			return nil
+		default:
+		}
+		log.Info("reload: starting candidate instance")
+		instance, cancel, err = createSnapshot(candidate, "")
+		if err == nil {
+			snapshot = candidate
+			log.Info("reload: applied configuration in ", time.Since(began).Round(time.Millisecond))
+			continue
+		}
+		reloadError := err.Error()
+		log.Error(E.Cause(err, "reload: candidate failed; restoring previous configuration"))
+		select {
+		case <-terminationSignals:
+			return nil
+		default:
+		}
+		instance, cancel, err = createSnapshot(snapshot, reloadError)
 		if err != nil {
-			return err
+			return E.Cause(err, "reload: restore previous configuration")
 		}
+		log.Warn("reload: previous configuration restored in ", time.Since(began).Round(time.Millisecond))
 	}
 }
 
+func decodeSnapshot(snapshot []byte) (option.Options, error) {
+	return json.UnmarshalExtendedContext[option.Options](globalCtx, snapshot)
+}
+
+func createSnapshot(snapshot []byte, reloadError string) (*box.Box, context.CancelFunc, error) {
+	options, err := decodeSnapshot(snapshot)
+	if err != nil {
+		return nil, nil, err
+	}
+	return createWithReloadError(options, reloadError)
+}
+
+func closeInstance(instance *box.Box, cancel context.CancelFunc) error {
+	ctx, closed := context.WithCancel(context.Background())
+	defer closed()
+	go closeMonitor(ctx)
+	cancel()
+	return instance.Close()
+}
+
 func closeMonitor(ctx context.Context) {
-	time.Sleep(C.FatalStopTimeout)
+	slow := time.NewTimer(2 * time.Second)
+	defer slow.Stop()
+	fatal := time.NewTimer(C.FatalStopTimeout)
+	defer fatal.Stop()
 	select {
 	case <-ctx.Done():
 		return
-	default:
+	case <-slow.C:
+		stack := make([]byte, 1<<20)
+		size := runtime.Stack(stack, true)
+		log.Error("reload: close exceeds 2s; goroutines:\n", string(stack[:size]))
 	}
-	log.Fatal("sing-box did not close!")
+	select {
+	case <-ctx.Done():
+		return
+	case <-fatal.C:
+		log.Fatal("sing-box did not close!")
+	}
 }

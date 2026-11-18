@@ -2,6 +2,7 @@ package group
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -79,7 +80,7 @@ func (o *selectorTestTarget) NewPacketConnection(ctx context.Context, conn N.Pac
 
 func newTestSelector(manager *selectorTestManager, selected, alternative adapter.Outbound, interruptExisting bool) *Selector {
 	s := &Selector{
-		ctx: context.Background(), connection: manager, logger: log.NewNOPFactory().Logger(),
+		ctx: context.Background(), logger: log.NewNOPFactory().Logger(),
 		outbounds:      map[string]adapter.Outbound{selected.Tag(): selected, alternative.Tag(): alternative},
 		interruptGroup: interrupt.NewGroup(), interruptExternalConnections: interruptExisting,
 	}
@@ -87,65 +88,105 @@ func newTestSelector(manager *selectorTestManager, selected, alternative adapter
 	return s
 }
 
-func TestSelectorInterruptsNestedHandlerConnections(t *testing.T) {
-	for _, network := range []string{N.NetworkTCP, N.NetworkUDP} {
-		for _, level := range []string{"parent", "deep"} {
-			for _, interruptExisting := range []bool{false, true} {
-				name := network + "/" + level
-				if interruptExisting {
-					name += "/interrupt"
-				} else {
-					name += "/keep"
+// A routed connection attaches to every group of its chain; switching any
+// of them interrupts it when the group interrupts existing connections.
+func TestSelectorInterruptsNestedAttachedConnections(t *testing.T) {
+	for _, level := range []string{"parent", "deep"} {
+		for _, interruptExisting := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/interrupt=%v", level, interruptExisting), func(t *testing.T) {
+				manager := &selectorTestManager{t: t}
+				target := &selectorTestTarget{tag: "target", manager: manager}
+				alternative := &selectorTestTarget{tag: "alternative", manager: manager}
+				inner := newTestSelector(manager, target, alternative, interruptExisting)
+				outer := newTestSelector(manager, inner, alternative, interruptExisting)
+				client, server := net.Pipe()
+				t.Cleanup(func() { server.Close() })
+				conn := &selectorTestConn{Conn: client}
+				for _, group := range []*Selector{outer, inner} {
+					detach := group.AttachConnection(conn)
+					t.Cleanup(detach)
 				}
-				t.Run(name, func(t *testing.T) {
+				switched := outer
+				if level == "deep" {
+					switched = inner
+				}
+				if !switched.SelectOutbound(switched.Selected(N.NetworkTCP).Tag()) {
+					t.Fatal("select current target failed")
+				}
+				if conn.closed {
+					t.Fatal("selecting current target closed connection")
+				}
+				if !switched.SelectOutbound(alternative.Tag()) {
+					t.Fatal("select alternative failed")
+				}
+				if conn.closed != interruptExisting {
+					t.Fatalf("closed = %v, want %v", conn.closed, interruptExisting)
+				}
+			})
+		}
+	}
+}
+
+type delayedSelectorTarget struct {
+	*selectorTestTarget
+	started chan struct{}
+	resume  chan struct{}
+}
+
+func (o *delayedSelectorTarget) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	close(o.started)
+	<-o.resume
+	return o.selectorTestTarget.DialContext(ctx, network, destination)
+}
+
+func (o *delayedSelectorTarget) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	close(o.started)
+	<-o.resume
+	return o.selectorTestTarget.ListenPacket(ctx, destination)
+}
+
+func TestSelectorInterruptsConnectionsEstablishedDuringSwitch(t *testing.T) {
+	for _, network := range []string{N.NetworkTCP, N.NetworkUDP} {
+		for _, external := range []bool{false, true} {
+			for _, interruptExisting := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/external=%v/interrupt=%v", network, external, interruptExisting), func(t *testing.T) {
 					manager := &selectorTestManager{t: t}
-					target := &selectorTestTarget{tag: "target", manager: manager}
-					alternative := &selectorTestTarget{tag: "alternative", manager: manager}
-					inner := newTestSelector(manager, target, alternative, interruptExisting)
-					// The empty tag gives the nested selector a distinct map key.
-					outer := newTestSelector(manager, inner, alternative, interruptExisting)
-					metadata := adapter.InboundContext{Destination: M.ParseSocksaddr("example.com:443")}
-					var isClosed func() bool
-					var unrelatedClosed func() bool
-					if network == N.NetworkTCP {
-						unrelated, err := target.DialContext(context.Background(), network, metadata.Destination)
-						if err != nil {
-							t.Fatal(err)
+					target := &delayedSelectorTarget{selectorTestTarget: &selectorTestTarget{tag: "a", manager: manager}, started: make(chan struct{}), resume: make(chan struct{})}
+					alternative := &selectorTestTarget{tag: "b", manager: manager}
+					selector := newTestSelector(manager, target, alternative, interruptExisting)
+					ctx := context.Background()
+					if external {
+						ctx = interrupt.ContextWithIsExternalConnection(ctx, true)
+					}
+					result := make(chan error, 1)
+					go func() {
+						if network == N.NetworkTCP {
+							conn, err := selector.DialContext(ctx, network, M.ParseSocksaddr("example.com:443"))
+							if conn != nil {
+								t.Cleanup(func() { conn.Close() })
+							}
+							result <- err
+						} else {
+							conn, err := selector.ListenPacket(ctx, M.ParseSocksaddr("example.com:443"))
+							if conn != nil {
+								t.Cleanup(func() { conn.Close() })
+							}
+							result <- err
 						}
-						t.Cleanup(func() { unrelated.Close() })
-						unrelatedTracked := target.tcp
-						unrelatedClosed = func() bool { return unrelatedTracked.closed }
-						outer.NewConnection(context.Background(), nil, metadata, nil)
-						isClosed = func() bool { return target.tcp.closed }
-					} else {
-						unrelated, err := target.ListenPacket(context.Background(), metadata.Destination)
-						if err != nil {
-							t.Fatal(err)
-						}
-						t.Cleanup(func() { unrelated.Close() })
-						unrelatedTracked := target.udp
-						unrelatedClosed = func() bool { return unrelatedTracked.closed }
-						outer.NewPacketConnection(context.Background(), nil, metadata, nil)
-						isClosed = func() bool { return target.udp.closed }
+					}()
+					<-target.started
+					if !selector.SelectOutbound("b") {
+						t.Fatal("switch failed")
 					}
-					switched := outer
-					if level == "deep" {
-						switched = inner
+					close(target.resume)
+					err := <-result
+					wantClosed := !external || interruptExisting
+					if (err != nil) != wantClosed {
+						t.Fatalf("late dial error = %v; want interrupted=%v", err, wantClosed)
 					}
-					if !switched.SelectOutbound(switched.Now()) {
-						t.Fatal("select current target failed")
-					}
-					if isClosed() {
-						t.Fatal("selecting current target closed connection")
-					}
-					if !switched.SelectOutbound(alternative.Tag()) {
-						t.Fatal("select alternative failed")
-					}
-					if isClosed() != interruptExisting {
-						t.Fatalf("closed = %v, want %v", isClosed(), interruptExisting)
-					}
-					if unrelatedClosed() {
-						t.Fatal("switch closed unrelated connection")
+					closed := target.tcp != nil && target.tcp.closed || target.udp != nil && target.udp.closed
+					if closed != wantClosed {
+						t.Fatalf("old target closed = %v, want %v", closed, wantClosed)
 					}
 				})
 			}

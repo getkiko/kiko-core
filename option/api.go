@@ -9,6 +9,8 @@ import (
 )
 
 type APIServiceOptions struct {
+	// ConfigRevision is the opaque configuration identity supplied by the local controller.
+	ConfigRevision string `json:"config_revision,omitempty"`
 	ListenOptions
 	Secret                           string                     `json:"secret,omitempty"`
 	AccessControlAllowOrigin         badoption.Listable[string] `json:"access_control_allow_origin,omitempty" examples:"http://sing-box-dashboard.sagernet.org/,https://sing-box-dashboard.sagernet.org/"`

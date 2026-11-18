@@ -14,6 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -27,8 +28,9 @@ func RegisterSelector(registry *outbound.Registry) {
 }
 
 var (
-	_ adapter.OutboundGroup = (*Selector)(nil)
-	_ adapter.Referrer      = (*Selector)(nil)
+	_ adapter.OutboundGroup       = (*Selector)(nil)
+	_ adapter.Referrer            = (*Selector)(nil)
+	_ adapter.FlowTrackerOutbound = (*Selector)(nil)
 )
 
 type Selector struct {
@@ -161,6 +163,7 @@ func (s *Selector) SelectOutbound(tag string) bool {
 }
 
 func (s *Selector) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	token := s.interruptGroup.Begin()
 	selected := s.selected.Load()
 	ctx = dnsmonitor.WithOutbound(dnsmonitor.WithOutbound(ctx, s.Tag()), selected.Tag())
 	conn, err := selected.DialContext(ctx, network, destination)
@@ -168,12 +171,16 @@ func (s *Selector) DialContext(ctx context.Context, network string, destination 
 		return nil, err
 	}
 	dnsmonitor.Remember(ctx, conn)
-	wrapped := s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+	wrapped, err := token.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+	if err != nil {
+		return nil, err
+	}
 	dnsmonitor.Alias(ctx, conn, wrapped)
 	return wrapped, nil
 }
 
 func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	token := s.interruptGroup.Begin()
 	selected := s.selected.Load()
 	ctx = dnsmonitor.WithOutbound(dnsmonitor.WithOutbound(ctx, s.Tag()), selected.Tag())
 	conn, err := selected.ListenPacket(ctx, destination)
@@ -181,9 +188,17 @@ func (s *Selector) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return nil, err
 	}
 	dnsmonitor.Remember(ctx, conn)
-	wrapped := s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+	wrapped, err := token.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx))
+	if err != nil {
+		return nil, err
+	}
 	dnsmonitor.Alias(ctx, conn, wrapped)
 	return wrapped, nil
+}
+
+func (s *Selector) FlowTrackerFactory() func() tun.FlowTracker {
+	token := s.interruptGroup.Begin()
+	return func() tun.FlowTracker { return token.NewFlowTracker(true) }
 }
 
 func RealTag(detour adapter.Outbound, network string) string {

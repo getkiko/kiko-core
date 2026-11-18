@@ -37,6 +37,12 @@ type FlowOutbound interface {
 	PreMatchFlow(network string, destination netip.Addr) PreMatchAction
 }
 
+// FlowTrackerOutbound retains group lifecycle tracking when the router unwraps
+// a group to the endpoint used by TUN's packet forwarding path.
+type FlowTrackerOutbound interface {
+	FlowTrackerFactory() func() tun.FlowTracker
+}
+
 type OutboundRegistry interface {
 	option.OutboundOptionsRegistry
 	CreateOutbound(ctx context.Context, router Router, logger log.ContextLogger, tag string, outboundType string, options any) (Outbound, error)
