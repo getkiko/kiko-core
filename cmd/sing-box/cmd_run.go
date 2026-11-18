@@ -221,13 +221,13 @@ func run() error {
 		// Separate queues preserve termination even when HUP is already pending.
 		select {
 		case <-terminationSignals:
-			closeInstance(instance, cancel)
+			closeForExit(instance, cancel)
 			return nil
 		default:
 		}
 		select {
 		case <-terminationSignals:
-			closeInstance(instance, cancel)
+			closeForExit(instance, cancel)
 			return nil
 		case <-reloadSignals:
 		}
@@ -251,6 +251,10 @@ func run() error {
 		if checkErr := checkOptions(checked); checkErr != nil {
 			log.Error(E.Cause(checkErr, "reload: validate configuration"))
 			continue
+		}
+		if liveSnapshot := instance.LiveSnapshot(); liveSnapshot != nil {
+			// Restore the configuration applied live if the candidate fails.
+			snapshot = liveSnapshot
 		}
 		log.Info("reload: closing previous instance")
 		if closeErr := closeInstance(instance, cancel); closeErr != nil {
@@ -303,6 +307,35 @@ func closeInstance(instance *box.Box, cancel context.CancelFunc) error {
 	go closeMonitor(ctx)
 	cancel()
 	return instance.Close()
+}
+
+// exitCloseBudget bounds closing the instance when the process exits on
+// a termination signal: the controller expects the core gone within a
+// second. Whatever is still closing then goes with the process, as the
+// kernel releases its sockets and TUN device and the cache file's
+// database survives an exit mid-transaction.
+const exitCloseBudget = 600 * time.Millisecond
+
+// closeForExit closes the instance for a termination, waiting at most
+// exitCloseBudget.
+func closeForExit(instance *box.Box, cancel context.CancelFunc) {
+	began := time.Now()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cancel()
+		if err := instance.Close(); err != nil {
+			log.Error(E.Cause(err, "close"))
+		}
+	}()
+	select {
+	case <-done:
+		log.Info("sing-box closed in ", time.Since(began).Round(time.Millisecond))
+	case <-time.After(exitCloseBudget):
+		stack := make([]byte, 1<<20)
+		size := runtime.Stack(stack, true)
+		log.Warn("close exceeds ", exitCloseBudget, "; exiting. goroutines:\n", string(stack[:size]))
+	}
 }
 
 func closeMonitor(ctx context.Context) {

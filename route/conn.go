@@ -38,12 +38,29 @@ type ConnectionManager struct {
 	urlTestHistory *urltest.HistoryStorage
 	access         sync.Mutex
 	connections    list.List[io.Closer]
+	pinner         adapter.ObjectPinner
 }
 
 func NewConnectionManager(ctx context.Context, logger logger.ContextLogger) *ConnectionManager {
 	return &ConnectionManager{
 		logger:         logger,
 		urlTestHistory: service.PtrFromContext[urltest.HistoryStorage](ctx),
+	}
+}
+
+// SetPinner sets the pinner that keeps outbounds used by routed connections
+// open after a live apply replaced them.
+func (m *ConnectionManager) SetPinner(pinner adapter.ObjectPinner) {
+	m.pinner = pinner
+}
+
+func (m *ConnectionManager) retainDialer(dialer N.Dialer, network string, onClose N.CloseHandlerFunc) N.CloseHandlerFunc {
+	release := adapter.AcquireOutbound(m.pinner, dialer, network)
+	return func(err error) {
+		release()
+		if onClose != nil {
+			onClose(err)
+		}
 	}
 }
 
@@ -100,6 +117,7 @@ func (m *ConnectionManager) TrackPacketConn(conn net.PacketConn) net.PacketConn 
 }
 
 func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	onClose = m.retainDialer(this, N.NetworkTCP, onClose)
 	ctx = adapter.WithContext(ctx, &metadata)
 	var (
 		remoteConn net.Conn
@@ -162,6 +180,7 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 }
 
 func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+	onClose = m.retainDialer(this, N.NetworkUDP, onClose)
 	ctx = adapter.WithContext(ctx, &metadata)
 	var (
 		remotePacketConn   net.PacketConn

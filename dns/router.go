@@ -174,20 +174,24 @@ func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 }
 
 func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, dnsRuleModeFlags, error) {
-	for i, ruleOptions := range r.rawRules {
+	return r.buildRulesWith(r.ctx, r.transport, r.rawRules, startRules)
+}
+
+func (r *Router) buildRulesWith(ctx context.Context, transportManager adapter.DNSTransportManager, rawRules []option.DNSRule, startRules bool) ([]adapter.DNSRule, bool, dnsRuleModeFlags, error) {
+	for i, ruleOptions := range rawRules {
 		err := R.ValidateNoNestedDNSRuleActions(ruleOptions)
 		if err != nil {
 			return nil, false, dnsRuleModeFlags{}, E.Cause(err, "parse dns rule[", i, "]")
 		}
 	}
-	router := service.FromContext[adapter.Router](r.ctx)
-	legacyDNSMode, modeFlags, err := resolveLegacyDNSMode(router, r.rawRules, nil)
+	router := service.FromContext[adapter.Router](ctx)
+	legacyDNSMode, modeFlags, err := resolveLegacyDNSMode(router, rawRules, nil)
 	if err != nil {
 		return nil, false, dnsRuleModeFlags{}, err
 	}
 	if !legacyDNSMode {
 		var validationWarnings []string
-		validationWarnings, err = validateLegacyDNSModeDisabledRules(router, r.rawRules, nil)
+		validationWarnings, err = validateLegacyDNSModeDisabledRules(router, rawRules, nil)
 		if err != nil {
 			return nil, false, dnsRuleModeFlags{}, err
 		}
@@ -195,14 +199,14 @@ func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, dnsRuleMo
 			r.logger.Warn(warning)
 		}
 	}
-	err = validateEvaluateFakeIPRules(r.rawRules, r.transport)
+	err = validateEvaluateFakeIPRules(rawRules, transportManager)
 	if err != nil {
 		return nil, false, dnsRuleModeFlags{}, err
 	}
-	newRules := make([]adapter.DNSRule, 0, len(r.rawRules))
-	for i, ruleOptions := range r.rawRules {
+	newRules := make([]adapter.DNSRule, 0, len(rawRules))
+	for i, ruleOptions := range rawRules {
 		var dnsRule adapter.DNSRule
-		dnsRule, err = R.NewDNSRule(r.ctx, r.logger, ruleOptions, true, legacyDNSMode)
+		dnsRule, err = R.NewDNSRule(ctx, r.logger, ruleOptions, true, legacyDNSMode)
 		if err != nil {
 			closeRules(newRules)
 			return nil, false, dnsRuleModeFlags{}, E.Cause(err, "parse dns rule[", i, "]")
@@ -221,6 +225,62 @@ func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, dnsRuleMo
 	return newRules, legacyDNSMode, modeFlags, nil
 }
 
+// PreparedRules holds DNS rules built and started by BuildRules.
+type PreparedRules struct {
+	rawRules      []option.DNSRule
+	rules         []adapter.DNSRule
+	legacyDNSMode bool
+}
+
+func (p *PreparedRules) Close() {
+	if p != nil {
+		closeRules(p.rules)
+	}
+}
+
+// BuildRules creates and starts DNS rules with ctx and transportManager,
+// which may be staged views, without touching the active rules.
+func (r *Router) BuildRules(ctx context.Context, transportManager adapter.DNSTransportManager, rules []option.DNSRule) (*PreparedRules, error) {
+	rawRules := append([]option.DNSRule(nil), rules...)
+	newRules, legacyDNSMode, _, err := r.buildRulesWith(ctx, transportManager, rawRules, true)
+	if err != nil {
+		return nil, err
+	}
+	return &PreparedRules{rawRules: rawRules, rules: newRules, legacyDNSMode: legacyDNSMode}, nil
+}
+
+// SwapRules replaces the active rules and returns the previous ones, which the
+// caller closes independently since in-flight exchanges may still use them.
+func (r *Router) SwapRules(prepared *PreparedRules) ([]adapter.DNSRule, error) {
+	r.rulesAccess.Lock()
+	if r.closing || !r.started {
+		r.rulesAccess.Unlock()
+		return nil, E.New("dns router is not running")
+	}
+	oldRules := r.rules
+	r.rawRules = prepared.rawRules
+	r.rules = prepared.rules
+	r.legacyDNSMode = prepared.legacyDNSMode
+	r.rulesAccess.Unlock()
+	r.ClearCache()
+	return oldRules, nil
+}
+
+// UpdateRules builds, starts and swaps DNS rules, closing the previous rules.
+func (r *Router) UpdateRules(rules []option.DNSRule) error {
+	prepared, err := r.BuildRules(r.ctx, r.transport, rules)
+	if err != nil {
+		return err
+	}
+	oldRules, err := r.SwapRules(prepared)
+	if err != nil {
+		prepared.Close()
+		return err
+	}
+	closeRules(oldRules)
+	return nil
+}
+
 func closeRules(rules []adapter.DNSRule) {
 	for _, rule := range rules {
 		_ = rule.Close()
@@ -228,7 +288,10 @@ func closeRules(rules []adapter.DNSRule) {
 }
 
 func (r *Router) ValidateRuleSetMetadataUpdate(tag string, metadata adapter.RuleSetMetadata) error {
-	if len(r.rawRules) == 0 {
+	r.rulesAccess.RLock()
+	rawRules := r.rawRules
+	r.rulesAccess.RUnlock()
+	if len(rawRules) == 0 {
 		return nil
 	}
 	router := service.FromContext[adapter.Router](r.ctx)
@@ -247,23 +310,23 @@ func (r *Router) ValidateRuleSetMetadataUpdate(tag string, metadata adapter.Rule
 		return nil
 	}
 	if !started {
-		candidateLegacyDNSMode, _, err := resolveLegacyDNSMode(router, r.rawRules, overrides)
+		candidateLegacyDNSMode, _, err := resolveLegacyDNSMode(router, rawRules, overrides)
 		if err != nil {
 			return err
 		}
 		if !candidateLegacyDNSMode {
-			_, err = validateLegacyDNSModeDisabledRules(router, r.rawRules, overrides)
+			_, err = validateLegacyDNSModeDisabledRules(router, rawRules, overrides)
 			return err
 		}
 		return nil
 	}
-	candidateLegacyDNSMode, flags, err := resolveLegacyDNSMode(router, r.rawRules, overrides)
+	candidateLegacyDNSMode, flags, err := resolveLegacyDNSMode(router, rawRules, overrides)
 	if err != nil {
 		return err
 	}
 	if legacyDNSMode {
 		if !candidateLegacyDNSMode && flags.disabled {
-			_, err = validateLegacyDNSModeDisabledRules(router, r.rawRules, overrides)
+			_, err = validateLegacyDNSModeDisabledRules(router, rawRules, overrides)
 			if err != nil {
 				return err
 			}
@@ -274,7 +337,7 @@ func (r *Router) ValidateRuleSetMetadataUpdate(tag string, metadata adapter.Rule
 	if candidateLegacyDNSMode {
 		return E.New(deprecated.OptionLegacyDNSAddressFilter.MessageWithLink())
 	}
-	_, err = validateLegacyDNSModeDisabledRules(router, r.rawRules, overrides)
+	_, err = validateLegacyDNSModeDisabledRules(router, rawRules, overrides)
 	return err
 }
 

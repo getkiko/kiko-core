@@ -165,7 +165,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 		conn = tracker.RoutedConnection(ctx, conn, metadata, selectedRule, selectedOutbound)
 	}
 	ctx = interrupt.ContextWithIsExternalConnection(ctx, true)
-	onClose = registerInterrupt(chain, conn, onClose)
+	onClose = registerInterrupt(chain, conn, pinOnClose(r.outbound, chain, onClose))
 	outbound := chain[len(chain)-1]
 	if outboundHandler, isHandler := outbound.(adapter.ConnectionHandler); isHandler {
 		outboundHandler.NewConnection(ctx, conn, metadata, onClose)
@@ -362,7 +362,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		conn = newFakeIPNATPacketConn(bufio.NewNetPacketConn(conn), metadata.OriginDestination, metadata.Destination)
 	}
 	ctx = interrupt.ContextWithIsExternalConnection(ctx, true)
-	onClose = registerInterrupt(chain, conn, onClose)
+	onClose = registerInterrupt(chain, conn, pinOnClose(r.outbound, chain, onClose))
 	outbound := chain[len(chain)-1]
 	if outboundHandler, isHandler := outbound.(adapter.PacketConnectionHandler); isHandler {
 		outboundHandler.NewPacketConnection(ctx, conn, metadata, onClose)
@@ -381,7 +381,7 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 	if err != nil {
 		return continueResult
 	}
-	for currentRuleIndex, currentRule := range r.rules {
+	for currentRuleIndex, currentRule := range *r.rules.Load() {
 		metadata.ResetRuleCache()
 		if !currentRule.Match(&metadata) {
 			continue
@@ -578,7 +578,10 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 	metadataCopy := *metadata
 	result.NewTracker = func() tun.FlowTracker {
 		r.logger.InfoContext(ctx, "pre-match: forward ", metadataCopy.Network, " connection from ", metadataCopy.Source.AddrString(), " to ", metadataCopy.Destination.AddrString(), " via outbound/", outbound.Type(), "[", outbound.Tag(), "]")
-		flowTrackers := make([]tun.FlowTracker, 0, len(r.trackers)+len(groupTrackerFactories)+2)
+		flowTrackers := make([]tun.FlowTracker, 0, len(r.trackers)+len(groupTrackerFactories)+3)
+		// Forwarded flows bypass the connection manager, so pin the routed
+		// outbound chain for the lifetime of the flow.
+		flowTrackers = append(flowTrackers, newPinFlowTracker(r.outbound, chain))
 		flowTrackers = append(flowTrackers, newFlowLogger(ctx, r.logger, metadataCopy, outbound))
 		// Groups that hand out flow trackers interrupt the flow through them
 		// below; the interrupter covers any other group.
@@ -666,7 +669,7 @@ func (r *Router) matchRule(
 	}
 
 match:
-	for currentRuleIndex, currentRule := range r.rules {
+	for currentRuleIndex, currentRule := range *r.rules.Load() {
 		metadata.ResetRuleCache()
 		if !currentRule.Match(metadata) {
 			continue

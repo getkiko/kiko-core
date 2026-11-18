@@ -3,6 +3,8 @@ package box
 import (
 	"context"
 	"io"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -33,6 +35,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
+	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
@@ -49,6 +52,7 @@ type Box struct {
 	endpoint            *endpoint.Manager
 	inbound             *inbound.Manager
 	outbound            *outbound.Manager
+	liveRetiring        atomic.Int64
 	service             *boxService.Manager
 	certificateProvider *boxCertificate.Manager
 	dnsTransport        *dns.TransportManager
@@ -61,6 +65,10 @@ type Box struct {
 	internalService     []adapter.LifecycleService
 	ntpService          *ntp.Service
 	scope               *adapter.Scope
+	ctx                 context.Context
+	liveAccess          sync.Mutex
+	liveSnapshot        []byte
+	liveApplied         bool
 }
 
 type Options struct {
@@ -116,6 +124,8 @@ func New(options Options) (*Box, error) {
 		ctx = context.Background()
 	}
 	ctx = service.ContextWithDefaultRegistry(ctx)
+	// Keep an immutable copy for live apply: constructors and Start can mutate option values.
+	liveSnapshot, _ := json.MarshalContext(ctx, options.Options)
 
 	endpointRegistry := service.FromContext[adapter.EndpointRegistry](ctx)
 	inboundRegistry := service.FromContext[adapter.InboundRegistry](ctx)
@@ -237,6 +247,7 @@ func New(options Options) (*Box, error) {
 	service.MustRegister[adapter.DNSRouter](ctx, dnsRouter)
 	service.MustRegister[adapter.DNSRuleSetUpdateValidator](ctx, dnsRouter)
 	connectionManager := route.NewConnectionManager(ctx, logFactory.NewLogger("connection"))
+	connectionManager.SetPinner(outboundManager)
 	service.MustRegister[adapter.ConnectionManager](ctx, connectionManager)
 	networkManager, err := route.NewNetworkManager(ctx, logFactory.NewLogger("network"), routeOptions, dnsOptions)
 	if err != nil {
@@ -479,7 +490,7 @@ func New(options Options) (*Box, error) {
 		timeService.TimeService = ntpService
 	}
 	monitorReady = true
-	return &Box{
+	instance := &Box{
 		network:             networkManager,
 		endpoint:            endpointManager,
 		inbound:             inboundManager,
@@ -500,7 +511,11 @@ func New(options Options) (*Box, error) {
 		internalService:     internalServices,
 		ntpService:          ntpService,
 		scope:               adapter.NewScope(ctx, logFactory.Logger()),
-	}, nil
+		ctx:                 ctx,
+		liveSnapshot:        liveSnapshot,
+	}
+	service.MustRegister[adapter.LiveConfigApplier](ctx, instance)
+	return instance, nil
 }
 
 func (s *Box) PreStart() error {

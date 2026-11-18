@@ -125,6 +125,19 @@ func (s *Scope) Start(name string, component Lifecycle, stage StartStage) error 
 	return nil
 }
 
+// Detach removes the child scope created for component, so that it can be
+// closed independently while the parent scope keeps running.
+func (s *Scope) Detach(component Lifecycle) *Scope {
+	s.access.Lock()
+	defer s.access.Unlock()
+	child, loaded := s.children[component]
+	if !loaded {
+		return nil
+	}
+	delete(s.children, component)
+	return child
+}
+
 func (s *Scope) Close() error {
 	s.access.Lock()
 	s.cancel()

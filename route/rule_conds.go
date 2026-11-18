@@ -76,3 +76,13 @@ func hasLocalNeighborDNSServer(servers []option.DNSServerOptions) bool {
 	}
 	return false
 }
+
+// NeedFindProcess reports whether options require a process searcher.
+func NeedFindProcess(options option.RouteOptions, dnsOptions option.DNSOptions) bool {
+	return hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess
+}
+
+// NeedFindNeighbor reports whether options require a neighbor resolver.
+func NeedFindNeighbor(options option.RouteOptions, dnsOptions option.DNSOptions) bool {
+	return hasRule(options.Rules, isNeighborRule) || hasDNSRule(dnsOptions.Rules, isNeighborDNSRule) || hasLocalNeighborDNSServer(dnsOptions.Servers) || options.FindNeighbor
+}

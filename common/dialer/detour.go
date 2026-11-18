@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dnsmonitor"
@@ -22,9 +23,14 @@ type DetourDialer struct {
 	detour                  string
 	defaultOutbound         bool
 	disableEmptyDirectCheck bool
-	dialer                  N.Dialer
-	initOnce                sync.Once
-	initErr                 error
+	access                  sync.Mutex
+	state                   atomic.Pointer[detourState]
+}
+
+type detourState struct {
+	dialer     N.Dialer
+	err        error
+	generation uint64
 }
 
 func NewDetour(outboundManager adapter.OutboundManager, detour string, disableEmptyDirectCheck bool) N.Dialer {
@@ -50,19 +56,36 @@ func InitializeDetour(dialer N.Dialer) error {
 	return common.Error(detourDialer.Dialer())
 }
 
+// Dialer resolves the detour once per outbound manager generation, so that
+// outbounds replaced by a live configuration apply are picked up.
 func (d *DetourDialer) Dialer() (N.Dialer, error) {
-	d.initOnce.Do(d.init)
-	return d.dialer, d.initErr
+	var generation uint64
+	if provider, isProvider := d.outboundManager.(adapter.GenerationProvider); isProvider {
+		generation = provider.Generation()
+	}
+	state := d.state.Load()
+	if state != nil && state.generation == generation {
+		return state.dialer, state.err
+	}
+	d.access.Lock()
+	defer d.access.Unlock()
+	state = d.state.Load()
+	if state != nil && state.generation == generation {
+		return state.dialer, state.err
+	}
+	state = &detourState{generation: generation}
+	state.dialer, state.err = d.init()
+	d.state.Store(state)
+	return state.dialer, state.err
 }
 
-func (d *DetourDialer) init() {
+func (d *DetourDialer) init() (N.Dialer, error) {
 	var dialer adapter.Outbound
 	if d.detour != "" {
 		var loaded bool
 		dialer, loaded = d.outboundManager.Outbound(d.detour)
 		if !loaded {
-			d.initErr = E.New("outbound detour not found: ", d.detour)
-			return
+			return nil, E.New("outbound detour not found: ", d.detour)
 		}
 	} else {
 		dialer = d.outboundManager.Default()
@@ -70,12 +93,11 @@ func (d *DetourDialer) init() {
 	if !d.defaultOutbound && !d.disableEmptyDirectCheck {
 		if directDialer, isDirect := dialer.(DirectDialer); isDirect {
 			if directDialer.IsEmpty() {
-				d.initErr = E.New("detour to an empty direct outbound makes no sense")
-				return
+				return nil, E.New("detour to an empty direct outbound makes no sense")
 			}
 		}
 	}
-	d.dialer = dialer
+	return dialer, nil
 }
 
 func (d *DetourDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -86,11 +108,23 @@ func (d *DetourDialer) DialContext(ctx context.Context, network string, destinat
 	if outbound, ok := dialer.(adapter.Outbound); ok {
 		ctx = dnsmonitor.WithOutbound(ctx, outbound.Tag())
 	}
-	conn, err := dialer.DialContext(ctx, network, destination)
-	if err == nil {
-		dnsmonitor.Remember(ctx, conn)
+	pinner, isPinner := d.outboundManager.(adapter.ObjectPinner)
+	if !isPinner {
+		conn, err := dialer.DialContext(ctx, network, destination)
+		if err == nil {
+			dnsmonitor.Remember(ctx, conn)
+		}
+		return conn, err
 	}
-	return conn, err
+	release := adapter.AcquireOutbound(pinner, dialer, N.NetworkName(network))
+	conn, err := dialer.DialContext(ctx, network, destination)
+	if err != nil {
+		release()
+		return nil, err
+	}
+	conn = newPinnedConn(conn, release)
+	dnsmonitor.Remember(ctx, conn)
+	return conn, nil
 }
 
 func (d *DetourDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -101,11 +135,23 @@ func (d *DetourDialer) ListenPacket(ctx context.Context, destination M.Socksaddr
 	if outbound, ok := dialer.(adapter.Outbound); ok {
 		ctx = dnsmonitor.WithOutbound(ctx, outbound.Tag())
 	}
-	conn, err := dialer.ListenPacket(ctx, destination)
-	if err == nil {
-		dnsmonitor.Remember(ctx, conn)
+	pinner, isPinner := d.outboundManager.(adapter.ObjectPinner)
+	if !isPinner {
+		conn, err := dialer.ListenPacket(ctx, destination)
+		if err == nil {
+			dnsmonitor.Remember(ctx, conn)
+		}
+		return conn, err
 	}
-	return conn, err
+	release := adapter.AcquireOutbound(pinner, dialer, N.NetworkUDP)
+	conn, err := dialer.ListenPacket(ctx, destination)
+	if err != nil {
+		release()
+		return nil, err
+	}
+	conn = newPinnedPacketConn(conn, release)
+	dnsmonitor.Remember(ctx, conn)
+	return conn, nil
 }
 
 func (d *DetourDialer) Upstream() any {

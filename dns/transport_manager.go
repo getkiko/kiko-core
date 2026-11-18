@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -25,6 +26,9 @@ type TransportManager struct {
 	defaultTransport         adapter.DNSTransport
 	defaultTransportFallback func() (adapter.DNSTransport, error)
 	fakeIPTransport          adapter.FakeIPTransport
+	scope                    *adapter.Scope
+	generation               atomic.Uint64
+	pins                     adapter.PinCounter
 }
 
 func NewTransportManager(registry adapter.DNSTransportRegistry, outbound adapter.OutboundManager, defaultTag string) *TransportManager {
@@ -42,6 +46,7 @@ func (m *TransportManager) Initialize(defaultTransportFallback func() (adapter.D
 
 func (m *TransportManager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	m.access.Lock()
+	m.scope = scope
 	if stage == adapter.StartStateInitialize {
 		if m.defaultTag != "" && m.defaultTransport == nil {
 			m.access.Unlock()

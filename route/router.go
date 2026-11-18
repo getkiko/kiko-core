@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -34,7 +35,7 @@ type Router struct {
 	connection        adapter.ConnectionManager
 	network           adapter.NetworkManager
 	httpClientManager adapter.HTTPClientManager
-	rules             []adapter.Rule
+	rules             atomic.Pointer[[]adapter.Rule]
 	needFindProcess   bool
 	needFindNeighbor  bool
 	leaseFiles        []string
@@ -50,7 +51,7 @@ type Router struct {
 }
 
 func NewRouter(ctx context.Context, logFactory log.Factory, options option.RouteOptions, dnsOptions option.DNSOptions) *Router {
-	return &Router{
+	router := &Router{
 		ctx:               ctx,
 		logger:            logFactory.NewLogger("router"),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
@@ -60,28 +61,23 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.Route
 		connection:        service.FromContext[adapter.ConnectionManager](ctx),
 		network:           service.FromContext[adapter.NetworkManager](ctx),
 		httpClientManager: service.FromContext[adapter.HTTPClientManager](ctx),
-		rules:             make([]adapter.Rule, 0, len(options.Rules)),
 		ruleSetMap:        make(map[string]adapter.RuleSet),
-		needFindProcess:   hasRule(options.Rules, isProcessRule) || hasDNSRule(dnsOptions.Rules, isProcessDNSRule) || options.FindProcess,
-		needFindNeighbor:  hasRule(options.Rules, isNeighborRule) || hasDNSRule(dnsOptions.Rules, isNeighborDNSRule) || hasLocalNeighborDNSServer(dnsOptions.Servers) || options.FindNeighbor,
+		needFindProcess:   NeedFindProcess(options, dnsOptions),
+		needFindNeighbor:  NeedFindNeighbor(options, dnsOptions),
 		leaseFiles:        options.DHCPLeaseFiles,
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
 	}
+	router.rules.Store(new([]adapter.Rule))
+	return router
 }
 
 func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) error {
-	for i, options := range rules {
-		err := R.ValidateNoNestedRuleActions(options)
-		if err != nil {
-			return E.Cause(err, "parse rule[", i, "]")
-		}
-		rule, err := R.NewRule(r.ctx, r.logger, options, false)
-		if err != nil {
-			return E.Cause(err, "parse rule[", i, "]")
-		}
-		r.rules = append(r.rules, rule)
+	newRules, err := r.newRules(r.ctx, rules)
+	if err != nil {
+		return err
 	}
+	r.rules.Store(&newRules)
 	for i, options := range ruleSets {
 		for _, tag := range options.Tag {
 			if _, exists := r.ruleSetMap[tag]; exists {
@@ -205,8 +201,11 @@ func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			r.processCache = processCache
 		}
 	case adapter.StartStatePostStart:
-		for i, rule := range r.rules {
-			scope.Add(rule.Close)
+		scope.Add(func() error {
+			closeRules(*r.rules.Swap(new([]adapter.Rule)))
+			return nil
+		})
+		for i, rule := range *r.rules.Load() {
 			monitor.Start("initialize rule[", i, "]")
 			err := rule.Start()
 			monitor.Finish()
@@ -237,7 +236,64 @@ func (r *Router) RuleSets() []adapter.RuleSet {
 }
 
 func (r *Router) Rules() []adapter.Rule {
-	return r.rules
+	return *r.rules.Load()
+}
+
+func (r *Router) newRules(ctx context.Context, rules []option.Rule) ([]adapter.Rule, error) {
+	newRules := make([]adapter.Rule, 0, len(rules))
+	for i, options := range rules {
+		err := R.ValidateNoNestedRuleActions(options)
+		if err != nil {
+			return nil, E.Cause(err, "parse rule[", i, "]")
+		}
+		rule, err := R.NewRule(ctx, r.logger, options, false)
+		if err != nil {
+			closeRules(newRules)
+			return nil, E.Cause(err, "parse rule[", i, "]")
+		}
+		newRules = append(newRules, rule)
+	}
+	return newRules, nil
+}
+
+// BuildRules creates and starts route rules with ctx, which may carry
+// staged outbound and DNS managers, without touching the active rules.
+func (r *Router) BuildRules(ctx context.Context, rules []option.Rule) ([]adapter.Rule, error) {
+	newRules, err := r.newRules(ctx, rules)
+	if err != nil {
+		return nil, err
+	}
+	for i, rule := range newRules {
+		err = rule.Start()
+		if err != nil {
+			closeRules(newRules)
+			return nil, E.Cause(err, "initialize rule[", i, "]")
+		}
+	}
+	return newRules, nil
+}
+
+// SwapRules atomically replaces the active rules and returns the previous
+// ones. In-flight matches keep using the snapshot they loaded, so the caller
+// closes the returned rules independently.
+func (r *Router) SwapRules(rules []adapter.Rule) []adapter.Rule {
+	return *r.rules.Swap(&rules)
+}
+
+// UpdateRules builds, starts and swaps route rules, closing the previous rules.
+func (r *Router) UpdateRules(rules []option.Rule) error {
+	newRules, err := r.BuildRules(r.ctx, rules)
+	if err != nil {
+		return err
+	}
+	closeRules(r.SwapRules(newRules))
+	return nil
+}
+
+func closeRules(rules []adapter.Rule) {
+	for _, rule := range rules {
+		_ = rule.Close()
+	}
 }
 
 func (r *Router) AppendTracker(tracker adapter.ConnectionTracker) {

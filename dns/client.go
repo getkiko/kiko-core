@@ -786,7 +786,18 @@ func stripDNSPadding(response *dns.Msg) {
 	}
 }
 
+// acquireTransport pins transport for the duration of an exchange, so that a
+// transport replaced by a live apply is not closed under it.
+func (c *Client) acquireTransport(transport adapter.DNSTransport) func() {
+	if c.ctx == nil {
+		return func() {}
+	}
+	return adapter.Acquire(service.FromContext[adapter.DNSTransportManager](c.ctx), transport)
+}
+
 func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg) (*dns.Msg, error) {
+	release := c.acquireTransport(transport)
+	defer release()
 	ctx, attempt := monitorTransport(ctx, transport)
 	response, err := transport.Exchange(ctx, message)
 	attempt.End(response, err)
@@ -802,8 +813,10 @@ func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNST
 }
 
 func (c *Client) exchangeToTransportAsync(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, callback func(response *dns.Msg, err error)) {
+	release := c.acquireTransport(transport)
 	ctx, attempt := monitorTransport(ctx, transport)
 	transport.ExchangeAsync(ctx, message, func(response *dns.Msg, err error) {
+		release()
 		attempt.End(response, err)
 		if err == nil {
 			stripDNSPadding(response)

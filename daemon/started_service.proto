@@ -53,6 +53,7 @@ service StartedService {
   rpc SubmitOpenVPNChallengeResponse(OpenVPNChallengeSubmission) returns (google.protobuf.Empty) {}
   rpc CancelOpenVPNChallenge(OpenVPNChallengeCancel) returns (google.protobuf.Empty) {}
   rpc SubscribeNotifications(google.protobuf.Empty) returns (stream NotificationEvent) {}
+  rpc ApplyLiveConfig(LiveConfigRequest) returns (LiveConfigResult) {}
 }
 
 message Version {
@@ -261,6 +262,7 @@ message StartedAt {
   bool ready = 4;
   string reloadError = 5;
   int32 reloadProtocol = 6;
+  int32 liveApplyProtocol = 7;
 }
 
 message OutboundList {
@@ -839,4 +841,15 @@ message Notification {
 message NotificationCancel {
   string identifier = 1;
   int32 typeID = 2;
+}
+
+message LiveConfigRequest {
+  string configJson = 1;
+  int64 revision = 2;
+}
+
+message LiveConfigResult {
+  bool applied = 1;
+  bool restartRequired = 2;
+  string reason = 3;
 }

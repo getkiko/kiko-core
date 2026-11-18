@@ -3,6 +3,7 @@
 package lifecycle
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -16,6 +17,25 @@ type Instance struct {
 	Revision    string
 	ReloadError string
 	Ready       atomic.Bool
+	access      sync.RWMutex
+	live        string
+}
+
+// CurrentRevision returns the revision of the configuration currently applied,
+// including revisions applied without recreating the instance.
+func (i *Instance) CurrentRevision() string {
+	i.access.RLock()
+	defer i.access.RUnlock()
+	if i.live != "" {
+		return i.live
+	}
+	return i.Revision
+}
+
+func (i *Instance) SetRevision(revision string) {
+	i.access.Lock()
+	i.live = revision
+	i.access.Unlock()
 }
 
 func New(revision, reloadError string) *Instance {

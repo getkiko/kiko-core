@@ -67,7 +67,7 @@ func (s *StartedService) TestPolicy(ctx context.Context, request *PolicyTestRequ
 	}
 	answer := &PolicyTestResult{RuleIndex: -1, TestedAt: time.Now().UnixMilli()}
 	if revision := service.FromContext[*lifecycle.Instance](instance.ctx); revision != nil {
-		answer.ConfigRevision = revision.Revision
+		answer.ConfigRevision = revision.CurrentRevision()
 	}
 	dnsRouter := service.FromContext[adapter.DNSRouter](instance.ctx)
 	router, ok := service.FromContext[adapter.Router](instance.ctx).(*route.Router)

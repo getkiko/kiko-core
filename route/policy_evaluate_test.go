@@ -80,13 +80,14 @@ func TestPolicyFollowsPreferredRoutesAndCurrentSelector(t *testing.T) {
 	if err := preferred.Start(); err != nil {
 		t.Fatal(err)
 	}
-	router := &Router{ctx: ctx, logger: logger, outbound: manager, dnsTransport: policyDNSManager{}, rules: []adapter.Rule{
+	router := &Router{ctx: ctx, logger: logger, outbound: manager, dnsTransport: policyDNSManager{}}
+	router.rules.Store(&[]adapter.Rule{
 		&policyRule{name: "Tailscale", outbound: "tailscale", match: preferred.Match},
 		&policyRule{name: "local", outbound: "selected", match: func(metadata *adapter.InboundContext) bool {
 			return metadata.Source.Addr == netip.MustParseAddr("192.168.1.10")
 		}},
 		&policyRule{name: "fallback", outbound: "direct", match: func(*adapter.InboundContext) bool { return true }},
-	}}
+	})
 	metadata := adapter.InboundContext{Inbound: "tun-in", InboundType: "tun", Network: N.NetworkTCP, Protocol: "tls",
 		Source: M.ParseSocksaddr("192.168.1.10:53421"), Destination: M.ParseSocksaddr("203.0.113.8:443"), Domain: "www.baidu.com"}
 	result, err := router.TestPolicy(ctx, metadata)

@@ -215,3 +215,18 @@ func parseConfig(ctx context.Context, configContent string) (option.Options, err
 	}
 	return options, nil
 }
+
+func (i *Instance) router() adapter.Router {
+	if i == nil {
+		return nil
+	}
+	if i.instance != nil {
+		return i.instance.Router()
+	}
+	// An attached instance (sing-box run) has no box of its own: the
+	// router is the one its context carries.
+	if i.ctx != nil {
+		return service.FromContext[adapter.Router](i.ctx)
+	}
+	return nil
+}

@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 	"slices"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
@@ -18,6 +19,7 @@ var _ adapter.LifecycleService = (*ReferenceManager)(nil)
 type ReferenceManager struct {
 	ctx                    context.Context
 	logger                 log.ContextLogger
+	access                 sync.Mutex
 	rules                  []option.Rule
 	dnsRules               []option.DNSRule
 	staticOutbounds        []string
@@ -28,6 +30,27 @@ type ReferenceManager struct {
 }
 
 func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options option.Options) *ReferenceManager {
+	manager := &ReferenceManager{
+		ctx:    ctx,
+		logger: logger,
+	}
+	manager.loadOptions(options)
+	return manager
+}
+
+// Reload replaces the rules and static references after a live configuration
+// apply and recomputes the referenced outbounds and DNS servers.
+func (m *ReferenceManager) Reload(options option.Options) {
+	m.access.Lock()
+	m.loadOptions(options)
+	started := m.subscriber != nil
+	m.access.Unlock()
+	if started {
+		m.update()
+	}
+}
+
+func (m *ReferenceManager) loadOptions(options option.Options) {
 	var (
 		staticOutbounds  []string
 		staticTransports []string
@@ -51,14 +74,10 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 	if options.DNS != nil {
 		dnsRules = options.DNS.Rules
 	}
-	return &ReferenceManager{
-		ctx:              ctx,
-		logger:           logger,
-		rules:            rules,
-		dnsRules:         dnsRules,
-		staticOutbounds:  staticOutbounds,
-		staticTransports: staticTransports,
-	}
+	m.rules = rules
+	m.dnsRules = dnsRules
+	m.staticOutbounds = staticOutbounds
+	m.staticTransports = staticTransports
 }
 
 func appendDomainResolver(transports []string, rawOptions any) []string {
@@ -81,7 +100,9 @@ func (m *ReferenceManager) Start(stage adapter.StartStage, scope *adapter.Scope)
 	if stage != adapter.StartStateStarted {
 		return nil
 	}
+	m.access.Lock()
 	m.subscriber = observable.NewSubscriber[struct{}](1)
+	m.access.Unlock()
 	scope.Add(m.subscriber.Close)
 	history := service.PtrFromContext[urltest.HistoryStorage](m.ctx)
 	if history != nil {
@@ -109,6 +130,8 @@ func (m *ReferenceManager) loop() {
 }
 
 func (m *ReferenceManager) update() {
+	m.access.Lock()
+	defer m.access.Unlock()
 	var mode string
 	clashMode := service.PtrFromContext[clashmode.Manager](m.ctx)
 	if clashMode != nil {

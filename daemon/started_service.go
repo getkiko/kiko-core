@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	runtimeDebug "runtime/debug"
+	"strconv"
 	"sync"
 	"time"
 
@@ -812,8 +813,9 @@ func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsReque
 	}
 	defer trafficManager.UnSubscribeEvents(subscription)
 
+	router := boxService.router()
 	connectionSnapshots := make(map[uuid.UUID]connectionSnapshot)
-	initialEvents := s.buildInitialConnectionState(trafficManager, connectionSnapshots)
+	initialEvents := s.buildInitialConnectionState(trafficManager, router, connectionSnapshots)
 	err = server.Send(&ConnectionEvents{
 		Events: initialEvents,
 		Reset_: true,
@@ -840,14 +842,14 @@ func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsReque
 
 		case event := <-subscription:
 			var pendingEvents []*ConnectionEvent
-			if protoEvent := s.applyConnectionEvent(event, connectionSnapshots); protoEvent != nil {
+			if protoEvent := s.applyConnectionEvent(event, router, connectionSnapshots); protoEvent != nil {
 				pendingEvents = append(pendingEvents, protoEvent)
 			}
 		drain:
 			for {
 				select {
 				case event = <-subscription:
-					if protoEvent := s.applyConnectionEvent(event, connectionSnapshots); protoEvent != nil {
+					if protoEvent := s.applyConnectionEvent(event, router, connectionSnapshots); protoEvent != nil {
 						pendingEvents = append(pendingEvents, protoEvent)
 					}
 				default:
@@ -862,7 +864,7 @@ func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsReque
 			}
 
 		case <-ticker.C:
-			protoEvents := s.buildTrafficUpdates(trafficManager, connectionSnapshots)
+			protoEvents := s.buildTrafficUpdates(trafficManager, router, connectionSnapshots)
 			if len(protoEvents) == 0 {
 				continue
 			}
@@ -880,14 +882,14 @@ type connectionSnapshot struct {
 	hadTraffic bool
 }
 
-func (s *StartedService) buildInitialConnectionState(manager *trafficcontrol.Manager, snapshots map[uuid.UUID]connectionSnapshot) []*ConnectionEvent {
+func (s *StartedService) buildInitialConnectionState(manager *trafficcontrol.Manager, router adapter.Router, snapshots map[uuid.UUID]connectionSnapshot) []*ConnectionEvent {
 	var events []*ConnectionEvent
 
 	for _, metadata := range manager.Connections() {
 		events = append(events, &ConnectionEvent{
 			Type:       ConnectionEventType_CONNECTION_EVENT_NEW,
 			Id:         metadata.ID.String(),
-			Connection: buildConnectionProto(metadata),
+			Connection: buildConnectionProto(metadata, router),
 		})
 		snapshots[metadata.ID] = connectionSnapshot{
 			uplink:   metadata.Upload.Load(),
@@ -896,7 +898,7 @@ func (s *StartedService) buildInitialConnectionState(manager *trafficcontrol.Man
 	}
 
 	for _, metadata := range manager.ClosedConnections() {
-		conn := buildConnectionProto(metadata)
+		conn := buildConnectionProto(metadata, router)
 		conn.ClosedAt = metadata.ClosedAt.UnixMilli()
 		events = append(events, &ConnectionEvent{
 			Type:       ConnectionEventType_CONNECTION_EVENT_NEW,
@@ -908,7 +910,7 @@ func (s *StartedService) buildInitialConnectionState(manager *trafficcontrol.Man
 	return events
 }
 
-func (s *StartedService) applyConnectionEvent(event trafficcontrol.ConnectionEvent, snapshots map[uuid.UUID]connectionSnapshot) *ConnectionEvent {
+func (s *StartedService) applyConnectionEvent(event trafficcontrol.ConnectionEvent, router adapter.Router, snapshots map[uuid.UUID]connectionSnapshot) *ConnectionEvent {
 	switch event.Type {
 	case trafficcontrol.ConnectionEventNew:
 		if _, exists := snapshots[event.ID]; exists {
@@ -921,7 +923,7 @@ func (s *StartedService) applyConnectionEvent(event trafficcontrol.ConnectionEve
 		return &ConnectionEvent{
 			Type:       ConnectionEventType_CONNECTION_EVENT_NEW,
 			Id:         event.ID.String(),
-			Connection: buildConnectionProto(event.Metadata),
+			Connection: buildConnectionProto(event.Metadata, router),
 		}
 	case trafficcontrol.ConnectionEventClosed:
 		delete(snapshots, event.ID)
@@ -938,7 +940,7 @@ func (s *StartedService) applyConnectionEvent(event trafficcontrol.ConnectionEve
 		}
 		protoEvent.ClosedAt = closedAt.UnixMilli()
 		if event.Metadata.ID != uuid.Nil {
-			conn := buildConnectionProto(event.Metadata)
+			conn := buildConnectionProto(event.Metadata, router)
 			conn.ClosedAt = protoEvent.ClosedAt
 			protoEvent.Connection = conn
 		}
@@ -948,7 +950,7 @@ func (s *StartedService) applyConnectionEvent(event trafficcontrol.ConnectionEve
 	}
 }
 
-func (s *StartedService) buildTrafficUpdates(manager *trafficcontrol.Manager, snapshots map[uuid.UUID]connectionSnapshot) []*ConnectionEvent {
+func (s *StartedService) buildTrafficUpdates(manager *trafficcontrol.Manager, router adapter.Router, snapshots map[uuid.UUID]connectionSnapshot) []*ConnectionEvent {
 	activeConnections := manager.Connections()
 	activeIndex := make(map[uuid.UUID]*trafficcontrol.TrackerMetadata, len(activeConnections))
 	var events []*ConnectionEvent
@@ -966,7 +968,7 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficcontrol.Manager, sn
 			events = append(events, &ConnectionEvent{
 				Type:       ConnectionEventType_CONNECTION_EVENT_NEW,
 				Id:         metadata.ID.String(),
-				Connection: buildConnectionProto(metadata),
+				Connection: buildConnectionProto(metadata, router),
 			})
 			continue
 		}
@@ -1031,7 +1033,7 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficcontrol.Manager, sn
 			if !metadata.ClosedAt.IsZero() {
 				closedAt = metadata.ClosedAt
 			}
-			conn = buildConnectionProto(metadata)
+			conn = buildConnectionProto(metadata, router)
 			conn.ClosedAt = closedAt.UnixMilli()
 		}
 		events = append(events, &ConnectionEvent{
@@ -1046,11 +1048,27 @@ func (s *StartedService) buildTrafficUpdates(manager *trafficcontrol.Manager, sn
 	return events
 }
 
-func buildConnectionProto(metadata *trafficcontrol.TrackerMetadata) *Connection {
-	var rule string
-	if metadata.Rule != nil {
-		rule = metadata.Rule.String()
+// connectionRuleString reports the matched route rule as "#<index> <rule>",
+// where index is its position in the router's active rules, so clients can
+// map it back to the configuration they applied. A rule from a replaced rule
+// list keeps its plain description.
+func connectionRuleString(router adapter.Router, rule adapter.Rule) string {
+	if rule == nil {
+		return ""
 	}
+	description := rule.String()
+	if router != nil {
+		for index, current := range router.Rules() {
+			if current == rule {
+				return "#" + strconv.Itoa(index) + " " + description
+			}
+		}
+	}
+	return description
+}
+
+func buildConnectionProto(metadata *trafficcontrol.TrackerMetadata, router adapter.Router) *Connection {
+	rule := connectionRuleString(router, metadata.Rule)
 	uplinkTotal := metadata.Upload.Load()
 	downlinkTotal := metadata.Download.Load()
 	var processInfo *ProcessInfo
@@ -1152,12 +1170,42 @@ func (s *StartedService) GetStartedAt(ctx context.Context, empty *emptypb.Empty)
 	value := &StartedAt{StartedAt: s.startedAt.UnixMilli()}
 	if instance := service.FromContext[*lifecycle.Instance](s.ctx); instance != nil {
 		value.InstanceId = instance.ID
-		value.ConfigRevision = instance.Revision
+		value.ConfigRevision = instance.CurrentRevision()
 		value.Ready = instance.Ready.Load()
 		value.ReloadError = instance.ReloadError
 		value.ReloadProtocol = lifecycle.ReloadProtocol
 	}
+	if s.liveConfigApplier() != nil {
+		value.LiveApplyProtocol = adapter.LiveApplyProtocol
+	}
 	return value, nil
+}
+
+func (s *StartedService) liveConfigApplier() adapter.LiveConfigApplier {
+	if s.instance != nil && s.instance.ctx != nil {
+		if applier := service.FromContext[adapter.LiveConfigApplier](s.instance.ctx); applier != nil {
+			return applier
+		}
+	}
+	return service.FromContext[adapter.LiveConfigApplier](s.ctx)
+}
+
+func (s *StartedService) ApplyLiveConfig(ctx context.Context, request *LiveConfigRequest) (*LiveConfigResult, error) {
+	s.serviceAccess.RLock()
+	applier := s.liveConfigApplier()
+	s.serviceAccess.RUnlock()
+	if applier == nil {
+		return nil, status.Error(codes.Unimplemented, "live config apply is not supported by this instance")
+	}
+	result, err := applier.ApplyLiveConfig(ctx, []byte(request.ConfigJson), request.Revision)
+	if err != nil {
+		return &LiveConfigResult{Reason: err.Error()}, nil
+	}
+	return &LiveConfigResult{
+		Applied:         result.Applied,
+		RestartRequired: result.RestartRequired,
+		Reason:          result.Reason,
+	}, nil
 }
 
 func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.ServerStreamingServer[OutboundList]) error {
