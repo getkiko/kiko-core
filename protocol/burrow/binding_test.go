@@ -59,23 +59,17 @@ func (s *stubNetworkManager) DefaultOptions() adapter.NetworkOptions {
 	return adapter.NetworkOptions{BindInterface: s.defaultInterface}
 }
 
-func mustPanic(t *testing.T, name string, fn func()) {
+func mustFailBinding(t *testing.T, name string, nm interfaceBindingManager) {
 	t.Helper()
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatalf("%s: expected a panic, returned normally", name)
-		}
-		if msg, ok := r.(string); !ok || msg != errNoBindInterface {
-			t.Fatalf("%s: unexpected panic message, got %v", name, r)
-		}
-	}()
-	fn()
+	interfaceName, ctrl, err := socketBindingForNetworkManager(nm, "", nil)
+	if !errors.Is(err, errNoBindInterface) || interfaceName != nil || ctrl != nil {
+		t.Fatalf("%s: expected errNoBindInterface, got %v", name, err)
+	}
 }
 
 // Case 1: an explicit bind_interface has the highest priority.
 func TestSocketBindingExplicitInterface(t *testing.T) {
-	name, ctrl := socketBindingForNetworkManager(&stubNetworkManager{}, "en0", nil)
+	name, ctrl, _ := socketBindingForNetworkManager(&stubNetworkManager{}, "en0", nil)
 	if name == nil || name() != "en0" {
 		t.Fatal("expected en0")
 	}
@@ -87,7 +81,7 @@ func TestSocketBindingExplicitInterface(t *testing.T) {
 // Case 2: route.default_interface is the fallback.
 func TestSocketBindingDefaultInterface(t *testing.T) {
 	nm := &stubNetworkManager{defaultInterface: "eth1"}
-	name, ctrl := socketBindingForNetworkManager(nm, "", nil)
+	name, ctrl, _ := socketBindingForNetworkManager(nm, "", nil)
 	if name == nil || name() != "eth1" {
 		t.Fatal("expected eth1")
 	}
@@ -96,18 +90,14 @@ func TestSocketBindingDefaultInterface(t *testing.T) {
 	}
 }
 
-// Case 3: none of the three is available, which must panic.
-func TestSocketBindingPanicsWhenUndetermined(t *testing.T) {
-	mustPanic(t, "auto_detect=false", func() {
-		socketBindingForNetworkManager(&stubNetworkManager{autoDetect: false}, "", nil)
-	})
+// Case 3: none of the three is available, which is a configuration error.
+func TestSocketBindingFailsWhenUndetermined(t *testing.T) {
+	mustFailBinding(t, "auto_detect=false", &stubNetworkManager{autoDetect: false})
 }
 
-// A missing networkManager (no service in the context) panics as well.
-func TestSocketBindingPanicsWithoutNetworkManager(t *testing.T) {
-	mustPanic(t, "nil networkManager", func() {
-		socketBindingForNetworkManager(nil, "", nil)
-	})
+// A missing networkManager (no service in the context) fails as well.
+func TestSocketBindingFailsWithoutNetworkManager(t *testing.T) {
+	mustFailBinding(t, "nil networkManager", nil)
 }
 
 // Case 4: auto_detect is enabled and finds an interface.
@@ -116,21 +106,23 @@ func TestSocketBindingAutoDetect(t *testing.T) {
 		autoDetect:       true,
 		currentInterface: &adapter.NetworkInterface{Interface: control.Interface{Name: "wlan0"}},
 	}
-	name, _ := socketBindingForNetworkManager(nm, "", nil)
+	name, _, _ := socketBindingForNetworkManager(nm, "", nil)
 	if name == nil || name() != "wlan0" {
 		t.Fatal("expected wlan0")
 	}
 }
 
-// Case 4, degraded: auto_detect is enabled but finds no interface at runtime,
-// which panics.
-func TestSocketBindingAutoDetectPanicsOnNilInterface(t *testing.T) {
+// Case 4, degraded: auto_detect is enabled but finds no interface at runtime;
+// the attempt gets a name no interface has instead of an unbound socket.
+func TestSocketBindingAutoDetectWithoutInterface(t *testing.T) {
 	nm := &stubNetworkManager{autoDetect: true, currentInterface: nil}
-	name, _ := socketBindingForNetworkManager(nm, "", nil)
-	if name == nil {
-		t.Fatal("expected a non-nil interfaceName closure")
+	name, _, err := socketBindingForNetworkManager(nm, "", nil)
+	if err != nil || name == nil {
+		t.Fatalf("expected an interfaceName closure, got %v", err)
 	}
-	mustPanic(t, "auto_detect finds no interface", func() { name() })
+	if got := name(); got != noDefaultInterface {
+		t.Fatalf("expected %q, got %q", noDefaultInterface, got)
+	}
 }
 
 // interfaceAddrFunc takes IPv4 from the interface table sing-box already

@@ -56,7 +56,10 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if err != nil {
 		return nil, err
 	}
-	interfaceName, socketControl, interfaceAddr := socketBinding(ctx, options.BindInterface, options.AddressFamily, logger)
+	interfaceName, socketControl, interfaceAddr, err := socketBinding(ctx, options.BindInterface, options.AddressFamily, logger)
+	if err != nil {
+		return nil, err
+	}
 	packetInterfaceAddr := interfaceAddrFunc(service.FromContext[adapter.NetworkManager](ctx), burrow.AddressFamilyIPv4, logger)
 	signalAddr := buildSignalAddr(options.Server, options.ServerPort, options.SignalPath)
 

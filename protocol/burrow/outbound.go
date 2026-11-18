@@ -72,31 +72,40 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.BurrowOutboundOptions](registry, C.TypeBurrow, NewOutbound)
 }
 
-// errNoBindInterface is the panic message used when no bind interface can be
-// determined.
+// errNoBindInterface is the configuration error returned when no bind
+// interface can be determined.
 //
 // burrow must bind to a concrete physical interface: bound to 0.0.0.0, the
 // kernel may pick an unroutable source address from a virtual interface such
 // as a Docker bridge, so the SYN leaves through the wrong interface and hole
 // punching always fails. Silently falling back to kernel routing would only
-// show up later as unexplained punch timeouts, so this panics and exposes the
-// missing configuration at startup instead of at runtime.
-const errNoBindInterface = "burrow: cannot determine the bind interface, " +
-	"set bind_interface, route.default_interface or route.auto_detect_interface: true"
+// show up later as unexplained punch timeouts, so the inbound or outbound
+// refuses the configuration when it is created instead.
+var errNoBindInterface = E.New("burrow: cannot determine the bind interface, " +
+	"set bind_interface, route.default_interface or route.auto_detect_interface: true")
+
+// noDefaultInterface is the interface name used while auto_detect_interface
+// finds no default interface (for example with the network down). No
+// interface has this name, so binding fails and the attempt reports an error
+// instead of leaving through whatever route the kernel picks.
+const noDefaultInterface = "burrow-no-default-interface"
 
 // socketBinding connects the sockets burrow creates itself to the sing-box
 // outbound interface selection. An explicit bind_interface wins, then
 // route.default_interface, then the default interface detected by
 // route.auto_detect_interface.
 //
-// It panics when none of them provides an interface; see errNoBindInterface.
+// It returns errNoBindInterface when none of them can provide an interface.
 //
 // The third return value looks up the address of the configured address
 // family by interface name; see interfaceAddrFunc.
-func socketBinding(ctx context.Context, bindInterface, addressFamily string, logger log.ContextLogger) (func() string, func(network, address string, c syscall.RawConn) error, func(string) string) {
+func socketBinding(ctx context.Context, bindInterface, addressFamily string, logger log.ContextLogger) (func() string, func(network, address string, c syscall.RawConn) error, func(string) string, error) {
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
-	interfaceName, socketControl := socketBindingForNetworkManager(networkManager, bindInterface, logger)
-	return interfaceName, socketControl, interfaceAddrFunc(networkManager, addressFamily, logger)
+	interfaceName, socketControl, err := socketBindingForNetworkManager(networkManager, bindInterface, logger)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return interfaceName, socketControl, interfaceAddrFunc(networkManager, addressFamily, logger), nil
 }
 
 type interfaceBindingManager interface {
@@ -107,30 +116,33 @@ type interfaceBindingManager interface {
 	DefaultOptions() adapter.NetworkOptions
 }
 
-func socketBindingForNetworkManager(networkManager interfaceBindingManager, bindInterface string, logger log.ContextLogger) (func() string, control.Func) {
+func socketBindingForNetworkManager(networkManager interfaceBindingManager, bindInterface string, logger log.ContextLogger) (func() string, control.Func, error) {
 	if bindInterface != "" {
-		return func() string { return bindInterface }, bindInterfaceControl(networkManager, bindInterface, logger)
+		return func() string { return bindInterface }, bindInterfaceControl(networkManager, bindInterface, logger), nil
 	}
 	if networkManager == nil {
-		panic(errNoBindInterface)
+		return nil, nil, errNoBindInterface
 	}
 	defaultInterface := networkManager.DefaultOptions().BindInterface
 	if defaultInterface != "" {
-		return func() string { return defaultInterface }, bindInterfaceControl(networkManager, defaultInterface, logger)
+		return func() string { return defaultInterface }, bindInterfaceControl(networkManager, defaultInterface, logger), nil
 	}
 	if !networkManager.AutoDetectInterface() {
-		panic(errNoBindInterface)
+		return nil, nil, errNoBindInterface
 	}
 	return func() string {
 		currentInterface := networkManager.DefaultNetworkInterface()
 		if currentInterface == nil {
 			// auto_detect_interface is enabled but finds no default interface
 			// (for example with the network down). An empty name would mean
-			// no binding at all, which is just as fatal.
-			panic(errNoBindInterface)
+			// no binding at all, so the attempt fails on a name no interface has.
+			if logger != nil {
+				logger.Error("burrow: auto_detect_interface found no default interface")
+			}
+			return noDefaultInterface
 		}
 		return currentInterface.Name
-	}, networkManager.AutoDetectInterfaceFunc()
+	}, networkManager.AutoDetectInterfaceFunc(), nil
 }
 
 // interfaceAddrFunc returns a function that looks up an interface address by
@@ -269,7 +281,10 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
-	interfaceName, socketControl, interfaceAddr := socketBinding(ctx, options.BindInterface, options.AddressFamily, logger)
+	interfaceName, socketControl, interfaceAddr, err := socketBinding(ctx, options.BindInterface, options.AddressFamily, logger)
+	if err != nil {
+		return nil, err
+	}
 	packetInterfaceAddr := interfaceAddrFunc(service.FromContext[adapter.NetworkManager](ctx), burrow.AddressFamilyIPv4, logger)
 	signalAddr := buildSignalAddr(options.Server, options.ServerPort, options.SignalPath)
 
