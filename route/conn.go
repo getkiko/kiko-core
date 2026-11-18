@@ -119,6 +119,7 @@ func (m *ConnectionManager) TrackPacketConn(conn net.PacketConn) net.PacketConn 
 func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	onClose = m.retainDialer(this, N.NetworkTCP, onClose)
 	ctx = adapter.WithContext(ctx, &metadata)
+	dialStart := time.Now()
 	var (
 		remoteConn net.Conn
 		err        error
@@ -141,10 +142,13 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		}
 		err = E.Cause(err, "open connection to ", remoteString, dialerString)
 		m.deleteURLTestHistory(metadata.OutboundChain)
+		reportGroupDial(&metadata, N.NetworkTCP, dialStart, err)
 		N.CloseOnHandshakeFailure(conn, onClose, err)
 		m.logger.ErrorContext(ctx, err)
 		return
 	}
+	reportGroupDial(&metadata, N.NetworkTCP, dialStart, nil)
+	remoteConn, onClose = meterGroupConn(&metadata, remoteConn, onClose)
 	err = N.ReportConnHandshakeSuccess(conn, remoteConn)
 	if err != nil {
 		err = E.Cause(err, "report handshake success")
@@ -182,6 +186,7 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dialer, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	onClose = m.retainDialer(this, N.NetworkUDP, onClose)
 	ctx = adapter.WithContext(ctx, &metadata)
+	dialStart := time.Now()
 	var (
 		remotePacketConn   net.PacketConn
 		remoteConn         net.Conn
@@ -218,6 +223,7 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 			}
 			err = E.Cause(err, "open packet connection to ", remoteString, dialerString)
 			m.deleteURLTestHistory(metadata.OutboundChain)
+			reportGroupDial(&metadata, N.NetworkUDP, dialStart, err)
 			N.CloseOnHandshakeFailure(conn, onClose, err)
 			m.logger.ErrorContext(ctx, err)
 			return
@@ -242,11 +248,13 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 			}
 			err = E.Cause(err, "listen packet connection using ", dialerString)
 			m.deleteURLTestHistory(metadata.OutboundChain)
+			reportGroupDial(&metadata, N.NetworkUDP, dialStart, err)
 			N.CloseOnHandshakeFailure(conn, onClose, err)
 			m.logger.ErrorContext(ctx, err)
 			return
 		}
 	}
+	reportGroupDial(&metadata, N.NetworkUDP, dialStart, nil)
 	err = N.ReportPacketConnHandshakeSuccess(conn, remotePacketConn)
 	if err != nil {
 		err = E.Cause(err, "report handshake success")

@@ -24,9 +24,14 @@ import (
 // A response is successful when it carries NOERROR (with or without
 // records) or NXDOMAIN: both are definite answers. Errors and the other
 // rcodes (SERVFAIL, REFUSED, ...) never win while another server is still
-// pending; once one server succeeds the others are canceled. When every
-// server fails, the first DNS response received is returned (the client
-// does not cache it), else the joined errors.
+// pending; once one server succeeds the others are canceled. A server
+// that only knows some names says so for the others with an NXDOMAIN
+// that is not an answer: a hosts server's, and the rcode error of a
+// Tailscale, OpenConnect or OpenVPN server without default resolvers;
+// that NXDOMAIN does not win either. When every server fails, the first
+// DNS response received is returned (the client does not cache it), else
+// the joined errors; a declining NXDOMAIN only when every server
+// declined.
 //
 // The client sees one transport, so the cache, RDRC and the rule's
 // options (strategy, client subnet, rewrite TTL, timeout) apply to the
@@ -53,7 +58,10 @@ func (t *parallelTransport) Dependencies() []string {
 type parallelResult struct {
 	transport adapter.DNSTransport
 	response  *mDNS.Msg
-	err       error
+	// declined is a response saying only that the name is not the
+	// server's, which is no answer.
+	declined bool
+	err      error
 }
 
 // parallelAccepted reports a response that ends a concurrent query.
@@ -68,13 +76,14 @@ func (t *parallelTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 	results := make(chan parallelResult, len(t.members))
 	for _, member := range t.members {
 		go func(member adapter.DNSTransport, message *mDNS.Msg) {
-			response, err := t.exchangeMember(ctx, member, message)
-			results <- parallelResult{transport: member, response: response, err: err}
+			response, declined, err := t.exchangeMember(ctx, member, message)
+			results <- parallelResult{transport: member, response: response, declined: declined, err: err}
 		}(member, message.Copy())
 	}
 	var (
-		failed *parallelResult
-		errs   []error
+		failed   *parallelResult
+		declined *parallelResult
+		errs     []error
 	)
 	for range t.members {
 		var result parallelResult
@@ -83,16 +92,28 @@ func (t *parallelTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
-		if result.err == nil && parallelAccepted(result.response) {
+		if result.err == nil && !result.declined && parallelAccepted(result.response) {
 			cancel()
 			recordParallelAnswer(ctx, result.transport)
 			return result.response, nil
 		}
-		if result.err != nil {
+		switch {
+		case result.err != nil:
 			errs = append(errs, E.Cause(result.err, result.transport.Tag()))
-		} else if failed == nil && result.response != nil {
+		case result.response == nil:
+		case result.declined:
+			if declined == nil {
+				declined = &result
+			}
+		case failed == nil:
 			failed = &result
 		}
+	}
+	if failed == nil && len(errs) == 0 {
+		// Every server declined: none has the name. With a server
+		// that could not be asked, that is not known (and an NXDOMAIN
+		// would be cached).
+		failed = declined
 	}
 	if failed != nil {
 		recordParallelAnswer(ctx, failed.transport)
@@ -117,25 +138,30 @@ func recordParallelAnswer(ctx context.Context, member adapter.DNSTransport) {
 	}
 }
 
-func (t *parallelTransport) exchangeMember(ctx context.Context, member adapter.DNSTransport, message *mDNS.Msg) (*mDNS.Msg, error) {
+// exchangeMember asks member; declined tells a response that only says
+// the name is not member's.
+func (t *parallelTransport) exchangeMember(ctx context.Context, member adapter.DNSTransport, message *mDNS.Msg) (response *mDNS.Msg, declined bool, err error) {
 	release := adapter.Acquire(t.manager, member)
 	defer release()
 	ctx = adapter.ContextWithDNSTransportTag(ctx, member.Tag())
 	ctx = dnsmonitor.WithAttemptResolver(ctx, member.Tag(), member.Type())
 	ctx, attempt := monitorTransport(ctx, member)
-	response, err := member.Exchange(ctx, message)
+	response, err = member.Exchange(ctx, message)
 	attempt.End(response, err)
 	if err != nil {
 		var rcodeError RcodeError
 		if errors.As(err, &rcodeError) {
-			return FixedResponseStatus(message, int(rcodeError)), nil
+			// Transports answering names of their own (Tailscale,
+			// OpenConnect, OpenVPN) fail the others with an rcode.
+			return FixedResponseStatus(message, int(rcodeError)), true, nil
 		}
-		return nil, err
+		return nil, false, err
 	}
 	if response == nil {
-		return nil, E.New("empty response")
+		return nil, false, E.New("empty response")
 	}
-	return response, nil
+	// A hosts server answers NXDOMAIN for every name it does not list.
+	return response, member.Type() == C.DNSTypeHosts && response.Rcode != mDNS.RcodeSuccess, nil
 }
 
 func (t *parallelTransport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {

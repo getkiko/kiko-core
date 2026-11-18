@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/grouphealth"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-mux"
 	"github.com/sagernet/sing-snell"
@@ -24,12 +25,23 @@ type HistoryStorage struct {
 	access       sync.RWMutex
 	delayHistory map[string]*adapter.URLTestHistory
 	updateHooks  []*observable.Subscriber[struct{}]
+	health       *grouphealth.Store
 }
 
 func NewHistoryStorage() *HistoryStorage {
 	return &HistoryStorage{
 		delayHistory: make(map[string]*adapter.URLTestHistory),
+		health:       grouphealth.NewStore(),
 	}
+}
+
+// GroupHealth is the member health of the policy groups of the instance
+// this history belongs to, nil for a nil history.
+func (s *HistoryStorage) GroupHealth() *grouphealth.Store {
+	if s == nil {
+		return nil
+	}
+	return s.health
 }
 
 func (s *HistoryStorage) AddUpdateHook(hook *observable.Subscriber[struct{}]) {

@@ -172,7 +172,7 @@ func updateProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy := r.Context().Value(CtxKeyProxy).(adapter.Outbound)
-	selector, ok := proxy.(*group.Selector)
+	selector, ok := proxy.(adapter.ManualSelectGroup)
 	if !ok {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, newError("Must be a Selector"))
@@ -232,7 +232,12 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 
 		delay, err := urltest.URLTest(ctx, url, proxy)
 		defer func() {
-			realTag := group.RealTag(proxy, N.NetworkTCP)
+			realTag := group.ProbedTag(proxy, N.NetworkTCP)
+			if realTag == "" {
+				// Through a load balance group: whichever member the
+				// test went through, it is not the one known by RealTag.
+				return
+			}
 			if err != nil {
 				server.urlTestHistory.DeleteURLTestHistory(realTag)
 			} else {
@@ -240,6 +245,11 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 					Time:  time.Now(),
 					Delay: delay,
 				})
+			}
+			if err == nil || ctx.Err() == nil {
+				// A test that ran out of the client's own timeout says
+				// nothing of the member's state.
+				group.ObserveProbe(server.urlTestHistory, realTag, err)
 			}
 			for _, detour := range server.outbound.Outbounds() {
 				urlTestGroup, isURLTestGroup := detour.(adapter.URLTestGroup)

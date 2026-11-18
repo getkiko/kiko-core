@@ -1119,7 +1119,8 @@ func (r *Router) lookupWithRulesType(ctx context.Context, rules []adapter.DNSRul
 	if exchangeResult.rejectAction != nil {
 		monitorErr = exchangeResult.rejectAction.Error(ctx)
 	}
-	if exchangeResult.transport != nil {
+	if exchangeResult.transport != nil && exchangeResult.transport.Type() != C.DNSTypeParallel {
+		// A concurrent query recorded the server that answered.
 		dnsmonitor.Resolver(ctx, exchangeResult.transport.Tag(), exchangeResult.transport.Type())
 	}
 	trace.End(exchangeResult.response, monitorErr)

@@ -201,6 +201,37 @@ func (s *Selector) FlowTrackerFactory() func() tun.FlowTracker {
 	return func() tun.FlowTracker { return token.NewFlowTracker(true) }
 }
 
+// leafOutbound is the outbound a connection through detour uses now:
+// detour, or for a group the current member, resolved through nested
+// groups; nil when a group has none.
+func leafOutbound(detour adapter.Outbound, network string) adapter.Outbound {
+	for detour != nil {
+		group, isGroup := detour.(adapter.OutboundGroup)
+		if !isGroup {
+			return detour
+		}
+		detour = group.Selected(network)
+	}
+	return nil
+}
+
+// reportedLeaf is the outbound that carried a routed connection reported
+// with member: the end of the connection's chain for a member on it, so
+// that a nested group choosing per connection is reported by the member
+// it chose, else member's current outbound.
+func reportedLeaf(member adapter.Outbound, metadata *adapter.InboundContext, network string) adapter.Outbound {
+	if member == nil {
+		return nil
+	}
+	if metadata != nil {
+		chain := metadata.OutboundChain
+		if index := slices.Index(chain, member); index >= 0 {
+			return chain[len(chain)-1]
+		}
+	}
+	return leafOutbound(member, network)
+}
+
 func RealTag(detour adapter.Outbound, network string) string {
 	for {
 		group, isGroup := detour.(adapter.OutboundGroup)

@@ -149,7 +149,7 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	if selectedRule == nil {
 		selectedOutbound = r.outbound.Default()
 	}
-	chain, err := resolveOutbound(selectedOutbound, N.NetworkTCP)
+	chain, err := resolveOutbound(selectedOutbound, N.NetworkTCP, &metadata)
 	if err != nil {
 		buf.ReleaseMulti(buffers)
 		return err
@@ -176,14 +176,21 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	return nil
 }
 
-func resolveOutbound(outbound adapter.Outbound, network string) ([]adapter.Outbound, error) {
+func resolveOutbound(outbound adapter.Outbound, network string, metadata *adapter.InboundContext) ([]adapter.Outbound, error) {
+	return resolveChain(outbound, network, metadata, false)
+}
+
+// resolveChain resolves the outbound chain of a connection; dryRun
+// leaves the groups' state (a round robin position, sticky sessions) as
+// it was.
+func resolveChain(outbound adapter.Outbound, network string, metadata *adapter.InboundContext, dryRun bool) ([]adapter.Outbound, error) {
 	chain := []adapter.Outbound{outbound}
 	for {
 		group, isGroup := outbound.(adapter.OutboundGroup)
 		if !isGroup {
 			break
 		}
-		outbound = group.Selected(network)
+		outbound = selectMember(group, network, metadata, dryRun)
 		if outbound == nil {
 			return nil, E.New(strings.ToUpper(network), " is not supported by outbound: ", group.Tag())
 		}
@@ -199,25 +206,28 @@ func resolveOutbound(outbound adapter.Outbound, network string) ([]adapter.Outbo
 // trackers of the groups on the chain. Each group's tracker is taken before
 // the chain is resolved again, so a selection that changes in between
 // interrupts the flow when it attaches, or fails the resolution.
-func resolveFlowOutbound(outbound adapter.Outbound, network string) ([]adapter.Outbound, []func() tun.FlowTracker, error) {
-	chain, err := resolveOutbound(outbound, network)
+func resolveFlowOutbound(outbound adapter.Outbound, network string, metadata *adapter.InboundContext) ([]adapter.Outbound, []func() tun.FlowTracker, error) {
+	chain, err := resolveOutbound(outbound, network, metadata)
 	if err != nil {
 		return nil, nil, err
 	}
 	var factories []func() tun.FlowTracker
-	for _, it := range chain {
+	for i, it := range chain {
 		if tracked, isTracked := it.(adapter.FlowTrackerOutbound); isTracked {
 			factories = append(factories, tracked.FlowTrackerFactory())
+		}
+		if i+1 < len(chain) {
+			if tracked, isTracked := it.(adapter.MemberFlowTrackerOutbound); isTracked {
+				if factory := tracked.MemberFlowTrackerFactory(chain[i+1]); factory != nil {
+					factories = append(factories, factory)
+				}
+			}
 		}
 	}
 	if len(factories) == 0 {
 		return chain, nil, nil
 	}
-	again, err := resolveOutbound(outbound, network)
-	if err != nil {
-		return nil, nil, err
-	}
-	if !slices.Equal(chain, again) {
+	if !chainStillSelected(chain, network) {
 		return nil, nil, E.New("outbound selection changed")
 	}
 	return chain, factories, nil
@@ -225,12 +235,16 @@ func resolveFlowOutbound(outbound adapter.Outbound, network string) ([]adapter.O
 
 func registerInterrupt(chain []adapter.Outbound, closer io.Closer, onClose N.CloseHandlerFunc) N.CloseHandlerFunc {
 	var removers []func()
-	for _, outbound := range chain {
+	for i, outbound := range chain {
 		group, isGroup := outbound.(adapter.OutboundGroup)
 		if !isGroup {
 			continue
 		}
-		removers = append(removers, group.AttachConnection(closer))
+		var member adapter.Outbound
+		if i+1 < len(chain) {
+			member = chain[i+1]
+		}
+		removers = append(removers, attachGroupConnection(group, member, closer))
 	}
 	if len(removers) == 0 {
 		return onClose
@@ -343,7 +357,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	if selectedRule == nil || selectReturn {
 		selectedOutbound = r.outbound.Default()
 	}
-	chain, err := resolveOutbound(selectedOutbound, N.NetworkUDP)
+	chain, err := resolveOutbound(selectedOutbound, N.NetworkUDP, &metadata)
 	if err != nil {
 		N.ReleaseMultiPacketBuffer(packetBuffers)
 		return err
@@ -533,7 +547,16 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 		}
 	}
 	routedOutbound := outbound
-	chain, groupTrackerFactories, err := resolveFlowOutbound(outbound, metadata.Network)
+	// A flow the chain's end does not forward is routed as a connection,
+	// which gives it its members then: look without choosing first.
+	preview, err := resolveChain(outbound, metadata.Network, metadata, true)
+	if err != nil {
+		return continueResult
+	}
+	if _, isFlowOutbound := preview[len(preview)-1].(adapter.FlowOutbound); !isFlowOutbound {
+		return continueResult
+	}
+	chain, groupTrackerFactories, err := resolveFlowOutbound(outbound, metadata.Network, metadata)
 	if err != nil {
 		return continueResult
 	}

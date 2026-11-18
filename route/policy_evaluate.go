@@ -41,12 +41,18 @@ func (r *Router) TestPolicy(ctx context.Context, metadata adapter.InboundContext
 			return result, nil
 		}
 	}
-	result.OutboundPath, err = r.OutboundPath(outboundTag)
+	result.OutboundPath, err = r.outboundPath(outboundTag, &metadata)
 	return result, err
 }
 
 // OutboundPath resolves the active selection of each outbound group.
 func (r *Router) OutboundPath(tag string) ([]string, error) {
+	return r.outboundPath(tag, nil)
+}
+
+// outboundPath resolves the member each outbound group would give a
+// connection described by metadata, without changing the groups.
+func (r *Router) outboundPath(tag string, metadata *adapter.InboundContext) ([]string, error) {
 	var outbound adapter.Outbound
 	if tag == "" {
 		outbound = r.outbound.Default()
@@ -73,7 +79,7 @@ func (r *Router) OutboundPath(tag string) ([]string, error) {
 		if !isGroup {
 			break
 		}
-		outbound = group.Selected(N.NetworkTCP)
+		outbound = selectMember(group, N.NetworkTCP, metadata, true)
 		if outbound == nil {
 			return nil, E.New("selected outbound unavailable: ", tag)
 		}

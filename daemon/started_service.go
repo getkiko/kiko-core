@@ -603,7 +603,16 @@ func (s *StartedService) readGroups() *Groups {
 		var g Group
 		g.Tag = iGroup.Tag()
 		g.Type = iGroup.Type()
-		_, g.Selectable = iGroup.(*group.Selector)
+		_, g.Selectable = iGroup.(adapter.ManualSelectGroup)
+		var members map[string]adapter.GroupMemberStatus
+		if reporter, isReporter := iGroup.(adapter.GroupStatusReporter); isReporter {
+			status := reporter.GroupStatus()
+			g.Mode, g.Strategy = status.Mode, status.Strategy
+			members = make(map[string]adapter.GroupMemberStatus, len(status.Members))
+			for _, member := range status.Members {
+				members[member.Tag] = member
+			}
+		}
 		if selected := iGroup.Selected(N.NetworkTCP); selected != nil {
 			g.Selected = selected.Tag()
 		}
@@ -625,6 +634,15 @@ func (s *StartedService) readGroups() *Groups {
 			if history := historyStorage.LoadURLTestHistory(group.RealTag(itemOutbound, N.NetworkTCP)); history != nil {
 				item.UrlTestTime = history.Time.Unix()
 				item.UrlTestDelay = int32(history.Delay)
+			}
+			if member, loaded := members[itemTag]; loaded {
+				item.State = int32(member.State)
+				item.Active = member.Active
+				item.SuccessRate = member.SuccessRate
+				item.PassiveDelay = int32(member.Latency)
+				item.Score = member.Score
+			} else {
+				item.SuccessRate = -1
 			}
 			g.Items = append(g.Items, &item)
 		}
@@ -730,7 +748,7 @@ func (s *StartedService) URLTest(ctx context.Context, request *URLTestRequest) (
 		return nil, status.Error(codes.NotFound, "outbound not found: "+outboundTag)
 	}
 	historyStorage := boxService.urlTestHistoryStorage
-	urlTest, isURLTest := outbound.(*group.URLTest)
+	urlTest, isURLTest := outbound.(interface{ CheckOutbounds() })
 	outboundGroup, isOutboundGroup := outbound.(adapter.OutboundGroup)
 	if isURLTest {
 		go urlTest.CheckOutbounds()
@@ -751,6 +769,7 @@ func (s *StartedService) URLTest(ctx context.Context, request *URLTestRequest) (
 					Delay: t,
 				})
 			}
+			group.ObserveProbe(historyStorage, outboundTag, err)
 		}()
 	}
 	return &emptypb.Empty{}, nil
@@ -767,7 +786,7 @@ func (s *StartedService) SelectOutbound(ctx context.Context, request *SelectOutb
 	if !isLoaded {
 		return nil, status.Error(codes.NotFound, "selector not found: "+request.GroupTag)
 	}
-	selector, isSelector := outboundGroup.(*group.Selector)
+	selector, isSelector := outboundGroup.(adapter.ManualSelectGroup)
 	if !isSelector {
 		return nil, status.Error(codes.InvalidArgument, "outbound is not a selector: "+request.GroupTag)
 	}

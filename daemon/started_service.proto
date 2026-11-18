@@ -150,6 +150,10 @@ message Group {
   string selected = 4;
   bool isExpand = 5;
   repeated GroupItem items = 6;
+  // mode is manual, fastest, fallback, loadbalance or smart.
+  string mode = 7;
+  // strategy is a load balance group's strategy.
+  string strategy = 8;
 }
 
 message GroupItem {
@@ -157,6 +161,17 @@ message GroupItem {
   string type = 2;
   int64 urlTestTime = 3;
   int32 urlTestDelay = 4;
+  // state is 0 unknown, 1 up, 2 suspect, 3 down.
+  int32 state = 5;
+  // active is whether the member is in use.
+  bool active = 6;
+  // successRate is the decayed rate of successful connections, -1
+  // without data.
+  float successRate = 7;
+  // passiveDelay is the decayed time to first byte in ms.
+  int32 passiveDelay = 8;
+  // score is a smart group's cost of the member, lower is better.
+  float score = 9;
 }
 
 message URLTestRequest {

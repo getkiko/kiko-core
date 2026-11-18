@@ -466,6 +466,12 @@ func (s *Box) applyLive(oldOptions, newOptions option.Options) error {
 		return E.Cause(err, "start DNS servers")
 	}
 	for _, outbound := range outboundStaging.Staged() {
+		if stateful, isStateful := outbound.(adapter.StatefulGroup); isStateful {
+			if current, loaded := s.outbound.Outbound(outbound.Tag()); loaded {
+				stateful.InheritGroupState(current)
+			}
+			continue
+		}
 		if outbound.Type() != C.TypeSelector {
 			continue
 		}

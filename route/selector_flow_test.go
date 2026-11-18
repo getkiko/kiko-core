@@ -85,7 +85,7 @@ func TestSelectorInterruptsPreMatchedFlows(t *testing.T) {
 							}
 						}
 						manager.defaultOutbound = manager.outbounds["outer"]
-						traffic := trafficcontrol.NewManager(manager)
+						traffic := trafficcontrol.NewManager()
 						if err := traffic.Start(adapter.StartStateInitialize, scope); err != nil {
 							t.Fatal(err)
 						}

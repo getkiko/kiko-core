@@ -279,3 +279,69 @@ func TestParallelDNSCacheKeyEnvironment(t *testing.T) {
 	other := &fakeDNSTransport{tag: "other", delay: 50 * time.Millisecond, address: netip.MustParseAddr("192.0.2.4")}
 	require.Zero(t, client.environmentHash(newParallel(raceTestRouter(t, plain, other), "plain", "other")))
 }
+
+// A hosts server's NXDOMAIN for a name it does not list, or the rcode
+// error a Tailscale server fails other names with, is no answer: the
+// other servers answer.
+func TestParallelDNSDeclinedNameErrorWaits(t *testing.T) {
+	t.Parallel()
+	hosts := &typedFakeDNSTransport{fakeDNSTransport: &fakeDNSTransport{tag: "hosts", delay: time.Millisecond, rcode: mDNS.RcodeNameError}, transportType: C.DNSTypeHosts}
+	tailnet := &fakeDNSTransport{tag: "tailnet", delay: time.Millisecond, exchangeErr: RcodeNameError}
+	remote := &fakeDNSTransport{tag: "remote", delay: 50 * time.Millisecond, address: netip.MustParseAddr("192.0.2.9")}
+	router := raceTestRouter(t, tailnet, remote)
+	router.transport.(*fakeDNSTransportManager).transports["hosts"] = hosts
+	for _, servers := range [][]string{{"hosts", "remote"}, {"tailnet", "remote"}} {
+		response, err := newParallel(router, servers...).Exchange(context.Background(), parallelRequest("g.example."))
+		require.NoError(t, err, servers)
+		require.Equal(t, mDNS.RcodeSuccess, response.Rcode, servers)
+		require.Equal(t, netip.MustParseAddr("192.0.2.9"), responseAddress(t, response), servers)
+	}
+
+	// With nothing better, a failure is returned before a decline, and
+	// the errors when a server could not be asked: a declining NXDOMAIN
+	// would be cached.
+	failing := &fakeDNSTransport{tag: "servfail", delay: 20 * time.Millisecond, rcode: mDNS.RcodeServerFailure}
+	broken := &fakeDNSTransport{tag: "broken", delay: 5 * time.Millisecond, exchangeErr: errors.New("connection refused")}
+	router.transport.(*fakeDNSTransportManager).transports["servfail"] = failing
+	router.transport.(*fakeDNSTransportManager).transports["broken"] = broken
+	response, err := newParallel(router, "hosts", "servfail").Exchange(context.Background(), parallelRequest("g.example."))
+	require.NoError(t, err)
+	require.Equal(t, mDNS.RcodeServerFailure, response.Rcode)
+	_, err = newParallel(router, "hosts", "broken").Exchange(context.Background(), parallelRequest("g.example."))
+	require.ErrorContains(t, err, "connection refused")
+	response, err = newParallel(router, "hosts", "tailnet").Exchange(context.Background(), parallelRequest("g.example."))
+	require.NoError(t, err)
+	require.Equal(t, mDNS.RcodeNameError, response.Rcode)
+
+	// A name the hosts server lists wins at once.
+	listed := &typedFakeDNSTransport{fakeDNSTransport: &fakeDNSTransport{tag: "listed", delay: time.Millisecond, address: netip.MustParseAddr("192.0.2.10")}, transportType: C.DNSTypeHosts}
+	router.transport.(*fakeDNSTransportManager).transports["listed"] = listed
+	response, err = newParallel(router, "listed", "remote").Exchange(context.Background(), parallelRequest("g.example."))
+	require.NoError(t, err)
+	require.Equal(t, netip.MustParseAddr("192.0.2.10"), responseAddress(t, response))
+}
+
+// A lookup through the rules (routing a domain, an outbound's server)
+// names the server that answered, as an exchange does.
+func TestParallelDNSLookupRecordsAnsweringServer(t *testing.T) {
+	ctx, m := dnsMonitorTestContext(t)
+	slow := &fakeDNSTransport{tag: "slow", delay: 300 * time.Millisecond, address: netip.MustParseAddr("192.0.2.1")}
+	fast := &fakeDNSTransport{tag: "fast", delay: 10 * time.Millisecond, address: netip.MustParseAddr("192.0.2.2")}
+	router := raceTestRouter(t, slow, fast)
+	router.client = NewClient(ClientOptions{Context: ctx, DisableCache: true, Logger: log.NewNOPFactory().Logger()})
+	rules := raceTestRules(t, []option.DNSRule{parallelRouteRule("slow", "fast")})
+	addresses, err := router.lookupWithRulesType(ctx, rules, "lookup.example.com", mDNS.TypeA, adapter.DNSQueryOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("192.0.2.2")}, addresses)
+	var found bool
+	for _, q := range m.List(dnsmonitor.Filter{}).Queries {
+		full, _ := m.Get(q.ID)
+		if full.Role == "lookup" {
+			found = true
+			require.Equal(t, "fast", full.Resolver)
+			require.Equal(t, "fake", full.Transport)
+			require.Equal(t, []string{"slow", "fast"}, full.Candidates)
+		}
+	}
+	require.True(t, found)
+}

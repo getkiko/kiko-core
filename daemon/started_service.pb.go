@@ -920,13 +920,17 @@ func (x *Groups) GetGroup() []*Group {
 }
 
 type Group struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tag           string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Selectable    bool                   `protobuf:"varint,3,opt,name=selectable,proto3" json:"selectable,omitempty"`
-	Selected      string                 `protobuf:"bytes,4,opt,name=selected,proto3" json:"selected,omitempty"`
-	IsExpand      bool                   `protobuf:"varint,5,opt,name=isExpand,proto3" json:"isExpand,omitempty"`
-	Items         []*GroupItem           `protobuf:"bytes,6,rep,name=items,proto3" json:"items,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Tag        string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	Type       string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Selectable bool                   `protobuf:"varint,3,opt,name=selectable,proto3" json:"selectable,omitempty"`
+	Selected   string                 `protobuf:"bytes,4,opt,name=selected,proto3" json:"selected,omitempty"`
+	IsExpand   bool                   `protobuf:"varint,5,opt,name=isExpand,proto3" json:"isExpand,omitempty"`
+	Items      []*GroupItem           `protobuf:"bytes,6,rep,name=items,proto3" json:"items,omitempty"`
+	// mode is manual, fastest, fallback, loadbalance or smart.
+	Mode string `protobuf:"bytes,7,opt,name=mode,proto3" json:"mode,omitempty"`
+	// strategy is a load balance group's strategy.
+	Strategy      string `protobuf:"bytes,8,opt,name=strategy,proto3" json:"strategy,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1003,12 +1007,37 @@ func (x *Group) GetItems() []*GroupItem {
 	return nil
 }
 
+func (x *Group) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *Group) GetStrategy() string {
+	if x != nil {
+		return x.Strategy
+	}
+	return ""
+}
+
 type GroupItem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tag           string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	UrlTestTime   int64                  `protobuf:"varint,3,opt,name=urlTestTime,proto3" json:"urlTestTime,omitempty"`
-	UrlTestDelay  int32                  `protobuf:"varint,4,opt,name=urlTestDelay,proto3" json:"urlTestDelay,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Tag          string                 `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
+	Type         string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	UrlTestTime  int64                  `protobuf:"varint,3,opt,name=urlTestTime,proto3" json:"urlTestTime,omitempty"`
+	UrlTestDelay int32                  `protobuf:"varint,4,opt,name=urlTestDelay,proto3" json:"urlTestDelay,omitempty"`
+	// state is 0 unknown, 1 up, 2 suspect, 3 down.
+	State int32 `protobuf:"varint,5,opt,name=state,proto3" json:"state,omitempty"`
+	// active is whether the member is in use.
+	Active bool `protobuf:"varint,6,opt,name=active,proto3" json:"active,omitempty"`
+	// successRate is the decayed rate of successful connections, -1
+	// without data.
+	SuccessRate float32 `protobuf:"fixed32,7,opt,name=successRate,proto3" json:"successRate,omitempty"`
+	// passiveDelay is the decayed time to first byte in ms.
+	PassiveDelay int32 `protobuf:"varint,8,opt,name=passiveDelay,proto3" json:"passiveDelay,omitempty"`
+	// score is a smart group's cost of the member, lower is better.
+	Score         float32 `protobuf:"fixed32,9,opt,name=score,proto3" json:"score,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1067,6 +1096,41 @@ func (x *GroupItem) GetUrlTestTime() int64 {
 func (x *GroupItem) GetUrlTestDelay() int32 {
 	if x != nil {
 		return x.UrlTestDelay
+	}
+	return 0
+}
+
+func (x *GroupItem) GetState() int32 {
+	if x != nil {
+		return x.State
+	}
+	return 0
+}
+
+func (x *GroupItem) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+func (x *GroupItem) GetSuccessRate() float32 {
+	if x != nil {
+		return x.SuccessRate
+	}
+	return 0
+}
+
+func (x *GroupItem) GetPassiveDelay() int32 {
+	if x != nil {
+		return x.PassiveDelay
+	}
+	return 0
+}
+
+func (x *GroupItem) GetScore() float32 {
+	if x != nil {
+		return x.Score
 	}
 	return 0
 }
@@ -8513,7 +8577,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\vuplinkTotal\x18\b \x01(\x03R\vuplinkTotal\x12$\n" +
 	"\rdownlinkTotal\x18\t \x01(\x03R\rdownlinkTotal\"-\n" +
 	"\x06Groups\x12#\n" +
-	"\x05group\x18\x01 \x03(\v2\r.daemon.GroupR\x05group\"\xae\x01\n" +
+	"\x05group\x18\x01 \x03(\v2\r.daemon.GroupR\x05group\"\xde\x01\n" +
 	"\x05Group\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1e\n" +
@@ -8522,12 +8586,19 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"selectable\x12\x1a\n" +
 	"\bselected\x18\x04 \x01(\tR\bselected\x12\x1a\n" +
 	"\bisExpand\x18\x05 \x01(\bR\bisExpand\x12'\n" +
-	"\x05items\x18\x06 \x03(\v2\x11.daemon.GroupItemR\x05items\"w\n" +
+	"\x05items\x18\x06 \x03(\v2\x11.daemon.GroupItemR\x05items\x12\x12\n" +
+	"\x04mode\x18\a \x01(\tR\x04mode\x12\x1a\n" +
+	"\bstrategy\x18\b \x01(\tR\bstrategy\"\x81\x02\n" +
 	"\tGroupItem\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12 \n" +
 	"\vurlTestTime\x18\x03 \x01(\x03R\vurlTestTime\x12\"\n" +
-	"\furlTestDelay\x18\x04 \x01(\x05R\furlTestDelay\"2\n" +
+	"\furlTestDelay\x18\x04 \x01(\x05R\furlTestDelay\x12\x14\n" +
+	"\x05state\x18\x05 \x01(\x05R\x05state\x12\x16\n" +
+	"\x06active\x18\x06 \x01(\bR\x06active\x12 \n" +
+	"\vsuccessRate\x18\a \x01(\x02R\vsuccessRate\x12\"\n" +
+	"\fpassiveDelay\x18\b \x01(\x05R\fpassiveDelay\x12\x14\n" +
+	"\x05score\x18\t \x01(\x02R\x05score\"2\n" +
 	"\x0eURLTestRequest\x12 \n" +
 	"\voutboundTag\x18\x01 \x01(\tR\voutboundTag\"U\n" +
 	"\x15SelectOutboundRequest\x12\x1a\n" +
