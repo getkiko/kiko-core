@@ -95,6 +95,14 @@ type TailscalePeer struct {
 	UserID          int64
 	KeyExpiry       int64
 	LastSeen        int64
+	// CurAddr is the peer's current direct UDP endpoint; empty when only
+	// reachable through DERP.
+	CurAddr string
+	// Relay is the peer's home DERP region code.
+	Relay string
+	// UDPPath is the udp_path decision for CurAddr: "detour", "direct",
+	// "relay", or empty when udp_path is not active.
+	UDPPath string
 }
 
 type ShellSession interface {

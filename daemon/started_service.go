@@ -1738,6 +1738,9 @@ func tailscalePeerToProto(peer *adapter.TailscalePeer) *TailscalePeer {
 		TxBytes:         peer.TxBytes,
 		KeyExpiry:       peer.KeyExpiry,
 		LastSeen:        peer.LastSeen,
+		CurAddr:         peer.CurAddr,
+		Relay:           peer.Relay,
+		UdpPath:         peer.UDPPath,
 	}
 }
 

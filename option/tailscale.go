@@ -31,9 +31,27 @@ type TailscaleEndpointOptions struct {
 	SystemInterface            bool                       `json:"system_interface,omitempty"`
 	SystemInterfaceName        string                     `json:"system_interface_name,omitempty"`
 	SystemInterfaceMTU         uint32                     `json:"system_interface_mtu,omitempty"`
+	TCPCongestionControl       string                     `json:"tcp_congestion_control,omitempty"`
 	UDPTimeout                 UDPTimeoutCompat           `json:"udp_timeout,omitempty"`
 	SSHServer                  *TailscaleSSHServerOptions `json:"ssh_server,omitempty"`
 	TaildropDirectory          string                     `json:"taildrop_directory,omitempty"`
+	UDPPath                    *TailscaleUDPPathOptions   `json:"udp_path,omitempty"`
+}
+
+// TailscaleUDPPathOptions selects the path of magicsock's own UDP traffic
+// (WireGuard data, disco and STUN): "detour" sends it through the endpoint's
+// detour outbound, "direct" uses a system socket and "relay" drops it so
+// magicsock falls back to DERP. An empty default means "direct".
+type TailscaleUDPPathOptions struct {
+	Default string                 `json:"default,omitempty"`
+	Peers   []TailscaleUDPPathPeer `json:"peers,omitempty"`
+}
+
+// TailscaleUDPPathPeer matches peers by MagicDNS name, short host name or a
+// path.Match wildcard pattern, case-insensitively; the first matching rule wins.
+type TailscaleUDPPathPeer struct {
+	Match badoption.Listable[string] `json:"match,omitempty"`
+	Path  string                     `json:"path,omitempty"`
 }
 
 type _TailscaleSSHServerOptions struct {

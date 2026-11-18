@@ -42,9 +42,11 @@ icon: material/new-box
   "system_interface": false,
   "system_interface_name": "",
   "system_interface_mtu": 0,
+  "tcp_congestion_control": "",
   "udp_timeout": "5m",
   "ssh_server": false,
   "taildrop_directory": "",
+  "udp_path": {},
 
   ... // Dial Fields
 }
@@ -163,6 +165,18 @@ Custom TUN interface name. By default, `tailscale` (or `utun` on macOS) will be 
 
 Override the TUN MTU. By default, Tailscale's own MTU is used.
 
+#### tcp_congestion_control
+
+TCP congestion control of Tailscale's userspace network stack (gVisor), used for
+connections that are not handled by the system interface.
+
+One of `reno` or `cubic`. Tailscale's default `reno` is kept when empty.
+
+`cubic` keeps a larger congestion window on high-latency or lossy paths, such as
+WireGuard traffic sent through `detour`. Tailscale pins `reno` to avoid a gVisor
+overflow ([gvisor#11632](https://github.com/google/gvisor/issues/11632)) that is
+fixed in the gVisor used by this build.
+
 #### udp_timeout
 
 UDP NAT expiration time.
@@ -223,6 +237,35 @@ Relative paths are resolved against the working directory, as [state_directory](
 is.
 
 `Taildrop` is used by default.
+
+#### udp_path
+
+Path of Tailscale's own UDP (WireGuard data, disco and STUN). The system socket is kept when unset.
+
+```json
+{
+  "default": "detour",
+  "peers": [
+    { "match": ["macbook", "*-home"], "path": "direct" },
+    { "match": ["nas.tail1234.ts.net"], "path": "relay" }
+  ]
+}
+```
+
+Paths:
+
+* `detour`: send through the endpoint's `detour` outbound, which must be set.
+* `direct`: system socket (default).
+* `relay`: drop, so Tailscale falls back to DERP.
+
+`peers` are matched in order and the first match wins. `match` takes full MagicDNS names, short host
+names or `path.Match` wildcards, case-insensitively. Private, link-local and loopback addresses always
+use the system socket; destinations that map to no peer (STUN, unknown reflexive addresses) use
+`default`. A reflexive address is attributed to a peer once a disco packet from that peer arrives
+from it.
+
+Only active when `default` or a rule uses `detour`. The socket hook is process-global, so while it is
+active no other Tailscale endpoint can run in the process.
 
 ### Dial Fields
 

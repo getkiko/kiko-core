@@ -76,6 +76,9 @@ type TailscalePeer struct {
 	TxBytes         int64
 	KeyExpiry       int64
 	LastSeen        int64
+	CurAddr         string
+	Relay           string
+	UDPPath         string
 }
 
 func (p *TailscalePeer) TailscaleIPs() StringIterator {
@@ -164,5 +167,8 @@ func tailscalePeerFromGRPC(peer *daemon.TailscalePeer) *TailscalePeer {
 		TxBytes:         peer.TxBytes,
 		KeyExpiry:       peer.KeyExpiry,
 		LastSeen:        peer.LastSeen,
+		CurAddr:         peer.CurAddr,
+		Relay:           peer.Relay,
+		UDPPath:         peer.UdpPath,
 	}
 }

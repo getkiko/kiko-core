@@ -134,6 +134,13 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	}
 }
 
+// UDPDestinationBound reports whether a PacketConn from ListenPacket only
+// carries packets to the destination it was created for: without
+// multiplex, xudp or packetaddr the server binds the UDP session to it.
+func (h *Outbound) UDPDestinationBound() bool {
+	return h.multiplexDialer == nil && !h.xudp && !h.packetAddr
+}
+
 func (h *Outbound) MultiplexEnabled() bool {
 	if h.multiplexDialer != nil {
 		return true

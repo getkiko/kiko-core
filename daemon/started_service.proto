@@ -359,6 +359,9 @@ message TailscalePeer {
   bool shareeNode = 15;
   int64 lastSeen = 16;
   bool canReceiveFiles = 17;
+  string curAddr = 18;
+  string relay = 19;
+  string udpPath = 20;
 }
 
 message TailscalePingRequest {

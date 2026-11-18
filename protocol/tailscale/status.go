@@ -39,6 +39,9 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 			}
 			status := localBackend.Status()
 			result := convertTailscaleStatus(status)
+			if t.udpPath != nil {
+				t.udpPath.annotateStatus(result)
+			}
 			result.KeyAuth = t.keyAuth
 			canShareFiles, taildropTargets := t.taildropTargets()
 			result.CanShareFiles = canShareFiles
@@ -177,6 +180,18 @@ func convertTailscaleStatus(status *ipnstate.Status) *adapter.TailscaleEndpointS
 	return result
 }
 
+// annotateStatus fills UDPPath for every peer from its CurAddr and Relay.
+func (m *udpPathManager) annotateStatus(status *adapter.TailscaleEndpointStatus) {
+	for _, group := range status.UserGroups {
+		for _, peer := range group.Peers {
+			peer.UDPPath = m.statusPath(peer.CurAddr, peer.Relay)
+		}
+	}
+	if status.ExitNode != nil {
+		status.ExitNode.UDPPath = m.statusPath(status.ExitNode.CurAddr, status.ExitNode.Relay)
+	}
+}
+
 func convertTailscalePeer(peer *ipnstate.PeerStatus) *adapter.TailscalePeer {
 	ips := make([]string, len(peer.TailscaleIPs))
 	for i, ip := range peer.TailscaleIPs {
@@ -208,5 +223,7 @@ func convertTailscalePeer(peer *ipnstate.PeerStatus) *adapter.TailscalePeer {
 		UserID:         int64(peer.UserID),
 		KeyExpiry:      keyExpiry,
 		LastSeen:       lastSeen,
+		CurAddr:        peer.CurAddr,
+		Relay:          peer.Relay,
 	}
 }

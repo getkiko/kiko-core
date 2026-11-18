@@ -4561,6 +4561,14 @@
               "minimum": 0,
               "maximum": 4294967295
             },
+            "tcp_congestion_control": {
+              "type": "string",
+              "enum": [
+                "",
+                "reno",
+                "cubic"
+              ]
+            },
             "udp_timeout": {
               "$ref": "#/$defs/UDPTimeout"
             },
@@ -4591,6 +4599,9 @@
             },
             "taildrop_directory": {
               "type": "string"
+            },
+            "udp_path": {
+              "$ref": "#/$defs/TailscaleUDPPathOptions"
             }
           },
           "required": [
@@ -16940,6 +16951,43 @@
           "type": "string"
         },
         "password": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TailscaleUDPPathOptions": {
+      "type": "object",
+      "properties": {
+        "default": {
+          "type": "string"
+        },
+        "peers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TailscaleUDPPathPeer"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TailscaleUDPPathPeer": {
+      "type": "object",
+      "properties": {
+        "match": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "path": {
           "type": "string"
         }
       },

@@ -2770,6 +2770,9 @@ type TailscalePeer struct {
 	ShareeNode      bool                   `protobuf:"varint,15,opt,name=shareeNode,proto3" json:"shareeNode,omitempty"`
 	LastSeen        int64                  `protobuf:"varint,16,opt,name=lastSeen,proto3" json:"lastSeen,omitempty"`
 	CanReceiveFiles bool                   `protobuf:"varint,17,opt,name=canReceiveFiles,proto3" json:"canReceiveFiles,omitempty"`
+	CurAddr         string                 `protobuf:"bytes,18,opt,name=curAddr,proto3" json:"curAddr,omitempty"`
+	Relay           string                 `protobuf:"bytes,19,opt,name=relay,proto3" json:"relay,omitempty"`
+	UdpPath         string                 `protobuf:"bytes,20,opt,name=udpPath,proto3" json:"udpPath,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2921,6 +2924,27 @@ func (x *TailscalePeer) GetCanReceiveFiles() bool {
 		return x.CanReceiveFiles
 	}
 	return false
+}
+
+func (x *TailscalePeer) GetCurAddr() string {
+	if x != nil {
+		return x.CurAddr
+	}
+	return ""
+}
+
+func (x *TailscalePeer) GetRelay() string {
+	if x != nil {
+		return x.Relay
+	}
+	return ""
+}
+
+func (x *TailscalePeer) GetUdpPath() string {
+	if x != nil {
+		return x.UdpPath
+	}
+	return ""
 }
 
 type TailscalePingRequest struct {
@@ -8092,7 +8116,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\tloginName\x18\x02 \x01(\tR\tloginName\x12 \n" +
 	"\vdisplayName\x18\x03 \x01(\tR\vdisplayName\x12$\n" +
 	"\rprofilePicURL\x18\x04 \x01(\tR\rprofilePicURL\x12+\n" +
-	"\x05peers\x18\x05 \x03(\v2\x15.daemon.TailscalePeerR\x05peers\"\xfd\x03\n" +
+	"\x05peers\x18\x05 \x03(\v2\x15.daemon.TailscalePeerR\x05peers\"\xc7\x04\n" +
 	"\rTailscalePeer\x12\x1a\n" +
 	"\bhostName\x18\x01 \x01(\tR\bhostName\x12\x18\n" +
 	"\adnsName\x18\x02 \x01(\tR\adnsName\x12\x0e\n" +
@@ -8113,7 +8137,10 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"shareeNode\x18\x0f \x01(\bR\n" +
 	"shareeNode\x12\x1a\n" +
 	"\blastSeen\x18\x10 \x01(\x03R\blastSeen\x12(\n" +
-	"\x0fcanReceiveFiles\x18\x11 \x01(\bR\x0fcanReceiveFiles\"P\n" +
+	"\x0fcanReceiveFiles\x18\x11 \x01(\bR\x0fcanReceiveFiles\x12\x18\n" +
+	"\acurAddr\x18\x12 \x01(\tR\acurAddr\x12\x14\n" +
+	"\x05relay\x18\x13 \x01(\tR\x05relay\x12\x18\n" +
+	"\audpPath\x18\x14 \x01(\tR\audpPath\"P\n" +
 	"\x14TailscalePingRequest\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x16\n" +
 	"\x06peerIP\x18\x02 \x01(\tR\x06peerIP\"\xed\x01\n" +

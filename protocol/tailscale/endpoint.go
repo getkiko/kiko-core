@@ -122,12 +122,17 @@ type Endpoint struct {
 	sshServerOptions  *option.TailscaleSSHServerOptions
 	taildrop          *taildropManager
 
-	systemInterface     bool
-	systemInterfaceName string
-	systemInterfaceMTU  uint32
-	keyAuth             bool
-	started             atomic.Bool
-	systemDialer        *dialer.DefaultDialer
+	systemInterface      bool
+	systemInterfaceName  string
+	systemInterfaceMTU   uint32
+	tcpCongestionControl string
+	keyAuth              bool
+	started              atomic.Bool
+	systemDialer         *dialer.DefaultDialer
+
+	outboundDialer N.Dialer
+	udpPathConfig  *udpPathConfig
+	udpPath        *udpPathManager
 }
 
 func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TailscaleEndpointOptions) (adapter.Endpoint, error) {
@@ -181,6 +186,14 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	dialerQueryOptions := outboundDialer.(dialer.ResolveDialer).QueryOptions()
+	udpPath, err := newUDPPathConfig(options.UDPPath, options.Detour)
+	if err != nil {
+		return nil, err
+	}
+	err = validateTCPCongestionControl(options.TCPCongestionControl)
+	if err != nil {
+		return nil, err
+	}
 	dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
 	taildropDirectory := options.TaildropDirectory
 	if taildropDirectory == "" {
@@ -245,7 +258,10 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		systemInterface:            options.SystemInterface,
 		systemInterfaceName:        options.SystemInterfaceName,
 		systemInterfaceMTU:         options.SystemInterfaceMTU,
+		tcpCongestionControl:       options.TCPCongestionControl,
 		keyAuth:                    options.AuthKey != "",
+		outboundDialer:             outboundDialer,
+		udpPathConfig:              udpPath,
 	}, nil
 }
 
@@ -279,8 +295,20 @@ func (t *Endpoint) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 }
 
 func (t *Endpoint) start(scope *adapter.Scope) error {
+	enableUDPPath := t.udpPathConfig != nil && t.udpPathConfig.usesDetour()
+	if t.udpPathConfig != nil && !enableUDPPath {
+		t.logger.Warn("tailscale udp: no path uses the detour, all UDP is sent directly")
+	}
+	err := registerUDPPathEndpoint(t, enableUDPPath)
+	if err != nil {
+		return err
+	}
+	scope.Add(func() error {
+		unregisterUDPPathEndpoint(t)
+		return nil
+	})
 	if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
-		err := t.network.UpdateInterfaces()
+		err = t.network.UpdateInterfaces()
 		if err != nil {
 			return err
 		}
@@ -366,48 +394,90 @@ func (t *Endpoint) start(scope *adapter.Scope) error {
 		t.systemDialer = systemDialer
 		t.server.Tun = wgTunDevice
 	}
+	// directListen creates udp_path's direct anchor exactly as magicsock
+	// would without it: t.listenPacket when that hook is installed, otherwise
+	// netns.Listener, which honors the control override set below.
+	directListen := t.listenPacketNetns
 	if t.network.AutoRedirectOutputMark() != 0 {
-		netns.SetControlFunc(t.network.AutoRedirectOutputMarkFunc())
+		setNetnsControlFunc(t, t.network.AutoRedirectOutputMarkFunc())
 		scope.Add(func() error {
-			netns.SetControlFunc(nil)
+			clearNetnsControlFunc(t)
 			return nil
 		})
 	} else if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
 		if t.platformInterface.UsePlatformAutoDetectInterfaceControl() {
-			netns.SetControlFunc(func(network, address string, conn syscall.RawConn) error {
+			setNetnsControlFunc(t, func(network, address string, conn syscall.RawConn) error {
 				return control.Raw(conn, func(fileDescriptor uintptr) error {
 					return t.platformInterface.AutoDetectInterfaceControl(int(fileDescriptor))
 				})
 			})
 			scope.Add(func() error {
-				netns.SetControlFunc(nil)
+				clearNetnsControlFunc(t)
 				return nil
 			})
 		} else {
 			// NEPacketTunnelProvider sockets are excluded from tunnel routes by
 			// NECP; the empty override only suppresses tailscale's own
 			// default-interface bind, which would select the sing-box utun.
-			netns.SetControlFunc(func(string, string, syscall.RawConn) error {
+			setNetnsControlFunc(t, func(string, string, syscall.RawConn) error {
 				return nil
 			})
 			scope.Add(func() error {
-				netns.SetControlFunc(nil)
+				clearNetnsControlFunc(t)
 				return nil
 			})
 		}
 	} else {
 		bindFunc := t.network.AutoDetectInterfaceFunc()
 		if bindFunc != nil {
-			netns.SetControlFunc(bindFunc)
-			netns.SetListenPacketFunc(t.listenPacket)
+			setNetnsControlFunc(t, bindFunc)
+			if !enableUDPPath {
+				setNetnsListenPacketFunc(t, t.listenPacket)
+			}
 			scope.Add(func() error {
-				netns.SetControlFunc(nil)
-				netns.SetListenPacketFunc(nil)
+				clearNetnsControlFunc(t)
+				clearNetnsListenPacketFunc(t)
 				return nil
 			})
+			directListen = t.listenPacket
 		}
 	}
+	if enableUDPPath {
+		t.udpPath = newUDPPathManager(t.ctx, t.logger, t.udpPathConfig, t.outboundDialer, t.detour, directListen)
+		t.udpPath.resolveDetour = func() (string, bool, bool) {
+			return resolveUDPPathDetour(service.FromContext[adapter.OutboundManager](t.ctx), t.detour)
+		}
+		setNetnsListenPacketFunc(t, t.listenUDPPath)
+		scope.Add(func() error {
+			clearNetnsListenPacketFunc(t)
+			return nil
+		})
+		t.udpPath.logStartup()
+	}
 	return nil
+}
+
+func (t *Endpoint) listenUDPPath(ctx context.Context, network string, address string) (nettype.PacketConn, error) {
+	return t.udpPath.listen(ctx, network, address)
+}
+
+// listenPacketNetns opens a socket the way magicsock does when no listen
+// hook is installed. magicsock's own netmon is not reachable from here; a
+// fresh snapshot per bind serves the default control's interface lookup.
+func (t *Endpoint) listenPacketNetns(ctx context.Context, network string, address string) (nettype.PacketConn, error) {
+	listenConfig := netns.Listener(func(format string, args ...any) {
+		t.logger.Trace(fmt.Sprintf(format, args...))
+	}, netmon.NewStatic())
+	packetConn, err := listenConfig.ListenPacket(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+	udpConn, isUDPConn := packetConn.(*net.UDPConn)
+	if !isUDPConn {
+		packetConn.Close()
+		return nil, E.New("unexpected packet conn type: ", reflect.TypeOf(packetConn))
+	}
+	return udpConn, nil
 }
 
 func (t *Endpoint) listenPacket(ctx context.Context, network string, address string) (nettype.PacketConn, error) {
@@ -441,6 +511,7 @@ func (t *Endpoint) postStart(scope *adapter.Scope) error {
 		return err
 	}
 	scope.Add(t.server.Close)
+	t.applyNetstackTCPCongestionControl()
 	fallbackTCPCloser := t.server.RegisterFallbackTCPHandler(func(src, dst netip.AddrPort) (handler func(net.Conn), intercept bool) {
 		return func(conn net.Conn) {
 			ctx := log.ContextWithNewID(t.ctx)
@@ -454,6 +525,9 @@ func (t *Endpoint) postStart(scope *adapter.Scope) error {
 		return nil
 	})
 	localBackend := t.server.ExportLocalBackend()
+	if t.udpPath != nil {
+		go t.udpPath.run(scope.Context(), localBackend.NetMapWithPeers)
+	}
 	scope.Add(func() error {
 		t.taildrop.close()
 		return nil
@@ -553,6 +627,12 @@ func (t *Endpoint) postStart(scope *adapter.Scope) error {
 		t.started.Store(false)
 		return nil
 	})
+	// Added last so it runs first on close: the single-owner guard is released
+	// before the slow teardown; the cleanup added in start repeats it.
+	scope.Add(func() error {
+		unregisterUDPPathEndpoint(t)
+		return nil
+	})
 	return nil
 }
 
@@ -575,6 +655,9 @@ func (t *Endpoint) watchState(ctx context.Context) {
 			if roNotify.ErrMessage != nil {
 				busError = *roNotify.ErrMessage
 				return false
+			}
+			if t.udpPath != nil && udpPathNotificationChanged(roNotify) {
+				t.udpPath.scheduleRefresh()
 			}
 			if running && exitNodePending && len(roNotify.PeersChanged) > 0 {
 				tryApplyExitNode()
