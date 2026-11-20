@@ -8553,7 +8553,10 @@ type OutboundProxyRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Outbound string                 `protobuf:"bytes,1,opt,name=outbound,proto3" json:"outbound,omitempty"`
 	// port is the loopback port to listen on, 0 for any.
-	Port          uint32 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	Port uint32 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	// inbound is the inbound tag the connections show as, "browser" when
+	// empty.
+	Inbound       string `protobuf:"bytes,3,opt,name=inbound,proto3" json:"inbound,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -8600,6 +8603,13 @@ func (x *OutboundProxyRequest) GetPort() uint32 {
 		return x.Port
 	}
 	return 0
+}
+
+func (x *OutboundProxyRequest) GetInbound() string {
+	if x != nil {
+		return x.Inbound
+	}
+	return ""
 }
 
 type OutboundProxyEvent struct {
@@ -9388,10 +9398,11 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x10LiveConfigResult\x12\x18\n" +
 	"\aapplied\x18\x01 \x01(\bR\aapplied\x12(\n" +
 	"\x0frestartRequired\x18\x02 \x01(\bR\x0frestartRequired\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"F\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"`\n" +
 	"\x14OutboundProxyRequest\x12\x1a\n" +
 	"\boutbound\x18\x01 \x01(\tR\boutbound\x12\x12\n" +
-	"\x04port\x18\x02 \x01(\rR\x04port\"D\n" +
+	"\x04port\x18\x02 \x01(\rR\x04port\x12\x18\n" +
+	"\ainbound\x18\x03 \x01(\tR\ainbound\"D\n" +
 	"\x12OutboundProxyEvent\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error*U\n" +

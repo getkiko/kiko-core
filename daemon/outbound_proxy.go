@@ -20,7 +20,7 @@ import (
 )
 
 // OutboundProxyInbound is the inbound tag of connections an outbound proxy
-// takes, as Connections show them.
+// takes, as Connections show them, unless the request names another.
 const OutboundProxyInbound = "browser"
 
 // StartOutboundProxy serves an HTTP proxy on a loopback port whose every
@@ -38,6 +38,10 @@ func (s *StartedService) StartOutboundProxy(request *OutboundProxyRequest, serve
 		return status.Error(codes.InvalidArgument, "invalid port")
 	}
 	port := int(request.Port)
+	inbound := request.Inbound
+	if inbound == "" {
+		inbound = OutboundProxyInbound
+	}
 	return s.followInstance(server.Context(), func(ctx context.Context, instance *Instance) error {
 		if instance == nil {
 			err := server.Send(&OutboundProxyEvent{Error: "core is not running"})
@@ -86,17 +90,17 @@ func (s *StartedService) StartOutboundProxy(request *OutboundProxyRequest, serve
 				}
 				return status.Error(codes.Unavailable, E.Cause(err, "accept").Error())
 			}
-			go serveOutboundProxy(instance.ctx, router, request.Outbound, conn)
+			go serveOutboundProxy(instance.ctx, router, inbound, request.Outbound, conn)
 		}
 	})
 }
 
 // serveOutboundProxy reads a connection's HTTP proxy requests, CONNECT or
-// plain, and routes each to outbound.
-func serveOutboundProxy(ctx context.Context, router adapter.Router, outbound string, conn net.Conn) {
+// plain, and routes each to outbound, as from inbound.
+func serveOutboundProxy(ctx context.Context, router adapter.Router, inbound, outbound string, conn net.Conn) {
 	source := M.SocksaddrFromNet(conn.RemoteAddr())
 	metadata := adapter.InboundContext{
-		Inbound:        OutboundProxyInbound,
+		Inbound:        inbound,
 		InboundType:    C.TypeHTTP,
 		Source:         source,
 		ForcedOutbound: outbound,

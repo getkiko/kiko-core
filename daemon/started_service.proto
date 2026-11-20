@@ -959,6 +959,9 @@ message OutboundProxyRequest {
   string outbound = 1;
   // port is the loopback port to listen on, 0 for any.
   uint32 port = 2;
+  // inbound is the inbound tag the connections show as, "browser" when
+  // empty.
+  string inbound = 3;
 }
 
 message OutboundProxyEvent {
