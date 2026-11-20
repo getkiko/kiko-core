@@ -58,6 +58,7 @@ import (
 	"github.com/sagernet/tailscale/tailcfg"
 	"github.com/sagernet/tailscale/tsnet"
 	"github.com/sagernet/tailscale/types/nettype"
+	"github.com/sagernet/tailscale/types/opt"
 	"github.com/sagernet/tailscale/version"
 	"github.com/sagernet/tailscale/wgengine"
 	"github.com/sagernet/tailscale/wgengine/router"
@@ -85,6 +86,11 @@ func RegisterEndpoint(registry *endpoint.Registry) {
 
 type Endpoint struct {
 	endpoint.Adapter
+	// reconnectAccess keeps one Reconnect at a time. pausedSync is the
+	// Sync preference a Reconnect found while the pause it left could not
+	// be undone; the next one restores it.
+	reconnectAccess   sync.Mutex
+	pausedSync        *opt.Bool
 	ctx               context.Context
 	router            adapter.Router
 	logger            logger.ContextLogger
@@ -840,11 +846,12 @@ func (t *Endpoint) Logout(ctx context.Context) error {
 	return nil
 }
 
-// Reconnect restarts the endpoint's connection to its control server, as
-// "tailscale up" does, keeping the login and preferences: starting the
-// backend again replaces its control client with a new one, which logs
-// in with the node's saved key and polls at once, without waiting out the
-// backoff of failed attempts. A network change event first has the
+// Reconnect restarts the endpoint's connection to its control server,
+// keeping the login, the preferences and the tailnet's connections: it
+// pauses the control client, by turning the Sync preference off, which
+// ends its map poll and login, and resumes it, which polls again at once
+// with the backoff of failed attempts reset. The backend's state and the
+// data plane are left alone. A network change event first has the
 // endpoint recheck its routes and rebind its sockets.
 func (t *Endpoint) Reconnect(ctx context.Context) error {
 	if !t.started.Load() {
@@ -854,10 +861,33 @@ func (t *Endpoint) Reconnect(ctx context.Context) error {
 	if loaded && netMon != nil {
 		netMon.InjectEvent()
 	}
-	err := t.server.ExportLocalBackend().Start(ipn.Options{})
-	if err != nil {
-		return E.Cause(err, "restart control connection")
+	t.reconnectAccess.Lock()
+	defer t.reconnectAccess.Unlock()
+	localBackend := t.server.ExportLocalBackend()
+	syncPref := localBackend.Prefs().Sync()
+	if t.pausedSync != nil {
+		// The last Reconnect paused it and could not resume.
+		syncPref = *t.pausedSync
+	} else if syncPref.EqualBool(false) {
+		// Sync is off by choice: the control client stays paused.
+		return nil
+	} else {
+		_, err := localBackend.EditPrefs(&ipn.MaskedPrefs{Prefs: ipn.Prefs{Sync: "false"}, SyncSet: true})
+		if err != nil {
+			return E.Cause(err, "pause control connection")
+		}
+		t.pausedSync = &syncPref
 	}
+	// Sync must come back, or the control client stays paused for good.
+	resume := &ipn.MaskedPrefs{Prefs: ipn.Prefs{Sync: syncPref}, SyncSet: true}
+	_, err := localBackend.EditPrefs(resume)
+	if err != nil {
+		_, err = localBackend.EditPrefs(resume)
+	}
+	if err != nil {
+		return E.Cause(err, "resume control connection")
+	}
+	t.pausedSync = nil
 	return nil
 }
 
