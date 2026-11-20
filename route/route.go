@@ -844,6 +844,18 @@ func (r *Router) actionSniff(
 		r.logger.DebugContext(ctx, "sniff skipped due to port considered as server-first")
 		return
 	} else if metadata.Protocol != "" {
+		// A connection sniffed by an earlier rule is not sniffed again, but a
+		// later rule asking to override the destination still gets the domain
+		// sniffed before.
+		//goland:noinspection GoDeprecation
+		if action.OverrideDestination && M.IsDomainName(metadata.Domain) && metadata.Destination.Fqdn != metadata.Domain {
+			metadata.Destination = M.Socksaddr{
+				Fqdn: metadata.Domain,
+				Port: metadata.Destination.Port,
+			}
+			r.logger.DebugContext(ctx, "destination overridden by sniffed domain: ", metadata.Domain)
+			return
+		}
 		r.logger.DebugContext(ctx, "duplicate sniff skipped")
 		return
 	}
