@@ -11,6 +11,10 @@ type TailscaleEndpoint interface {
 	StartTailscalePing(ctx context.Context, peerIP string, fn func(*TailscalePingResult)) error
 	SetTailscaleExitNode(ctx context.Context, stableID string) error
 	Logout(ctx context.Context) error
+	// Reconnect restarts the endpoint's connection to its control server
+	// and rechecks the network, as turning Tailscale off and on does,
+	// keeping the login.
+	Reconnect(ctx context.Context) error
 	GetTailscaleCertificate(ctx context.Context, domain string, minValidity time.Duration) (certificatePEM []byte, privateKeyPEM []byte, err error)
 	SubscribeTaildropInbox(ctx context.Context, fn func(*TaildropInbox)) error
 	MarkTaildropInboxRead() error

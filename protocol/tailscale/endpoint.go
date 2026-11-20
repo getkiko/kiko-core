@@ -840,6 +840,27 @@ func (t *Endpoint) Logout(ctx context.Context) error {
 	return nil
 }
 
+// Reconnect restarts the endpoint's connection to its control server, as
+// "tailscale up" does, keeping the login and preferences: starting the
+// backend again replaces its control client with a new one, which logs
+// in with the node's saved key and polls at once, without waiting out the
+// backoff of failed attempts. A network change event first has the
+// endpoint recheck its routes and rebind its sockets.
+func (t *Endpoint) Reconnect(ctx context.Context) error {
+	if !t.started.Load() {
+		return E.New("Tailscale is not ready yet")
+	}
+	netMon, loaded := t.server.Sys().NetMon.GetOK()
+	if loaded && netMon != nil {
+		netMon.InjectEvent()
+	}
+	err := t.server.ExportLocalBackend().Start(ipn.Options{})
+	if err != nil {
+		return E.Cause(err, "restart control connection")
+	}
+	return nil
+}
+
 func (t *Endpoint) MultiplexEnabled() bool {
 	return true
 }

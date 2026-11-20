@@ -37,6 +37,7 @@ service StartedService {
   rpc GetTailscaleDiagnostics(TailscaleDiagnosticsRequest) returns (TailscaleDiagnostics) {}
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
   rpc TailscaleLogout(TailscaleLogoutRequest) returns (google.protobuf.Empty) {}
+  rpc TailscaleReconnect(TailscaleReconnectRequest) returns (google.protobuf.Empty) {}
   rpc GetTailscaleCertificate(TailscaleCertificateRequest) returns (TailscaleCertificate) {}
   rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
   rpc SubscribeTaildropInbox(SubscribeTaildropInboxRequest) returns (stream TaildropInbox) {}
@@ -477,6 +478,10 @@ message SetTailscaleExitNodeRequest {
 }
 
 message TailscaleLogoutRequest {
+  string endpointTag = 1;
+}
+
+message TailscaleReconnectRequest {
   string endpointTag = 1;
 }
 

@@ -1951,6 +1951,30 @@ func (s *StartedService) TailscaleLogout(ctx context.Context, request *Tailscale
 	return &emptypb.Empty{}, nil
 }
 
+func (s *StartedService) TailscaleReconnect(ctx context.Context, request *TailscaleReconnectRequest) (*emptypb.Empty, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpoint, err := resolveTailscaleEndpoint(boxService, request.EndpointTag)
+	if err != nil {
+		return nil, err
+	}
+	tsEndpoint, loaded := endpoint.(adapter.TailscaleEndpoint)
+	if !loaded {
+		return nil, status.Error(codes.FailedPrecondition, "endpoint does not support tailscale")
+	}
+	err = tsEndpoint.Reconnect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func (s *StartedService) GetTailscaleCertificate(ctx context.Context, request *TailscaleCertificateRequest) (*TailscaleCertificate, error) {
 	err := s.waitForStarted(ctx)
 	if err != nil {
