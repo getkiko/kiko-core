@@ -56,6 +56,7 @@ service StartedService {
   rpc CancelOpenVPNChallenge(OpenVPNChallengeCancel) returns (google.protobuf.Empty) {}
   rpc SubscribeNotifications(google.protobuf.Empty) returns (stream NotificationEvent) {}
   rpc ApplyLiveConfig(LiveConfigRequest) returns (LiveConfigResult) {}
+  rpc StartOutboundProxy(OutboundProxyRequest) returns (stream OutboundProxyEvent) {}
 }
 
 message Version {
@@ -952,4 +953,17 @@ message LiveConfigResult {
   bool applied = 1;
   bool restartRequired = 2;
   string reason = 3;
+}
+
+message OutboundProxyRequest {
+  string outbound = 1;
+  // port is the loopback port to listen on, 0 for any.
+  uint32 port = 2;
+}
+
+message OutboundProxyEvent {
+  // address is the proxy's host:port, empty while it does not listen.
+  string address = 1;
+  // error tells why it does not listen.
+  string error = 2;
 }

@@ -66,6 +66,7 @@ const (
 	StartedService_CancelOpenVPNChallenge_FullMethodName         = "/daemon.StartedService/CancelOpenVPNChallenge"
 	StartedService_SubscribeNotifications_FullMethodName         = "/daemon.StartedService/SubscribeNotifications"
 	StartedService_ApplyLiveConfig_FullMethodName                = "/daemon.StartedService/ApplyLiveConfig"
+	StartedService_StartOutboundProxy_FullMethodName             = "/daemon.StartedService/StartOutboundProxy"
 )
 
 // StartedServiceClient is the client API for StartedService service.
@@ -118,6 +119,7 @@ type StartedServiceClient interface {
 	CancelOpenVPNChallenge(ctx context.Context, in *OpenVPNChallengeCancel, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SubscribeNotifications(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[NotificationEvent], error)
 	ApplyLiveConfig(ctx context.Context, in *LiveConfigRequest, opts ...grpc.CallOption) (*LiveConfigResult, error)
+	StartOutboundProxy(ctx context.Context, in *OutboundProxyRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OutboundProxyEvent], error)
 }
 
 type startedServiceClient struct {
@@ -750,6 +752,25 @@ func (c *startedServiceClient) ApplyLiveConfig(ctx context.Context, in *LiveConf
 	return out, nil
 }
 
+func (c *startedServiceClient) StartOutboundProxy(ctx context.Context, in *OutboundProxyRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OutboundProxyEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[20], StartedService_StartOutboundProxy_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[OutboundProxyRequest, OutboundProxyEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_StartOutboundProxyClient = grpc.ServerStreamingClient[OutboundProxyEvent]
+
 // StartedServiceServer is the server API for StartedService service.
 // All implementations must embed UnimplementedStartedServiceServer
 // for forward compatibility.
@@ -800,6 +821,7 @@ type StartedServiceServer interface {
 	CancelOpenVPNChallenge(context.Context, *OpenVPNChallengeCancel) (*emptypb.Empty, error)
 	SubscribeNotifications(*emptypb.Empty, grpc.ServerStreamingServer[NotificationEvent]) error
 	ApplyLiveConfig(context.Context, *LiveConfigRequest) (*LiveConfigResult, error)
+	StartOutboundProxy(*OutboundProxyRequest, grpc.ServerStreamingServer[OutboundProxyEvent]) error
 	mustEmbedUnimplementedStartedServiceServer()
 }
 
@@ -947,6 +969,9 @@ func (UnimplementedStartedServiceServer) SubscribeNotifications(*emptypb.Empty, 
 }
 func (UnimplementedStartedServiceServer) ApplyLiveConfig(context.Context, *LiveConfigRequest) (*LiveConfigResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method ApplyLiveConfig not implemented")
+}
+func (UnimplementedStartedServiceServer) StartOutboundProxy(*OutboundProxyRequest, grpc.ServerStreamingServer[OutboundProxyEvent]) error {
+	return status.Error(codes.Unimplemented, "method StartOutboundProxy not implemented")
 }
 func (UnimplementedStartedServiceServer) mustEmbedUnimplementedStartedServiceServer() {}
 func (UnimplementedStartedServiceServer) testEmbeddedByValue()                        {}
@@ -1645,6 +1670,17 @@ func _StartedService_ApplyLiveConfig_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StartedService_StartOutboundProxy_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(OutboundProxyRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(StartedServiceServer).StartOutboundProxy(m, &grpc.GenericServerStream[OutboundProxyRequest, OutboundProxyEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_StartOutboundProxyServer = grpc.ServerStreamingServer[OutboundProxyEvent]
+
 // StartedService_ServiceDesc is the grpc.ServiceDesc for StartedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1859,6 +1895,11 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "SubscribeNotifications",
 			Handler:       _StartedService_SubscribeNotifications_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "StartOutboundProxy",
+			Handler:       _StartedService_StartOutboundProxy_Handler,
 			ServerStreams: true,
 		},
 	},
